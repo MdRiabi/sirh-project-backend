@@ -1,0 +1,70 @@
+# Suppose que sirh-project-frontend est cloné en tant que dossier frère
+# (../sirh-project-frontend). Si ce n'est pas le cas, commente le service
+# "frontend" et lance uniquement postgres/redis/backend depuis ce repo.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sirh-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sirh}
+      POSTGRES_USER: ${POSTGRES_USER:-sirh}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sirh}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sirh} -d ${POSTGRES_DB:-sirh}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: sirh-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+    container_name: sirh-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-sirh}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-sirh}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-sirh}
+      SPRING_REDIS_HOST: redis
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-too-in-production}
+      SERVER_PORT: 8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 15
+
+  frontend:
+    build:
+      context: ../sirh-project-frontend
+    container_name: sirh-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_data:
