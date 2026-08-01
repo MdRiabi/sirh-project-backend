@@ -35,6 +35,10 @@ API REST du SIRH (Système d'Information RH) : Spring Boot 3 / Java 21 / Postgre
 - Packages organisés par domaine métier : `auth`, `personnel`, `pointages`, `planning`, `assiduite`, `demandes`, `outillages`, `notifications`, `evaluations`, `renouvellement`, `calendrier`, `reporting`, `audit`, `fichiers` (cf. `ARCHITECTURE.md` §3).
 - Aspect Spring AOP (`@Audited`) pour la journalisation des actions sensibles — voir `ARCHITECTURE.md` §9 pour la liste des actions à couvrir.
 
+## Données de dev
+
+`V2__seed_dev.sql` (Flyway) crée un compte `SUPERUSER` de test : username `admin` / mot de passe `ChangeMe123!`. Ne jamais appliquer cette migration en production.
+
 ## Commandes
 
 - `mvn clean test` — tests unitaires + intégration
