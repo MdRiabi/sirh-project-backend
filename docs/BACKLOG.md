@@ -42,6 +42,8 @@ graph TD
 **Backend**
 - Scaffolding Spring Boot 3 / Java 21 (structure de packages par module, cf. `ARCHITECTURE.md` §3).
 - `V1__init_schema.sql` Flyway = intégralité du schéma corrigé (`cahier-technique.md` §3, 23 tables, UUID sur `employes`).
+- `V2__seed_dev.sql` Flyway = jeu de données minimal de dev (1 département, 1 employé, 1 compte `SUPERUSER`) pour permettre un premier login testable de bout en bout avant l'existence de tout écran de gestion des comptes.
+- Volume de stockage Docker (`./storage:/app/storage`, variable `STORAGE_PATH`) pour le module `fichiers`, cf. `ARCHITECTURE.md` §8.
 - Authentification : `POST /auth/login`, `POST /auth/refresh-token`, `POST /auth/logout`, `GET /auth/me`, `PUT /auth/change-password` — JWT + refresh (`ARCHITECTURE.md` §5), verrouillage de compte après 5 échecs.
 - 5 rôles Spring Security (`ROLE_EMPLOYE`, `ROLE_MANAGER`, `ROLE_RH`, `ROLE_DIRECTEUR`, `ROLE_SUPERUSER`) et matrice de permissions de base.
 - Module `fichiers` complet (upload/download/liste/suppression) — transversal, requis par plusieurs lots ultérieurs (justificatifs congés, contrats).
@@ -52,9 +54,8 @@ graph TD
 - Scaffolding Vite + React + TypeScript strict, arborescence par domaine (miroir des packages backend).
 - Bibliothèques socle : TanStack Query, React Router, Zustand (store session), Axios + intercepteur refresh JWT, shadcn/ui + Tailwind (thème sombre par défaut, cf. CDF §2.1), `openapi-typescript` branché sur l'OpenAPI backend (Springdoc).
 - Layout applicatif : Top Bar + Side Bar dynamique par rôle (CDF §2.2), page de login, gestion de session (redirection si token expiré).
-- Écran de gestion des comptes utilisateurs (RH/SuperUser) — CRUD basique sur `utilisateurs`.
 
-**Definition of Done spécifique** : `docker-compose up` démarre les 4 conteneurs sains (healthcheck OK), un utilisateur RH de test peut se connecter et voir un layout vide mais fonctionnel avec sa sidebar.
+**Definition of Done spécifique** : `docker-compose up` démarre les 4 conteneurs sains (healthcheck OK), le compte `SUPERUSER` de seed peut se connecter et voir un layout vide mais fonctionnel avec sa sidebar.
 
 ---
 
@@ -64,7 +65,7 @@ graph TD
 
 **Backend** : CRUD `employes` (matricule_interne/cnss/paie, UUID), `departements`, historique `contrats` ; Vue 360° (`evenements_360` + filtres catégorie/date) ; masquage `matricule_cnss` dans les DTOs de sérialisation (`ARCHITECTURE.md` §10).
 
-**Frontend** : écran "Le Personnel" (liste paginée, recherche, filtres département/statut), fiche employé (onglets Infos / Contrats / Timeline 360°), formulaire de création/édition (React Hook Form + Zod), écran "Départements".
+**Frontend** : écran "Le Personnel" (liste paginée, recherche, filtres département/statut), fiche employé (onglets Infos / Contrats / Timeline 360°), formulaire de création/édition (React Hook Form + Zod), écran "Départements" ; écran de gestion des comptes utilisateurs (RH/SuperUser, CRUD basique sur `utilisateurs` avec sélection d'un employé existant) — déplacé depuis le Lot 0 car dépendant de la liste des employés.
 
 ---
 
