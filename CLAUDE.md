@@ -16,6 +16,17 @@ API REST du SIRH (Système d'Information RH) : Spring Boot 3 / Java 21 / Postgre
 
 `docs/` est dupliqué à l'identique dans `sirh-project-backend` et `sirh-project-frontend` — ce ne sont **pas** des fichiers partagés au sens Git (pas de submodule/symlink), donc **aucune synchronisation automatique**. À chaque modification de `docs/BACKLOG.md`, `docs/ARCHITECTURE.md`, d'une spec dans `docs/specs/`, ou de ce fichier `CLAUDE.md` (partie non spécifique au backend), il faut **explicitement signaler à l'utilisateur** quelle modification doit être répercutée manuellement dans `sirh-project-frontend`. Idem en sens inverse si un changement est fait côté frontend en premier.
 
+## Documentation de fin de lot (obligatoire)
+
+Chaque lot terminé doit inclure un fichier `docs/LOTS/LOT_<N>_<NOM_DU_LOT>.md` (ex. `LOT_0_INFRASTRUCTURE.md`, `LOT_1_PERSONNEL.md`, `LOT_2_POINTAGES.md`), rédigé à la fin du lot — pas avant, pour refléter ce qui a réellement été construit et les écarts découverts en cours de route. Contenu impératif :
+
+- **Étapes de réalisation** : déroulement pas à pas de l'implémentation.
+- **Choix techniques & Dépendances** : argumentation claire sur les outils, librairies et choix d'architecture retenus.
+- **Fichiers impactés & Cartographie API** : un diagramme Mermaid illustrant la structure des fichiers créés/modifiés (frontend & backend) et les endpoints API de liaison.
+- **Procédure de validation** : méthodologie et résultats des tests (unitaires, intégration, cURL, etc.).
+
+Comme le reste de `docs/`, ce fichier existe en double dans les deux dépôts (cf. règle de synchronisation ci-dessus) — même contenu des deux côtés puisqu'il documente systématiquement le frontend et le backend d'un même lot.
+
 ## Règles métier critiques transverses (à ne jamais oublier en implémentant)
 
 - **5 rôles** : `EMPLOYE` (lecture seule de son propre planning, *aucun* autre accès), `MANAGER`, `RH`, `DIRECTEUR` (lecture seule dashboard), `SUPERUSER` (droits RH + accès exclusif aux logs — le RH n'a **jamais** accès aux logs).
