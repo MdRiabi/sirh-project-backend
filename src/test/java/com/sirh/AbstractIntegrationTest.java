@@ -55,17 +55,15 @@ public abstract class AbstractIntegrationTest {
     private PasswordEncoder passwordEncoder;
 
     protected String createFixtureUser(Role role) {
-        String suffix = UUID.randomUUID().toString().substring(0, 8);
-        Employe employe = employeRepository.save(Employe.builder()
-                .matriculeInterne("IT-" + suffix)
-                .nom("Test")
-                .prenom("User")
-                .typeContrat("CDI")
-                .dateEmbauche(LocalDate.now())
-                .actif(true)
-                .build());
+        return createFixtureUserWithEmploye(role).username();
+    }
 
-        String username = "it-" + suffix;
+    protected record FixtureUser(String username, UUID employeId) {}
+
+    protected FixtureUser createFixtureUserWithEmploye(Role role) {
+        Employe employe = createFixtureEmploye();
+
+        String username = "it-" + employe.getMatriculeInterne();
         utilisateurRepository.save(Utilisateur.builder()
                 .employe(employe)
                 .username(username)
@@ -74,7 +72,19 @@ public abstract class AbstractIntegrationTest {
                 .compteActif(true)
                 .echecsLoginConsecutifs(0)
                 .build());
-        return username;
+        return new FixtureUser(username, employe.getId());
+    }
+
+    protected Employe createFixtureEmploye() {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        return employeRepository.save(Employe.builder()
+                .matriculeInterne("IT-" + suffix)
+                .nom("Test")
+                .prenom("User")
+                .typeContrat("CDI")
+                .dateEmbauche(LocalDate.now())
+                .actif(true)
+                .build());
     }
 
     @DynamicPropertySource

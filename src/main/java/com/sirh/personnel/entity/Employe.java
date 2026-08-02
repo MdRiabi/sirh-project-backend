@@ -14,10 +14,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Version minimale requise par le socle Auth (Lot 0) — CRUD complet et
- * relation vers Departement en Lot 1 (cf. docs/BACKLOG.md).
- */
 @Entity
 @Table(name = "employes")
 @Getter
@@ -49,8 +45,15 @@ public class Employe {
     @Column(unique = true)
     private String email;
 
-    @Column(name = "departement_id")
-    private Long departementId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "departement_id")
+    private Departement departement;
+
+    // Conservé pour ne pas propager la relation JPA à tous les appelants existants
+    // (JWT/SirhUserDetails/AuthService, cf. Lot 0) qui ne lisent qu'un identifiant.
+    public Long getDepartementId() {
+        return departement != null ? departement.getId() : null;
+    }
 
     @Column(name = "type_contrat", nullable = false)
     private String typeContrat;

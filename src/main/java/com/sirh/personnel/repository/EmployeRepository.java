@@ -2,8 +2,9 @@ package com.sirh.personnel.repository;
 
 import com.sirh.personnel.entity.Employe;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.UUID;
 
-public interface EmployeRepository extends JpaRepository<Employe, UUID> {
+public interface EmployeRepository extends JpaRepository<Employe, UUID>, JpaSpecificationExecutor<Employe> {
 }
