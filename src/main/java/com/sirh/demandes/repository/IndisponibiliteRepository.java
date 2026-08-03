@@ -13,4 +13,10 @@ public interface IndisponibiliteRepository extends JpaRepository<Indisponibilite
     // indisponibilité.dateDebut <= fin ET indisponibilité.dateFin >= début.
     List<Indisponibilite> findByEmployeIdAndStatutAndDateDebutLessThanEqualAndDateFinGreaterThanEqual(
             UUID employeId, String statut, LocalDate dateFin, LocalDate dateDebut);
+
+    // Tous employés confondus : congés PAYÉS validés couvrant un jour férié donné
+    // (cahier-fonctionnel.md Module 6 / cahier-technique.md §4.5 : le recrédit ne
+    // s'applique qu'au congé payé, pas aux autres types d'indisponibilité).
+    List<Indisponibilite> findByTypeIndisponibiliteAndStatutAndDateDebutLessThanEqualAndDateFinGreaterThanEqual(
+            String typeIndisponibilite, String statut, LocalDate date, LocalDate sameDate);
 }

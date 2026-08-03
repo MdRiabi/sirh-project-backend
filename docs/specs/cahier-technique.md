@@ -425,7 +425,12 @@ Base : `/api/v1`, JWT obligatoire sauf mention contraire. Les endpoints **✅ IN
 - `GET /mon-planning` 🆕 — **EMPLOYE** : consultation stricte de son propre planning (filtre serveur `employe_id = JWT.employeId`), lecture seule.
 - `GET /plannings/delta` 🆕 (gap comblé pendant le Lot 3 — absent du catalogue initial malgré cahier-fonctionnel.md Module 2 et `BACKLOG.md`) — RH, SUPERUSER, MANAGER (restreint à son propre département) : rapport croisé planning théorique / pointage réel, par jour, filtré par `employeId` OU `departementId` (exactement un des deux) + `dateDebut`/`dateFin`. Synchrone (pas d'`async_jobs`), sur le même principe que `GET /assiduite/calcul-mensuel`.
 
-### 4.5 Calendrier — ✅ INCHANGÉ (persistance désormais réelle via `jours_feries`, §3.19)
+### 4.5 Calendrier — 🔧 contrat détaillé pendant le Lot 4 (gap comblé — §4.5 v1 se limitait à "INCHANGÉ" sans jamais lister les endpoints, même lacune que `/plannings/delta` en Lot 3)
+- `GET /calendrier/jours-feries` — RH, SUPERUSER, MANAGER : liste le référentiel `jours_feries` sur une période (`dateDebut`/`dateFin`, obligatoires, format `YYYY-MM-DD`).
+- `POST /calendrier/jours-feries` — RH, SUPERUSER : création unitaire (`date`, `libelle`, `type` = `FERIE`\|`FERMETURE_COLLECTIVE`, `national`, `region`). Si `type = FERIE` chevauche une `indisponibilite` de type `CONGE_PAYE` déjà `VALIDE` d'un employé, recrédit automatique du solde (`historique_soldes`, motif `RECREDIT_FERIE`, cf. §3.12) — pas de recrédit pour `FERMETURE_COLLECTIVE`, ni pour un autre type d'indisponibilité validée (ex. `MALADIE`) : seul le congé payé est concerné par la règle du CDF Module 6.
+- `POST /calendrier/jours-feries/import` 🆕 — RH, SUPERUSER : import batch (tableau JSON de la même forme que le POST unitaire). Atomique : la moindre ligne en échec (date déjà existante, etc.) annule l'import en totalité, aucune insertion partielle — même principe que l'import Excel pointages (§4.3), mais synchrone (pas d'`async_jobs`, volumétrie annuelle trop faible pour le justifier).
+- `PUT /calendrier/jours-feries/{id}` — RH, SUPERUSER : modification. Ne redéclenche pas de recrédit (celui-ci n'a lieu qu'à la création, pour ne pas recréditer deux fois un employé sur une simple correction de libellé).
+- `DELETE /calendrier/jours-feries/{id}` — RH, SUPERUSER : suppression.
 
 ### 4.6 Demandes d'Autorisations & Congés — 🔧 workflow à 2 étapes (détail en §5), aucun accès Employé
 

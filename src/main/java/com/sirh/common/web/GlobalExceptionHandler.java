@@ -5,6 +5,7 @@ import com.sirh.auth.exception.InvalidCredentialsException;
 import com.sirh.auth.exception.InvalidTokenException;
 import com.sirh.auth.exception.UtilisateurNotFoundException;
 import com.sirh.async.exception.AsyncJobNotFoundException;
+import com.sirh.calendrier.exception.JourFerieNotFoundException;
 import com.sirh.fichiers.exception.FichierNotFoundException;
 import com.sirh.personnel.exception.ContratNotFoundException;
 import com.sirh.personnel.exception.DepartementNotFoundException;
@@ -97,6 +98,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, ex.getMessage());
     }
 
+    @ExceptionHandler(JourFerieNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleJourFerieNotFound(JourFerieNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage());
@@ -104,7 +110,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
-        return build(HttpStatus.CONFLICT, "Valeur en conflit avec une contrainte d'unicité existante (matricule, email, nom ou identifiant déjà utilisé).");
+        return build(HttpStatus.CONFLICT, "Valeur en conflit avec une contrainte d'unicité existante (matricule, email, nom, date ou identifiant déjà utilisé).");
     }
 
     private ResponseEntity<Map<String, Object>> build(HttpStatus status, String message) {
