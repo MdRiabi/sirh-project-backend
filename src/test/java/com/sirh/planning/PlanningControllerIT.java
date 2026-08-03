@@ -9,6 +9,12 @@ import com.sirh.demandes.repository.IndisponibiliteRepository;
 import com.sirh.personnel.entity.Employe;
 import com.sirh.planning.entity.Shift;
 import com.sirh.planning.repository.ShiftRepository;
+import com.sirh.pointages.entity.MethodeValidation;
+import com.sirh.pointages.entity.PointageBrut;
+import com.sirh.pointages.entity.PointageStatut;
+import com.sirh.pointages.entity.SourceImport;
+import com.sirh.pointages.entity.TypeEvenement;
+import com.sirh.pointages.repository.PointageBrutRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -35,6 +41,8 @@ class PlanningControllerIT extends AbstractIntegrationTest {
     private ShiftRepository shiftRepository;
     @Autowired
     private IndisponibiliteRepository indisponibiliteRepository;
+    @Autowired
+    private PointageBrutRepository pointageBrutRepository;
 
     private String accessTokenFor(Role role) {
         String username = createFixtureUser(role);
@@ -153,5 +161,73 @@ class PlanningControllerIT extends AbstractIntegrationTest {
                 org.springframework.http.HttpMethod.GET, new HttpEntity<>(authHeaders(managerToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    // Régression : un appariement Entrée/Sortie qui traverse minuit ne doit pas
+    // perdre ses heures (l'ancien code groupait par jour calendaire du
+    // timestamp brut avant d'apparier, ce qui cassait toute paire à cheval sur
+    // deux jours).
+    @Test
+    void deltaReport_pointageDeNuit_estAttribueAuJourDeLEntree() {
+        String token = accessTokenFor(Role.ROLE_RH);
+        Employe employe = createFixtureEmploye();
+        LocalDate jour = LocalDate.now().plusDays(40);
+
+        pointageBrutRepository.save(PointageBrut.builder()
+                .employeId(employe.getId()).timestampPointage(jour.atTime(23, 0))
+                .typeEvenement(TypeEvenement.ENTREE).methodeValidation(MethodeValidation.MANUEL)
+                .sourceImport(SourceImport.MANUEL).statut(PointageStatut.OK).build());
+        pointageBrutRepository.save(PointageBrut.builder()
+                .employeId(employe.getId()).timestampPointage(jour.plusDays(1).atTime(7, 0))
+                .typeEvenement(TypeEvenement.SORTIE).methodeValidation(MethodeValidation.MANUEL)
+                .sourceImport(SourceImport.MANUEL).statut(PointageStatut.OK).build());
+
+        String url = baseUrl("/plannings/delta?employeId=" + employe.getId() + "&dateDebut=" + jour + "&dateFin=" + jour.plusDays(1));
+        ResponseEntity<java.util.List> reponse = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(authHeaders(token)), java.util.List.class);
+
+        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(reponse.getBody()).hasSize(1);
+        Map<?, ?> jourDto = (Map<?, ?>) reponse.getBody().get(0);
+        assertThat(jourDto.get("jour")).isEqualTo(jour.toString());
+        assertThat(((Number) jourDto.get("heuresReelles")).doubleValue()).isEqualTo(8.0);
+    }
+
+    // Régression : un planning REPOS ne représente pas du travail planifié —
+    // il ne doit pas gonfler les heures théoriques du rapport delta.
+    @Test
+    void deltaReport_planningRepos_estExcluDesHeuresTheoriques() {
+        String token = accessTokenFor(Role.ROLE_RH);
+        Employe employe = createFixtureEmploye();
+        Shift matin = creerShift("Matin", LocalTime.of(6, 0), LocalTime.of(14, 0));
+        LocalDate jour = LocalDate.now().plusDays(41);
+
+        Map<String, Object> body = Map.of(
+                "employeId", employe.getId(), "shiftId", matin.getId(),
+                "dateDebut", jour.atTime(6, 0).toString(), "dateFin", jour.atTime(14, 0).toString(),
+                "statut", "REPOS");
+        ResponseEntity<Map> affectation = restTemplate.exchange(baseUrl("/plannings/affecter"),
+                org.springframework.http.HttpMethod.POST, new HttpEntity<>(body, authHeaders(token)), Map.class);
+        assertThat(affectation.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        String url = baseUrl("/plannings/delta?employeId=" + employe.getId() + "&dateDebut=" + jour + "&dateFin=" + jour);
+        ResponseEntity<java.util.List> reponse = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(authHeaders(token)), java.util.List.class);
+
+        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(reponse.getBody()).isEmpty();
+    }
+
+    // Régression : un employeId inexistant doit produire un 404 explicite, pas
+    // un 409 "contrainte d'unicité" trompeur issu de l'échec de la FK à l'insertion.
+    @Test
+    void affecter_employeIdInexistant_estRefuseAvec404() {
+        String token = accessTokenFor(Role.ROLE_RH);
+        Shift matin = creerShift("Matin", LocalTime.of(6, 0), LocalTime.of(14, 0));
+        LocalDate jour = LocalDate.now().plusDays(42);
+
+        ResponseEntity<Map> reponse = affecter(token, UUID.randomUUID(), matin.getId(), jour.atTime(6, 0), jour.atTime(14, 0));
+
+        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 }

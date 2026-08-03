@@ -9,8 +9,6 @@ import com.sirh.planning.dto.DeltaJourDto;
 import com.sirh.planning.dto.PlanningAffecterRequest;
 import com.sirh.planning.dto.PlanningDto;
 import com.sirh.planning.entity.Planning;
-import com.sirh.planning.entity.Shift;
-import com.sirh.planning.repository.ShiftRepository;
 import com.sirh.planning.service.PlanningService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -23,11 +21,8 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/plannings")
@@ -35,13 +30,10 @@ public class PlanningController {
 
     private final PlanningService planningService;
     private final EmployeRepository employeRepository;
-    private final ShiftRepository shiftRepository;
 
-    public PlanningController(PlanningService planningService, EmployeRepository employeRepository,
-                               ShiftRepository shiftRepository) {
+    public PlanningController(PlanningService planningService, EmployeRepository employeRepository) {
         this.planningService = planningService;
         this.employeRepository = employeRepository;
-        this.shiftRepository = shiftRepository;
     }
 
     @PostMapping("/affecter")
@@ -49,7 +41,7 @@ public class PlanningController {
     public ResponseEntity<PlanningDto> affecter(@Valid @RequestBody PlanningAffecterRequest request) {
         Planning planning = planningService.affecter(request.employeId(), request.shiftId(), request.dateDebut(),
                 request.dateFin(), request.statut(), request.commentaire());
-        return ResponseEntity.status(201).body(enrichir(List.of(planning)).get(0));
+        return ResponseEntity.status(201).body(planningService.enrichir(List.of(planning)).get(0));
     }
 
     @GetMapping("/departement/{id}")
@@ -61,7 +53,7 @@ public class PlanningController {
             @AuthenticationPrincipal SirhUserDetails principal) {
         verifierScopeManager(principal, id);
         List<Planning> plannings = planningService.findByDepartement(id, dateDebut, dateFin);
-        return ResponseEntity.ok(enrichir(plannings));
+        return ResponseEntity.ok(planningService.enrichir(plannings));
     }
 
     @GetMapping("/delta")
@@ -92,25 +84,5 @@ public class PlanningController {
         if (estManager && !Objects.equals(principal.getDepartementId(), departementId)) {
             throw new AccessDeniedException("Accès limité au planning de son propre département.");
         }
-    }
-
-    private List<PlanningDto> enrichir(List<Planning> plannings) {
-        Map<UUID, Employe> employesParId = employeRepository
-                .findAllById(plannings.stream().map(Planning::getEmployeId).distinct().toList())
-                .stream().collect(Collectors.toMap(Employe::getId, Function.identity()));
-        Map<Long, Shift> shiftsParId = shiftRepository
-                .findAllById(plannings.stream().map(Planning::getShiftId).distinct().toList())
-                .stream().collect(Collectors.toMap(Shift::getId, Function.identity()));
-
-        return plannings.stream()
-                .map(p -> {
-                    Employe employe = employesParId.get(p.getEmployeId());
-                    Shift shift = shiftsParId.get(p.getShiftId());
-                    return PlanningDto.from(p,
-                            employe != null ? employe.getNom() : null,
-                            employe != null ? employe.getPrenom() : null,
-                            shift.getNom());
-                })
-                .toList();
     }
 }

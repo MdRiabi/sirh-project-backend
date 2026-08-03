@@ -6,6 +6,7 @@ import com.sirh.personnel.entity.Employe;
 import com.sirh.personnel.exception.EmployeNotFoundException;
 import com.sirh.personnel.repository.EmployeRepository;
 import com.sirh.planning.dto.DeltaJourDto;
+import com.sirh.planning.dto.PlanningDto;
 import com.sirh.planning.entity.Planning;
 import com.sirh.planning.entity.PlanningStatut;
 import com.sirh.planning.entity.Shift;
@@ -64,6 +65,7 @@ public class PlanningService {
         if (!dateDebut.isBefore(dateFin)) {
             throw new IllegalArgumentException("dateDebut doit être strictement avant dateFin");
         }
+        employeRepository.findById(employeId).orElseThrow(() -> new EmployeNotFoundException(employeId));
         Shift shift = shiftRepository.findById(shiftId).orElseThrow(() -> new ShiftNotFoundException(shiftId));
 
         verifierReposLegalEtChevauchement(employeId, dateDebut, dateFin);
@@ -122,6 +124,30 @@ public class PlanningService {
         return planningRepository.findByEmployeIdAndDateDebutBetweenOrderByDateDebut(employeId, dateDebut, dateFin);
     }
 
+    // Partagé entre PlanningController (vue département) et
+    // MonPlanningController (vue individuelle) pour ne pas dupliquer le
+    // batch-fetch employé/shift des deux côtés.
+    @Transactional(readOnly = true)
+    public List<PlanningDto> enrichir(List<Planning> plannings) {
+        Map<UUID, Employe> employesParId = employeRepository
+                .findAllById(plannings.stream().map(Planning::getEmployeId).distinct().toList())
+                .stream().collect(Collectors.toMap(Employe::getId, e -> e));
+        Map<Long, Shift> shiftsParId = shiftRepository
+                .findAllById(plannings.stream().map(Planning::getShiftId).distinct().toList())
+                .stream().collect(Collectors.toMap(Shift::getId, s -> s));
+
+        return plannings.stream()
+                .map(p -> {
+                    Employe employe = employesParId.get(p.getEmployeId());
+                    Shift shift = shiftsParId.get(p.getShiftId());
+                    return PlanningDto.from(p,
+                            employe != null ? employe.getNom() : null,
+                            employe != null ? employe.getPrenom() : null,
+                            shift.getNom());
+                })
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public List<Planning> findByDepartement(Long departementId, LocalDateTime dateDebut, LocalDateTime dateFin) {
         List<UUID> employeIds = employeRepository.findByDepartement_Id(departementId).stream()
@@ -150,8 +176,13 @@ public class PlanningService {
         LocalDateTime debut = dateDebut.atStartOfDay();
         LocalDateTime fin = dateFin.plusDays(1).atStartOfDay();
 
+        // REPOS marque explicitly un jour de repos, pas une plage travaillée —
+        // l'exclure des heures théoriques (PROVISOIRE reste compté : aucun
+        // workflow de validation de planning n'existe encore dans ce lot, donc
+        // se limiter à VALIDE viderait le rapport de toute donnée exploitable).
         Map<LocalDate, BigDecimal> theoriquesParJour = planningRepository
                 .findByEmployeIdAndDateDebutBetweenOrderByDateDebut(employe.getId(), debut, fin).stream()
+                .filter(p -> p.getStatut() != PlanningStatut.REPOS)
                 .collect(Collectors.groupingBy(p -> p.getDateDebut().toLocalDate(),
                         Collectors.reducing(BigDecimal.ZERO, p -> heuresEntre(p.getDateDebut(), p.getDateFin()), BigDecimal::add)));
 
@@ -171,9 +202,17 @@ public class PlanningService {
                 .toList();
     }
 
-    // Apparie les pointages consécutifs (Entrée, Sortie) par jour, en excluant
-    // les doublons ignorés — même règle que le moteur d'assiduité (Module 3,
-    // cahier-technique.md §3.7).
+    // Apparie les pointages consécutifs (Entrée, Sortie) sur toute la fenêtre,
+    // en excluant les doublons ignorés — même règle que le moteur d'assiduité
+    // (Module 3, cahier-technique.md §3.7). L'appariement doit porter sur la
+    // liste triée complète, pas sur un regroupement par jour calendaire de
+    // chaque timestamp : un pointage de nuit (ex. Entrée 23h/Sortie 6h le
+    // lendemain) mettrait ses deux extrémités dans des jours différents,
+    // chacun avec un nombre impair d'événements — la paire ne se formerait
+    // jamais et ses heures seraient perdues (ou pire, appariées à tort avec un
+    // pointage sans rapport du jour suivant). La session est imputée au jour
+    // de son Entrée, cohérent avec le regroupement des heures théoriques
+    // (calculerDelta, clé = jour de dateDebut du planning).
     private Map<LocalDate, BigDecimal> heuresReellesParJour(UUID employeId, LocalDateTime debut, LocalDateTime fin) {
         List<PointageBrut> pointages = pointageBrutRepository
                 .findByEmployeIdAndTimestampPointageBetween(employeId, debut, fin).stream()
@@ -181,17 +220,11 @@ public class PlanningService {
                 .sorted(Comparator.comparing(PointageBrut::getTimestampPointage))
                 .toList();
 
-        Map<LocalDate, List<PointageBrut>> parJour = pointages.stream()
-                .collect(Collectors.groupingBy(p -> p.getTimestampPointage().toLocalDate()));
-
         Map<LocalDate, BigDecimal> result = new HashMap<>();
-        for (var entry : parJour.entrySet()) {
-            List<PointageBrut> jourPointages = entry.getValue();
-            BigDecimal total = BigDecimal.ZERO;
-            for (int i = 0; i + 1 < jourPointages.size(); i += 2) {
-                total = total.add(heuresEntre(jourPointages.get(i).getTimestampPointage(), jourPointages.get(i + 1).getTimestampPointage()));
-            }
-            result.put(entry.getKey(), total);
+        for (int i = 0; i + 1 < pointages.size(); i += 2) {
+            LocalDateTime debutSession = pointages.get(i).getTimestampPointage();
+            LocalDateTime finSession = pointages.get(i + 1).getTimestampPointage();
+            result.merge(debutSession.toLocalDate(), heuresEntre(debutSession, finSession), BigDecimal::add);
         }
         return result;
     }
