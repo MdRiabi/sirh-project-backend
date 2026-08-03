@@ -12,6 +12,8 @@ import com.sirh.personnel.exception.EmployeNotFoundException;
 import com.sirh.pointages.exception.ImportPointagesException;
 import com.sirh.pointages.exception.PointageNotFoundException;
 import com.sirh.pointages.exception.PointeuseNotFoundException;
+import com.sirh.planning.exception.PlanningConflictException;
+import com.sirh.planning.exception.ShiftNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -83,6 +85,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ImportPointagesException.class)
     public ResponseEntity<Map<String, Object>> handleImportPointages(ImportPointagesException ex) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(ShiftNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleShiftNotFound(ShiftNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(PlanningConflictException.class)
+    public ResponseEntity<Map<String, Object>> handlePlanningConflict(PlanningConflictException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

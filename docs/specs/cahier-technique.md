@@ -423,6 +423,7 @@ Base : `/api/v1`, JWT obligatoire sauf mention contraire. Les endpoints **✅ IN
 - `POST /plannings/affecter` — ✅ contrat inchangé, référence désormais réellement `shifts.id` (existant en base).
 - `GET /plannings/departement/{id}` — ✅ inchangé.
 - `GET /mon-planning` 🆕 — **EMPLOYE** : consultation stricte de son propre planning (filtre serveur `employe_id = JWT.employeId`), lecture seule.
+- `GET /plannings/delta` 🆕 (gap comblé pendant le Lot 3 — absent du catalogue initial malgré cahier-fonctionnel.md Module 2 et `BACKLOG.md`) — RH, SUPERUSER, MANAGER (restreint à son propre département) : rapport croisé planning théorique / pointage réel, par jour, filtré par `employeId` OU `departementId` (exactement un des deux) + `dateDebut`/`dateFin`. Synchrone (pas d'`async_jobs`), sur le même principe que `GET /assiduite/calcul-mensuel`.
 
 ### 4.5 Calendrier — ✅ INCHANGÉ (persistance désormais réelle via `jours_feries`, §3.19)
 
