@@ -1,5 +1,6 @@
 package com.sirh.auth.security;
 
+import com.sirh.pointages.security.HikvisionIpAllowlistFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -22,19 +23,25 @@ public class SecurityConfig {
             "/actuator/health",
             "/v3/api-docs/**",
             "/swagger-ui/**",
-            "/swagger-ui.html"
+            "/swagger-ui.html",
+            // Pointeuses physiques : pas de JWT, sécurisé par liste blanche IP
+            // (HikvisionIpAllowlistFilter, cf. cahier-technique.md §1.1).
+            "/api/v1/hikvision/**"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint authenticationEntryPoint;
     private final JwtAccessDeniedHandler accessDeniedHandler;
+    private final HikvisionIpAllowlistFilter hikvisionIpAllowlistFilter;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
                            JwtAuthenticationEntryPoint authenticationEntryPoint,
-                           JwtAccessDeniedHandler accessDeniedHandler) {
+                           JwtAccessDeniedHandler accessDeniedHandler,
+                           HikvisionIpAllowlistFilter hikvisionIpAllowlistFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
+        this.hikvisionIpAllowlistFilter = hikvisionIpAllowlistFilter;
     }
 
     @Bean
@@ -53,7 +60,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .anyRequest().authenticated())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(hikvisionIpAllowlistFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

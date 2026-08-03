@@ -6,4 +6,8 @@ public class EmployeNotFoundException extends RuntimeException {
     public EmployeNotFoundException(UUID id) {
         super("Employé introuvable : " + id);
     }
+
+    public EmployeNotFoundException(String message) {
+        super(message);
+    }
 }

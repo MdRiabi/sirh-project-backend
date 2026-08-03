@@ -98,6 +98,13 @@
             <version>1.6.0</version>
         </dependency>
 
+        <!-- Excel import (Module 1 - pointages) -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.3.0</version>
+        </dependency>
+
         <!-- Tests -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

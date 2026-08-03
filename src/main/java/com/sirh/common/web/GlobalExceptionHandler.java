@@ -4,10 +4,14 @@ import com.sirh.auth.exception.AccountLockedException;
 import com.sirh.auth.exception.InvalidCredentialsException;
 import com.sirh.auth.exception.InvalidTokenException;
 import com.sirh.auth.exception.UtilisateurNotFoundException;
+import com.sirh.async.exception.AsyncJobNotFoundException;
 import com.sirh.fichiers.exception.FichierNotFoundException;
 import com.sirh.personnel.exception.ContratNotFoundException;
 import com.sirh.personnel.exception.DepartementNotFoundException;
 import com.sirh.personnel.exception.EmployeNotFoundException;
+import com.sirh.pointages.exception.ImportPointagesException;
+import com.sirh.pointages.exception.PointageNotFoundException;
+import com.sirh.pointages.exception.PointeuseNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -59,6 +63,26 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UtilisateurNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleUtilisateurNotFound(UtilisateurNotFoundException ex) {
         return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(PointeuseNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handlePointeuseNotFound(PointeuseNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(PointageNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handlePointageNotFound(PointageNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(AsyncJobNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleAsyncJobNotFound(AsyncJobNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(ImportPointagesException.class)
+    public ResponseEntity<Map<String, Object>> handleImportPointages(ImportPointagesException ex) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
