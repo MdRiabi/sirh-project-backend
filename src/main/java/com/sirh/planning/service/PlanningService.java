@@ -43,6 +43,8 @@ public class PlanningService {
 
     private static final long REPOS_LEGAL_HEURES = 11;
 
+    private static final String TYPE_ROTATION_SYSTEME = "SYSTEME";
+
     private final PlanningRepository planningRepository;
     private final ShiftRepository shiftRepository;
     private final IndisponibiliteRepository indisponibiliteRepository;
@@ -57,6 +59,41 @@ public class PlanningService {
         this.indisponibiliteRepository = indisponibiliteRepository;
         this.pointageBrutRepository = pointageBrutRepository;
         this.employeRepository = employeRepository;
+    }
+
+    // Appelé par com.sirh.demandes à la validation RH d'une autorisation ou
+    // d'une indisponibilité (cahier-fonctionnel.md Modules 8/13, "le planning
+    // est mis à jour") : source de vérité unique, le planning reflète l'absence
+    // au lieu de se contenter du contrôle bloquant unidirectionnel du Lot 3.
+    // "Écrase" : toute affectation existante chevauchant strictement la fenêtre
+    // est supprimée avant insertion — pas de fusion partielle, pas de contrôle
+    // de repos légal (une entrée CONGE/ABSENCE n'est pas un shift de travail).
+    @Transactional
+    public Planning ecraserCreneaux(UUID employeId, LocalDateTime dateDebut, LocalDateTime dateFin,
+                                     PlanningStatut statut, String commentaire) {
+        Long shiftSystemeId = resolveShiftSysteme();
+        List<Planning> chevauchants = planningRepository
+                .findByEmployeIdAndDateFinAfterAndDateDebutBefore(employeId, dateDebut, dateFin).stream()
+                .filter(p -> p.getDateDebut().isBefore(dateFin) && dateDebut.isBefore(p.getDateFin()))
+                .toList();
+        planningRepository.deleteAll(chevauchants);
+
+        Planning planning = Planning.builder()
+                .employeId(employeId)
+                .shiftId(shiftSystemeId)
+                .dateDebut(dateDebut)
+                .dateFin(dateFin)
+                .statut(statut)
+                .commentaire(commentaire)
+                .build();
+        return planningRepository.save(planning);
+    }
+
+    private Long resolveShiftSysteme() {
+        return shiftRepository.findFirstByTypeRotation(TYPE_ROTATION_SYSTEME)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Shift système introuvable (attendu depuis la migration V5) — impossible de générer un créneau CONGE/ABSENCE."))
+                .getId();
     }
 
     @Transactional
@@ -176,13 +213,15 @@ public class PlanningService {
         LocalDateTime debut = dateDebut.atStartOfDay();
         LocalDateTime fin = dateFin.plusDays(1).atStartOfDay();
 
-        // REPOS marque explicitly un jour de repos, pas une plage travaillée —
-        // l'exclure des heures théoriques (PROVISOIRE reste compté : aucun
+        // REPOS/CONGE/ABSENCE marquent explicitement une journée non travaillée —
+        // les exclure des heures théoriques (PROVISOIRE reste compté : aucun
         // workflow de validation de planning n'existe encore dans ce lot, donc
         // se limiter à VALIDE viderait le rapport de toute donnée exploitable).
         Map<LocalDate, BigDecimal> theoriquesParJour = planningRepository
                 .findByEmployeIdAndDateDebutBetweenOrderByDateDebut(employe.getId(), debut, fin).stream()
-                .filter(p -> p.getStatut() != PlanningStatut.REPOS)
+                .filter(p -> p.getStatut() != PlanningStatut.REPOS
+                        && p.getStatut() != PlanningStatut.CONGE
+                        && p.getStatut() != PlanningStatut.ABSENCE)
                 .collect(Collectors.groupingBy(p -> p.getDateDebut().toLocalDate(),
                         Collectors.reducing(BigDecimal.ZERO, p -> heuresEntre(p.getDateDebut(), p.getDateFin()), BigDecimal::add)));
 
