@@ -1,6 +1,7 @@
 package com.sirh.pointages.repository;
 
 import com.sirh.pointages.entity.PointageBrut;
+import com.sirh.pointages.entity.PointageStatut;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -19,4 +20,10 @@ public interface PointageBrutRepository extends JpaRepository<PointageBrut, Long
     // Détection d'anomalie "nombre impair de pointages" sur une journée (Module 1).
     List<PointageBrut> findByEmployeIdAndTimestampPointageBetween(
             UUID employeId, LocalDateTime debut, LocalDateTime fin);
+
+    // Justification des anomalies à la validation d'une autorisation (Module 13,
+    // com.sirh.demandes.AutorisationService) : appariement employé+jour, la FK
+    // pointages_bruts.autorisation_id reste unidirectionnelle.
+    List<PointageBrut> findByEmployeIdAndTimestampPointageBetweenAndStatut(
+            UUID employeId, LocalDateTime debut, LocalDateTime fin, PointageStatut statut);
 }

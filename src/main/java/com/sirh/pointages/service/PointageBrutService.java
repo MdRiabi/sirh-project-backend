@@ -128,6 +128,24 @@ public class PointageBrutService {
         return pointageBrutRepository.findById(id).orElseThrow(() -> new PointageNotFoundException(id));
     }
 
+    // Appelé par com.sirh.demandes.AutorisationService à la validation RH d'une
+    // autorisation (cahier-fonctionnel.md Module 13, "l'anomalie correspondante
+    // ... est automatiquement effacée/justifiée") : toutes les anomalies non
+    // justifiées de l'employé sur le jour de l'autorisation basculent en
+    // JUSTIFIE, tracées vers l'autorisation qui les couvre.
+    @Transactional
+    public List<PointageBrut> justifierAnomaliesDuJour(UUID employeId, LocalDate jour, Long autorisationId) {
+        LocalDateTime debut = jour.atStartOfDay();
+        LocalDateTime fin = debut.plusDays(1);
+        List<PointageBrut> anomalies = pointageBrutRepository
+                .findByEmployeIdAndTimestampPointageBetweenAndStatut(employeId, debut, fin, PointageStatut.ANOMALIE_NON_JUSTIFIEE);
+        anomalies.forEach(p -> {
+            p.setStatut(PointageStatut.JUSTIFIE);
+            p.setAutorisationId(autorisationId);
+        });
+        return pointageBrutRepository.saveAll(anomalies);
+    }
+
     @Transactional(readOnly = true)
     public List<PointageBrut> search(UUID employeId, LocalDateTime debut, LocalDateTime fin, PointageStatut statut) {
         Specification<PointageBrut> spec = (root, query, cb) -> {

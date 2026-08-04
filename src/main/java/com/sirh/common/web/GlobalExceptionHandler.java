@@ -6,6 +6,10 @@ import com.sirh.auth.exception.InvalidTokenException;
 import com.sirh.auth.exception.UtilisateurNotFoundException;
 import com.sirh.async.exception.AsyncJobNotFoundException;
 import com.sirh.calendrier.exception.JourFerieNotFoundException;
+import com.sirh.demandes.exception.AutorisationNotFoundException;
+import com.sirh.demandes.exception.DelaiRegularisationDepasseException;
+import com.sirh.demandes.exception.DemandeStatutInvalideException;
+import com.sirh.demandes.exception.QuotaAutorisationDepasseException;
 import com.sirh.fichiers.exception.FichierNotFoundException;
 import com.sirh.personnel.exception.ContratNotFoundException;
 import com.sirh.personnel.exception.DepartementNotFoundException;
@@ -107,6 +111,26 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ParametreNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleParametreNotFound(ParametreNotFoundException ex) {
         return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(AutorisationNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleAutorisationNotFound(AutorisationNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(DelaiRegularisationDepasseException.class)
+    public ResponseEntity<Map<String, Object>> handleDelaiRegularisationDepasse(DelaiRegularisationDepasseException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(QuotaAutorisationDepasseException.class)
+    public ResponseEntity<Map<String, Object>> handleQuotaAutorisationDepasse(QuotaAutorisationDepasseException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(DemandeStatutInvalideException.class)
+    public ResponseEntity<Map<String, Object>> handleDemandeStatutInvalide(DemandeStatutInvalideException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
