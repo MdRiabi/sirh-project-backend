@@ -68,9 +68,10 @@ public class IndisponibiliteService {
     @Transactional
     public Indisponibilite creer(UUID employeId, String typeIndisponibilite, LocalDate dateDebut, LocalDate dateFin,
                                   String commentaire, Long pieceJointeId, UUID creeParId, String creeParRole,
-                                  String avisManagerStatut, String avisManagerCommentaire) {
+                                  String avisManagerStatut, String avisManagerCommentaire, boolean forcer) {
         employeRepository.findById(employeId).orElseThrow(() -> new EmployeNotFoundException(employeId));
 
+        boolean urgenceRh = ROLE_RH.equals(creeParRole);
         Indisponibilite indisponibilite = Indisponibilite.builder()
                 .employeId(employeId)
                 .typeIndisponibilite(typeIndisponibilite)
@@ -78,13 +79,23 @@ public class IndisponibiliteService {
                 .dateFin(dateFin)
                 .commentaire(commentaire)
                 .pieceJointeId(pieceJointeId)
-                .statut(ROLE_RH.equals(creeParRole) ? STATUT_VALIDE : STATUT_EN_ATTENTE_RH)
+                .statut(urgenceRh ? STATUT_VALIDE : STATUT_EN_ATTENTE_RH)
                 .creeParId(creeParId)
                 .creeParRole(creeParRole)
                 .avisManagerStatut(ROLE_MANAGER.equals(creeParRole) ? avisManagerStatut : null)
                 .avisManagerCommentaire(ROLE_MANAGER.equals(creeParRole) ? avisManagerCommentaire : null)
                 .build();
-        return indisponibiliteRepository.save(indisponibilite);
+        indisponibilite = indisponibiliteRepository.save(indisponibilite);
+
+        // Workflow d'urgence (Module 8) : le RH valide instantanément, donc les
+        // effets d'une validation (déduction de solde, mise à jour du planning)
+        // doivent s'appliquer immédiatement — sans cet appel, la demande restait
+        // VALIDE en base sans jamais avoir déduit de solde ni généré de créneau
+        // planning (bug trouvé en vérification manuelle docker compose + curl).
+        if (urgenceRh) {
+            appliquerImpactValidation(indisponibilite, forcer);
+        }
+        return indisponibilite;
     }
 
     @Audited(action = "VALIDER_INDISPONIBILITE", tableCible = "indisponibilites")
@@ -99,20 +110,24 @@ public class IndisponibiliteService {
             indisponibilite.setTypeIndisponibilite(bascule);
         }
 
-        if (TYPE_CONGE_PAYE.equals(indisponibilite.getTypeIndisponibilite())) {
-            deduireSolde(indisponibilite, forcer);
-        }
+        appliquerImpactValidation(indisponibilite, forcer);
 
         indisponibilite.setStatut(STATUT_VALIDE);
         indisponibilite.setValideParRhId(valideParRhId);
-        indisponibilite = indisponibiliteRepository.save(indisponibilite);
+        return indisponibiliteRepository.save(indisponibilite);
+    }
 
+    // Partagé entre creer() (workflow d'urgence RH, statut VALIDE dès la
+    // création) et valider() (workflow normal) : les deux chemins produisent le
+    // même impact — déduction du solde si congé payé, mise à jour du planning.
+    private void appliquerImpactValidation(Indisponibilite indisponibilite, boolean forcer) {
+        if (TYPE_CONGE_PAYE.equals(indisponibilite.getTypeIndisponibilite())) {
+            deduireSolde(indisponibilite, forcer);
+        }
         PlanningStatut statutPlanning = estUnConge(indisponibilite.getTypeIndisponibilite()) ? PlanningStatut.CONGE : PlanningStatut.ABSENCE;
         planningService.ecraserCreneaux(indisponibilite.getEmployeId(),
                 indisponibilite.getDateDebut().atStartOfDay(), indisponibilite.getDateFin().plusDays(1).atStartOfDay(),
                 statutPlanning, "Indisponibilité #" + indisponibilite.getId() + " (" + indisponibilite.getTypeIndisponibilite() + ")");
-
-        return indisponibilite;
     }
 
     private boolean estUnConge(String type) {

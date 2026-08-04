@@ -111,8 +111,11 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
         assertThat(reponse.getBody().get("avisManagerStatut")).isNull();
     }
 
+    // Workflow d'urgence RH (statut VALIDE dès la création) : la justification
+    // doit s'appliquer immédiatement, sans appel valider() séparé (bug trouvé en
+    // vérification manuelle docker compose + curl — corrigé dans AutorisationService).
     @Test
-    void valider_parRh_justifieLAnomalieDePointageDuJour() {
+    void creerParRh_justifieImmediatementLAnomalieDePointageDuJour() {
         String rhToken = accessTokenFor(Role.ROLE_RH);
         Employe employe = createFixtureEmploye();
         LocalDate jour = LocalDate.now();
@@ -128,30 +131,25 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
 
         Map<String, Object> body = requeteBase(employe.getId(), jour);
         ResponseEntity<Map> creation = creer(rhToken, body);
+        assertThat(creation.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         Long autorisationId = ((Number) creation.getBody().get("id")).longValue();
-
-        ResponseEntity<Map> validation = restTemplate.exchange(
-                baseUrl("/autorisations/" + autorisationId + "/valider"), HttpMethod.PUT,
-                new HttpEntity<>(null, authHeaders(rhToken)), Map.class);
-        assertThat(validation.getStatusCode()).isEqualTo(HttpStatus.OK);
 
         PointageBrut rechargee = pointageBrutRepository.findById(anomalie.getId()).orElseThrow();
         assertThat(rechargee.getStatut()).isEqualTo(PointageStatut.JUSTIFIE);
         assertThat(rechargee.getAutorisationId()).isEqualTo(autorisationId);
     }
 
+    // Même principe côté planning : le créneau ABSENCE est généré dès la
+    // création par le RH, pas seulement après un valider() distinct.
     @Test
-    void valider_parRh_genereUnCreneauAbsenceSurLePlanning() {
+    void creerParRh_genereImmediatementUnCreneauAbsenceSurLePlanning() {
         String rhToken = accessTokenFor(Role.ROLE_RH);
         Employe employe = createFixtureEmploye();
         LocalDate jour = LocalDate.now().plusDays(1);
 
         Map<String, Object> body = requeteBase(employe.getId(), jour);
         ResponseEntity<Map> creation = creer(rhToken, body);
-        Long autorisationId = ((Number) creation.getBody().get("id")).longValue();
-
-        restTemplate.exchange(baseUrl("/autorisations/" + autorisationId + "/valider"), HttpMethod.PUT,
-                new HttpEntity<>(null, authHeaders(rhToken)), Map.class);
+        assertThat(creation.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
         String url = baseUrl("/plannings/delta?employeId=" + employe.getId()
                 + "&dateDebut=" + jour + "&dateFin=" + jour);
@@ -201,9 +199,12 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
     @Test
     void refuser_parRh_changeStatutSansToucherAuPlanningNiAuxPointages() {
         String rhToken = accessTokenFor(Role.ROLE_RH);
+        String managerToken = login(createFixtureUser(Role.ROLE_MANAGER));
         Employe employe = createFixtureEmploye();
         Map<String, Object> body = requeteBase(employe.getId(), LocalDate.now());
-        ResponseEntity<Map> creation = creer(rhToken, body);
+        body.put("avisManagerStatut", "DEFAVORABLE");
+        ResponseEntity<Map> creation = creer(managerToken, body);
+        assertThat(creation.getBody().get("statut")).isEqualTo("EN_ATTENTE_RH");
         Long id = ((Number) creation.getBody().get("id")).longValue();
 
         ResponseEntity<Map> refus = restTemplate.exchange(

@@ -37,7 +37,7 @@ public class IndisponibiliteController {
         Indisponibilite indisponibilite = indisponibiliteService.creer(
                 request.employeId(), request.typeIndisponibilite(), request.dateDebut(), request.dateFin(),
                 request.commentaire(), request.pieceJointeId(), principal.getEmployeId(), creeParRole,
-                request.avisManagerStatut(), request.avisManagerCommentaire());
+                request.avisManagerStatut(), request.avisManagerCommentaire(), Boolean.TRUE.equals(request.forcer()));
         return ResponseEntity.status(201).body(indisponibiliteService.enrichirAvecDecompte(indisponibilite));
     }
 

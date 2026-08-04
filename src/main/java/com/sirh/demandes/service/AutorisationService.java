@@ -72,6 +72,7 @@ public class AutorisationService {
             }
         }
 
+        boolean urgenceRh = ROLE_RH.equals(creeParRole);
         Autorisation autorisation = Autorisation.builder()
                 .employeId(employeId)
                 .type(type)
@@ -80,13 +81,26 @@ public class AutorisationService {
                 .heureFin(heureFin)
                 .dureeMinutes(dureeMinutes)
                 .motif(motif)
-                .statut(ROLE_RH.equals(creeParRole) ? STATUT_VALIDE : STATUT_EN_ATTENTE_RH)
+                .statut(urgenceRh ? STATUT_VALIDE : STATUT_EN_ATTENTE_RH)
                 .creeParId(creeParId)
                 .creeParRole(creeParRole)
                 .avisManagerStatut(ROLE_MANAGER.equals(creeParRole) ? avisManagerStatut : null)
                 .avisManagerCommentaire(ROLE_MANAGER.equals(creeParRole) ? avisManagerCommentaire : null)
                 .build();
-        return autorisationRepository.save(autorisation);
+        autorisation = autorisationRepository.save(autorisation);
+
+        // Workflow d'urgence (Module 13) : le RH valide instantanément, donc la
+        // justification des anomalies de pointage et la mise à jour du planning
+        // doivent s'appliquer immédiatement (même bug que IndisponibiliteService,
+        // trouvé en vérification manuelle). Le contrôle de quota bloquant reste
+        // volontairement réservé à la validation RH explicite en deux temps
+        // (workflow Manager) : bloquer l'urgence RH sur un total mensuel sans
+        // rapport avec l'absence à traiter irait à l'encontre de l'objectif même
+        // de ce chemin — traiter vite un cas réellement urgent.
+        if (urgenceRh) {
+            appliquerImpactValidation(autorisation);
+        }
+        return autorisation;
     }
 
     @Audited(action = "VALIDER_AUTORISATION", tableCible = "autorisations")
@@ -107,6 +121,15 @@ public class AutorisationService {
         autorisation.setValideParRhId(valideParRhId);
         autorisation = autorisationRepository.save(autorisation);
 
+        appliquerImpactValidation(autorisation);
+
+        return autorisation;
+    }
+
+    // Partagé entre creer() (workflow d'urgence RH, statut VALIDE dès la
+    // création) et valider() (workflow normal) : les deux chemins produisent le
+    // même impact — justification des anomalies de pointage, mise à jour du planning.
+    private void appliquerImpactValidation(Autorisation autorisation) {
         pointageBrutService.justifierAnomaliesDuJour(autorisation.getEmployeId(), autorisation.getDateAutorisation(), autorisation.getId());
 
         LocalDateTime debut = LocalDateTime.of(autorisation.getDateAutorisation(), autorisation.getHeureDebut());
@@ -115,8 +138,6 @@ public class AutorisationService {
                 : debut.plusMinutes(autorisation.getDureeMinutes() != null ? autorisation.getDureeMinutes() : 0);
         planningService.ecraserCreneaux(autorisation.getEmployeId(), debut, fin, PlanningStatut.ABSENCE,
                 "Autorisation #" + autorisation.getId() + " (" + autorisation.getType() + ")");
-
-        return autorisation;
     }
 
     @Audited(action = "REFUSER_AUTORISATION", tableCible = "autorisations")

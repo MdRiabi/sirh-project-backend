@@ -145,16 +145,20 @@ class IndisponibiliteControllerIT extends AbstractIntegrationTest {
         assertThat(inchange.getSoldeCongesJours()).isEqualByComparingTo("2");
     }
 
+    // Workflow normal (Manager saisit -> RH force à la validation).
     @Test
     void valider_soldeInsuffisantAvecForcage_deduitEnNegatifEtTraceForcageRh() {
         String rhToken = accessTokenFor(Role.ROLE_RH);
+        String managerToken = accessTokenFor(Role.ROLE_MANAGER);
         Employe employe = employeAvecSolde(BigDecimal.valueOf(2));
         LocalDate lundi = prochainLundiApres(LocalDate.now().plusDays(90));
 
         Map<String, Object> body = Map.of(
                 "employeId", employe.getId(), "typeIndisponibilite", "CONGE_PAYE",
-                "dateDebut", lundi.toString(), "dateFin", lundi.plusDays(4).toString());
-        ResponseEntity<Map> creation = creer(rhToken, body);
+                "dateDebut", lundi.toString(), "dateFin", lundi.plusDays(4).toString(),
+                "avisManagerStatut", "FAVORABLE");
+        ResponseEntity<Map> creation = creer(managerToken, body);
+        assertThat(creation.getBody().get("statut")).isEqualTo("EN_ATTENTE_RH");
         Long id = ((Number) creation.getBody().get("id")).longValue();
 
         ResponseEntity<Map> validation = restTemplate.exchange(
@@ -168,6 +172,51 @@ class IndisponibiliteControllerIT extends AbstractIntegrationTest {
         boolean forcageTrace = historiqueSoldeRepository.findAll().stream()
                 .anyMatch(h -> h.getEmployeId().equals(employe.getId()) && "FORCAGE_RH".equals(h.getMotif()));
         assertThat(forcageTrace).isTrue();
+    }
+
+    // Workflow d'urgence RH (statut VALIDE dès la création) : la déduction —
+    // et donc le besoin de forçage — s'applique immédiatement à la création,
+    // pas seulement via un valider() séparé (bug trouvé en vérification
+    // manuelle docker compose + curl — corrigé dans IndisponibiliteService).
+    @Test
+    void creerUrgenceRh_soldeInsuffisantAvecForcage_deduitEnNegatifDesLaCreation() {
+        String rhToken = accessTokenFor(Role.ROLE_RH);
+        Employe employe = employeAvecSolde(BigDecimal.valueOf(2));
+        LocalDate lundi = prochainLundiApres(LocalDate.now().plusDays(95));
+
+        Map<String, Object> body = Map.of(
+                "employeId", employe.getId(), "typeIndisponibilite", "CONGE_PAYE",
+                "dateDebut", lundi.toString(), "dateFin", lundi.plusDays(4).toString(),
+                "forcer", true);
+        ResponseEntity<Map> creation = creer(rhToken, body);
+
+        assertThat(creation.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(creation.getBody().get("statut")).isEqualTo("VALIDE");
+        Employe recharge = employeRepository.findById(employe.getId()).orElseThrow();
+        assertThat(recharge.getSoldeCongesJours()).isEqualByComparingTo("-3");
+
+        boolean forcageTrace = historiqueSoldeRepository.findAll().stream()
+                .anyMatch(h -> h.getEmployeId().equals(employe.getId()) && "FORCAGE_RH".equals(h.getMotif()));
+        assertThat(forcageTrace).isTrue();
+    }
+
+    // Sans forcer=true, l'urgence RH doit être bloquée dès la création (409),
+    // exactement comme le workflow normal à la validation — pas de bypass
+    // silencieux de la règle de solde insuffisant sur ce chemin.
+    @Test
+    void creerUrgenceRh_soldeInsuffisantSansForcage_estRefuseAvec409EtRienNEstCree() {
+        String rhToken = accessTokenFor(Role.ROLE_RH);
+        Employe employe = employeAvecSolde(BigDecimal.valueOf(2));
+        LocalDate lundi = prochainLundiApres(LocalDate.now().plusDays(96));
+
+        Map<String, Object> body = Map.of(
+                "employeId", employe.getId(), "typeIndisponibilite", "CONGE_PAYE",
+                "dateDebut", lundi.toString(), "dateFin", lundi.plusDays(4).toString());
+        ResponseEntity<Map> creation = creer(rhToken, body);
+
+        assertThat(creation.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        Employe inchange = employeRepository.findById(employe.getId()).orElseThrow();
+        assertThat(inchange.getSoldeCongesJours()).isEqualByComparingTo("2");
     }
 
     @Test
