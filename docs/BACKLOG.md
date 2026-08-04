@@ -103,7 +103,7 @@ graph TD
 
 **Dépendances** : Lot 1, Lot 2 (justification d'anomalies de pointage).
 
-**Backend** : `POST/PUT autorisations` et `indisponibilites` (saisie Manager avec avis intégré, ou RH en urgence) ; validation/refus RH ; déduction automatique de solde (`historique_soldes`) ; justification automatique des anomalies `pointages_bruts` (`autorisation_id`) ; règles de délai 72h (outrepassable par RH) et quota mensuel 4h.
+**Backend** : `POST/PUT autorisations` et `indisponibilites` (saisie Manager avec avis intégré, ou RH en urgence) ; validation/refus RH ; déduction automatique de solde en jours ouvrés (`historique_soldes`, interfacée avec `jours_feries` du Lot 4) ; justification automatique des anomalies `pointages_bruts` (`autorisation_id`) ; règles de délai 72h (outrepassable par RH) et quota mensuel 4h ; mise à jour du planning (créneau `CONGE`/`ABSENCE`) à la validation ; table générique `parametres_globaux` (décision d'architecture : aucune règle métier à valeur variable codée en dur) portant le taux d'incrémentation mensuelle des congés, appliqué par une tâche `@Scheduled`.
 
 **Frontend** : écran "Congés & Autorisations" (RH : liste à valider, historique) ; écran "Demandes" côté Manager (saisie pour son équipe, avec champ avis) ; consultation solde de congés.
 

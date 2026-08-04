@@ -395,6 +395,24 @@ CREATE TABLE plans_developpement (
 ```
 Génération automatique d'une ligne par compétence sous le seuil lors de la validation RH d'une évaluation (Module 9, règle métier).
 
+### 3.24 `parametres_globaux` 🆕 (Lot 5 — décision d'architecture explicite)
+
+Aucune règle métier dont la valeur peut varier sans changement de comportement applicatif (ex. taux d'incrémentation mensuelle des congés, Module 8) ne doit être codée en dur. Table générique cle/valeur, volontairement hors du domaine `demandes` (package `com.sirh.parametres`) pour être réutilisable par d'autres lots (ex. seuils M+5/M+11 du Module 12) sans nouvelle migration à chaque nouveau paramètre.
+
+```sql
+CREATE TABLE parametres_globaux (
+    id BIGSERIAL PRIMARY KEY,
+    cle VARCHAR(100) NOT NULL UNIQUE,
+    valeur VARCHAR(255) NOT NULL,
+    type VARCHAR(20) NOT NULL DEFAULT 'DECIMAL',  -- DECIMAL, INTEGER, BOOLEAN, TEXT
+    description TEXT,
+    modifie_par_id UUID REFERENCES employes(id),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+Seedée à la migration (`TAUX_INCREMENTATION_CONGES_MENSUEL` = `1.5`, motif `INCREMENT_MENSUEL` de `historique_soldes` §3.12) — jamais créée/supprimée via l'API (`POST`/`DELETE` volontairement absents, cf. §4.11), uniquement lue/modifiée. Le job `@Scheduled` mensuel d'incrémentation (`ARCHITECTURE.md` §8) relit la valeur à chaque exécution, sans cache, pour qu'un changement RH s'applique dès le prochain passage sans redéploiement.
+
 ---
 
 ## 4. Catalogue des Endpoints — corrigé
@@ -432,15 +450,28 @@ Base : `/api/v1`, JWT obligatoire sauf mention contraire. Les endpoints **✅ IN
 - `PUT /calendrier/jours-feries/{id}` — RH, SUPERUSER : modification. Ne redéclenche pas de recrédit (celui-ci n'a lieu qu'à la création, pour ne pas recréditer deux fois un employé sur une simple correction de libellé).
 - `DELETE /calendrier/jours-feries/{id}` — RH, SUPERUSER : suppression.
 
-### 4.6 Demandes d'Autorisations & Congés — 🔧 workflow à 2 étapes (détail en §5), aucun accès Employé
+### 4.6 Demandes d'Autorisations & Congés — 🔧 workflow à 2 étapes (détail en §5), implémenté Lot 5, aucun accès Employé
 
 | Endpoint | Méthode | Rôles v2 | Statut |
 |---|---|---|---|
-| `POST /autorisations` | POST | MANAGER, RH | 🔧 body enrichi de `avisManager: FAVORABLE\|DEFAVORABLE` (obligatoire si créateur = MANAGER, absent si RH). Statut initial `EN_ATTENTE_RH` (MANAGER) ou `VALIDE` (RH, workflow d'urgence) |
-| `PUT /autorisations/{id}/valider`, `/refuser` | PUT | RH, SUPERUSER | ✅ inchangé (statut `EN_ATTENTE_RH` requis) |
-| `POST /indisponibilites` | POST | MANAGER, RH | 🔧 même logique que `/autorisations` |
-| `PUT /indisponibilites/{id}/valider` | PUT | RH, SUPERUSER | ✅ inchangé |
+| `POST /autorisations` | POST | MANAGER, RH, SUPERUSER | 🔧 body enrichi de `avisManagerStatut: FAVORABLE\|DEFAVORABLE` (obligatoire si créateur = MANAGER, ignoré si RH/SUPERUSER). Statut initial `EN_ATTENTE_RH` (MANAGER, bloqué en 409 si `dateAutorisation`+`heureDebut` remonte à plus de 72h) ou `VALIDE` (RH/SUPERUSER, workflow d'urgence — justification des anomalies de pointage du jour et mise à jour du planning appliquées **immédiatement** à la création, pas seulement à un `valider()` ultérieur) |
+| `PUT /autorisations/{id}/valider` | PUT | RH, SUPERUSER | 🔧 statut `EN_ATTENTE_RH` requis (409 sinon). Si le cumul mensuel de l'employé (statuts `EN_ATTENTE_RH`+`VALIDE`) dépasse 4h, body `traitementDepassement: DEDUCTION_SALAIRE\|RECUPERATION` obligatoire (409 sinon) — décision tracée dans `audit_logs`, pas de colonne dédiée |
+| `PUT /autorisations/{id}/refuser` | PUT | RH, SUPERUSER | ✅ statut `EN_ATTENTE_RH` requis, aucun impact solde/pointage/planning |
+| `GET /autorisations` 🆕 (filtres `statut`, `employeId`, `departementId`, `dateDebut`/`dateFin`, tous optionnels) | GET | MANAGER (restreint à son propre département, filtres client ignorés), RH, SUPERUSER | 🆕 gap comblé pendant le Lot 5 (même lacune que `/plannings/delta` au Lot 3 et `/calendrier/jours-feries` au Lot 4 — requis par `BACKLOG.md` pour les écrans "liste à valider"/"historique") |
+| `POST /indisponibilites` | POST | MANAGER, RH, SUPERUSER | 🔧 même logique que `/autorisations` (pas de délai 72h ni de quota, propres au Module 13 uniquement). Workflow d'urgence RH/SUPERUSER : déduction de solde + mise à jour planning immédiates. Body enrichi de `forcer: boolean` (optionnel, urgence RH avec solde insuffisant) |
+| `PUT /indisponibilites/{id}/valider` | PUT | RH, SUPERUSER | 🔧 statut `EN_ATTENTE_RH` requis. Body `{ bascule?: string, forcer?: boolean }` — `bascule` change `type_indisponibilite` avant déduction (ex. `CONGE_SANS_SOLDE`), `forcer` outrepasse un solde insuffisant (409 sinon, message `"Solde insuffisant (X jours disponibles)"`, motif `historique_soldes` = `FORCAGE_RH` au lieu de `VALIDATION_CONGE`). Déduction en **jours ouvrés** (week-ends + `jours_feries.type = FERIE` exclus, cf. §3.19/§3.24) uniquement si `type_indisponibilite = CONGE_PAYE` |
+| `PUT /indisponibilites/{id}/refuser` 🆕 | PUT | RH, SUPERUSER | 🆕 gap symétrique comblé pendant le Lot 5 (existait pour `/autorisations` mais pas `/indisponibilites` malgré un workflow RH identique) |
+| `GET /indisponibilites` 🆕 (mêmes filtres que `/autorisations`) | GET | MANAGER (son département), RH, SUPERUSER | 🆕 gap comblé pendant le Lot 5 |
 | `GET /indisponibilites/solde/{employeId}` | GET | MANAGER, RH, SUPERUSER | ✅ inchangé — **pas d'accès Employé** (confirmé, Module 8) |
+
+**Impact planning (Lot 5, décision d'architecture)** : à la validation d'une autorisation ou d'une indisponibilité (deux temps ou urgence), le planning de l'employé est mis à jour comme source de vérité unique — toute affectation existante chevauchant strictement la période est supprimée et remplacée par un créneau `CONGE` (indisponibilité de type congé) ou `ABSENCE` (autorisation, ou indisponibilité non-congé type `MALADIE`), cf. `plannings.statut` §3.9. S'ajoute au contrôle bloquant déjà posé au Lot 3 (une nouvelle affectation planning est refusée si elle chevauche un congé déjà `VALIDE`) sans le remplacer.
+
+### 4.11 Paramètres globaux 🆕 (Lot 5 — cf. §3.24)
+
+| Endpoint | Méthode | Rôles |
+|---|---|---|
+| `GET /parametres-globaux`, `GET /parametres-globaux/{cle}` | GET | RH, SUPERUSER |
+| `PUT /parametres-globaux/{cle}` (body `{ valeur: string }`) | PUT | RH, SUPERUSER |
 
 ### 4.7 Outillages, Assiduité & Paie — 🔧
 - `POST /outillages/check-out`, `POST /outillages/check-in` — ✅ contrat inchangé, chaque appel insère désormais une ligne dans `outillage_mouvements` (traçabilité constat 10).
@@ -521,3 +552,5 @@ Impact : déduction du solde (congés) ou justification de l'anomalie de pointag
 **Précision du 2026-07-29 (b)** : seuil de doublon de pointage fixé à 5 minutes, scope même employé + même pointeuse, premier pointage comptabilisé (§3.7).
 
 **Précision du 2026-07-29 (c)** : `employes.id` passe en UUID, restructuration en `matricule_interne`/`matricule_cnss`/`matricule_paie` (§3.2), avec propagation du type UUID sur les 18 colonnes de FK concernées dans 13 tables. C'est le changement le plus structurant de cette révision — à répercuter dès la première migration Flyway (`docs/ARCHITECTURE.md` §6) puisqu'il n'y a pas de schéma existant en production à faire évoluer (le projet n'a pas encore de premier commit backend).
+
+**Précision du 2026-08-04 (Lot 5)** : décision d'architecture explicite — aucune règle métier à valeur variable (taux d'incrémentation mensuelle des congés, Module 8) n'est codée en dur ; table générique `parametres_globaux` introduite (§3.24, §4.11), relue à chaque exécution du job mensuel sans cache. Déduction de solde congé payé calculée en jours ouvrés (week-ends + jours fériés légaux exclus, interfacée avec `jours_feries` du Lot 4) et non en jours calendaires. Le planning est mis à jour comme source de vérité unique à la validation d'une demande (créneau `CONGE`/`ABSENCE`, §4.6), en complément — pas en remplacement — du contrôle bloquant posé au Lot 3. Gaps d'endpoints comblés (même pattern que Lots 3/4) : `GET /autorisations`, `GET /indisponibilites`, `PUT /indisponibilites/{id}/refuser`.

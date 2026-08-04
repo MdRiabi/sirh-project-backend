@@ -328,7 +328,7 @@ sequenceDiagram
 
 **Mécanisme retenu** :
 - `@Async` (Spring `ThreadPoolTaskExecutor` dédié, pool borné) pour l'exécution des imports Excel et de la génération de rapports.
-- `@Scheduled` (cron Spring natif) pour : fallback horaire Hikvision, alertes hebdo/mensuelles (Module 11), génération des tâches de renouvellement (Module 12), purge/archivage à 12 mois (Module 7), verrouillage automatique des tâches de renouvellement expirées.
+- `@Scheduled` (cron Spring natif) pour : fallback horaire Hikvision, alertes hebdo/mensuelles (Module 11), génération des tâches de renouvellement (Module 12), purge/archivage à 12 mois (Module 7), verrouillage automatique des tâches de renouvellement expirées, incrémentation mensuelle du solde de congés (Module 8, Lot 5 — `IncrementationSoldeScheduler`, 1er du mois, taux relu depuis `parametres_globaux` à chaque exécution, cf. `cahier-technique.md` §3.24).
 - Table `async_jobs` comme **unique source de vérité de suivi** (statut, progression, résultat) — c'est elle que le frontend interroge via polling (`GET /async-jobs/{id}`), pas Redis.
 
 **Rôle final de Redis**, restreint à deux usages :
@@ -348,7 +348,7 @@ sequenceDiagram
 
 ## 9. Stratégie d'audit (piste de contrôle immuable)
 
-- Un aspect Spring AOP (`@Around`) intercepte les méthodes de service annotées `@Audited(action = "...")`, appliqué a minima sur : création/modification/suppression d'utilisateur, correction manuelle de pointage, validation/refus de demande, clôture de paie, suppression de fichier, déverrouillage exceptionnel d'un mois clôturé, mouvements d'outillage avec imputation.
+- Un aspect Spring AOP (`@Around`) intercepte les méthodes de service annotées `@Audited(action = "...")`, appliqué a minima sur : création/modification/suppression d'utilisateur, correction manuelle de pointage, validation/refus de demande (autorisations/indisponibilités, Lot 5), modification d'un paramètre global (Lot 5), clôture de paie, suppression de fichier, déverrouillage exceptionnel d'un mois clôturé, mouvements d'outillage avec imputation.
 - Écriture systématique dans `audit_logs` (`utilisateur_id`, `action`, `table_cible`, `anciennes_valeurs`/`nouvelles_valeurs` en JSONB, `adresse_ip` récupérée depuis la requête HTTP).
 - **Immuabilité** : aucun repository Spring Data n'expose de méthode `update`/`delete` sur l'entité `AuditLog` — seule l'insertion est possible au niveau applicatif (pas de contrainte DB supplémentaire nécessaire, le compte applicatif Postgres pourrait en complément se voir retirer le droit `UPDATE`/`DELETE` sur cette table en Phase 2).
 - Accès en lecture : `SUPERUSER` exclusivement (`cahier-technique.md` §2.2).
