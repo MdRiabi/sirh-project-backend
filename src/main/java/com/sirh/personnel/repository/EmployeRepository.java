@@ -14,4 +14,7 @@ public interface EmployeRepository extends JpaRepository<Employe, UUID>, JpaSpec
     Optional<Employe> findByMatriculeInterne(String matriculeInterne);
 
     List<Employe> findByDepartement_Id(Long departementId);
+
+    // Incrémentation mensuelle du solde de congés (Module 8, IncrementationSoldeScheduler).
+    List<Employe> findByActifTrue();
 }
