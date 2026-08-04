@@ -413,6 +413,41 @@ CREATE TABLE parametres_globaux (
 
 Seedée à la migration (`TAUX_INCREMENTATION_CONGES_MENSUEL` = `1.5`, motif `INCREMENT_MENSUEL` de `historique_soldes` §3.12) — jamais créée/supprimée via l'API (`POST`/`DELETE` volontairement absents, cf. §4.11), uniquement lue/modifiée. Le job `@Scheduled` mensuel d'incrémentation (`ARCHITECTURE.md` §8) relit la valeur à chaque exécution, sans cache, pour qu'un changement RH s'applique dès le prochain passage sans redéploiement.
 
+### 3.25 `cloture_paie` 🆕 (Lot 6 — gap trouvé en préparant le lot, même nature que `jours_feries` au Lot 4 : le CDC-T v1 renvoyait vers `GET /assiduite/calcul-mensuel`/`POST /assiduite/cloturer-paie` en "✅ INCHANGÉ" sans qu'aucune table de verrouillage mensuel n'ait jamais existé dans le schéma)
+
+```sql
+CREATE TABLE cloture_paie (
+    id BIGSERIAL PRIMARY KEY,
+    mois DATE NOT NULL UNIQUE,              -- toujours le 1er du mois (ex: 2026-07-01)
+    statut VARCHAR(20) NOT NULL DEFAULT 'OUVERT', -- OUVERT, CLOTURE
+    date_cloture TIMESTAMP,
+    cloture_par_id UUID REFERENCES employes(id),
+    taux_anomalies_justifiees NUMERIC(5,2), -- snapshot du contrôle au moment de la clôture
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**Décision d'architecture confirmée (2026-08-04)** : clôture **globale par mois**, pas par département — cohérent avec le CDF ("le RH... clôture des périodes", droit global sur tous les départements). Pas de table de snapshot des résultats de calcul : `GET /assiduite/calcul-mensuel` recalcule à la volée à chaque appel (croisement `pointages_bruts`/`plannings`/`jours_feries`/`autorisations`/`indisponibilites`) — une fois le mois `CLOTURE`, ces données sources deviennent en lecture seule au niveau applicatif (409 sur `PUT /pointages/{id}/corriger`, `POST /autorisations`, `POST /indisponibilites` dont la date tombe dans le mois clôturé), donc le recalcul reste stable sans duplication à synchroniser.
+
+### 3.26 `demandes_deverrouillage` 🆕 (Lot 6 — Module 3, cas exceptionnel "Demander Déverrouillage Exceptionnel")
+
+```sql
+CREATE TABLE demandes_deverrouillage (
+    id BIGSERIAL PRIMARY KEY,
+    mois DATE NOT NULL,
+    motif TEXT NOT NULL,
+    demande_par_id UUID NOT NULL REFERENCES employes(id),
+    statut VARCHAR(20) NOT NULL DEFAULT 'EN_ATTENTE', -- EN_ATTENTE, APPROUVEE, REFUSEE
+    traite_par_id UUID REFERENCES employes(id),
+    date_traitement TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+Une demande ne peut être créée que sur un mois déjà `CLOTURE` (400 sinon). L'approbation RH (`statut = APPROUVEE`) repasse `cloture_paie.statut` à `OUVERT` pour ce mois — le RH doit ensuite reclôturer explicitement via `POST /assiduite/cloturer-paie` une fois la régularisation faite (pas de re-clôture automatique).
+
+**Seuils du moteur de calcul (Module 3) 🆕 dans `parametres_globaux`** : aucune valeur chiffrée n'existant dans le CDF/CDC-T (segmentation heures normales/nuit/majorées, tranches de prime, seuil de clôture), même principe que `TAUX_INCREMENTATION_CONGES_MENSUEL` — valeurs par défaut seedées en migration, modifiables sans redéploiement via `PUT /parametres-globaux/{cle}` : `HEURE_DEBUT_NUIT` (`21:00`), `HEURE_FIN_NUIT` (`06:00`), `SEUIL_HEURES_MAJOREES_JOUR` (`8`), `SEUIL_PRIME_100`/`SEUIL_PRIME_50`/`SEUIL_PRIME_33` (`0`/`2`/`4`, paliers d'incidents = anomalies de pointage non justifiées sur le mois ; au-delà de `SEUIL_PRIME_33`, prime à 25%), `SEUIL_ANOMALIES_CLOTURE` (`98`, en %).
+
 ---
 
 ## 4. Catalogue des Endpoints — corrigé
@@ -476,7 +511,11 @@ Base : `/api/v1`, JWT obligatoire sauf mention contraire. Les endpoints **✅ IN
 ### 4.7 Outillages, Assiduité & Paie — 🔧
 - `POST /outillages/check-out`, `POST /outillages/check-in` — ✅ contrat inchangé, chaque appel insère désormais une ligne dans `outillage_mouvements` (traçabilité constat 10).
 - `GET /outillages/{id}/historique` 🆕 — MANAGER, RH, SUPERUSER : historique des mouvements d'un outil.
-- `GET /assiduite/calcul-mensuel`, `POST /assiduite/cloturer-paie` — ✅ INCHANGÉ.
+- `GET /assiduite/calcul-mensuel?mois=YYYY-MM&departementId=` 🔧 (contrat détaillé pendant le Lot 6, gap comblé — même lacune que `/plannings/delta` au Lot 3, `/calendrier/jours-feries` au Lot 4, `/autorisations` au Lot 5 : le CDC-T v1 se limitait à "✅ INCHANGÉ" sans jamais détailler le contrat) — RH, SUPERUSER, MANAGER (restreint à son propre département, `departementId` client ignoré). Réponse : un `CalculMensuelEmployeDto` par employé — `heuresNormales`/`heuresNuit`/`heuresMajorees` (aucun montant : pas de champ salaire sur `employes`, variables destinées à l'export vers un logiciel de paie externe via `matricule_paie`), `tauxPresence`, `tauxPrime` (paliers d'incidents), `incidents`, `penaliteHeures`.
+- `POST /assiduite/cloturer-paie` 🔧 (body `{ mois: "YYYY-MM" }`) — RH, SUPERUSER : clôture globale du mois (§3.25), refusée en 409 si le taux d'anomalies de pointage justifiées est sous `SEUIL_ANOMALIES_CLOTURE` ou si une autorisation/indisponibilité reste `EN_ATTENTE_RH` sur le mois ; 409 si déjà `CLOTURE`.
+- `POST /assiduite/demandes-deverrouillage` 🆕 (body `{ mois, motif }`) — MANAGER, RH, SUPERUSER : demande de déverrouillage exceptionnel (§3.26), 400 si le mois n'est pas `CLOTURE`.
+- `GET /assiduite/demandes-deverrouillage` 🆕 (filtre `statut` optionnel) — RH, SUPERUSER.
+- `PUT /assiduite/demandes-deverrouillage/{id}` 🆕 (body `{ statut: APPROUVEE|REFUSEE }`) — RH, SUPERUSER : 409 si la demande n'est pas `EN_ATTENTE`. `APPROUVEE` rouvre le mois (`cloture_paie.statut = OUVERT`).
 
 ### 4.8 Dashboard, Reports & Audit — 🔧
 - `GET /dashboard/kpi` — élargi à **DIRECTEUR** (lecture seule) en plus de MANAGER, RH, SUPERUSER.
