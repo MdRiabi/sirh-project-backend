@@ -11,12 +11,20 @@ public record DemandeDeverrouillageDto(
         LocalDate mois,
         String motif,
         UUID demandeParId,
+        String demandeParNom,
+        String demandeParPrenom,
+        Long departementId,
         String statut,
         UUID traiteParId,
         LocalDateTime dateTraitement) {
 
-    public static DemandeDeverrouillageDto from(DemandeDeverrouillage demande) {
+    // departementId = celui du demandeur (pas de département sur cloture_paie,
+    // qui reste globale par mois — cf. CloturePaieService), utilisé côté
+    // frontend pour filtrer la liste par le département affiché à l'écran.
+    public static DemandeDeverrouillageDto from(DemandeDeverrouillage demande, String demandeParNom,
+                                                  String demandeParPrenom, Long departementId) {
         return new DemandeDeverrouillageDto(demande.getId(), demande.getMois(), demande.getMotif(),
-                demande.getDemandeParId(), demande.getStatut(), demande.getTraiteParId(), demande.getDateTraitement());
+                demande.getDemandeParId(), demandeParNom, demandeParPrenom, departementId,
+                demande.getStatut(), demande.getTraiteParId(), demande.getDateTraitement());
     }
 }

@@ -6,6 +6,7 @@ import com.sirh.assiduite.dto.ClotureRequest;
 import com.sirh.assiduite.dto.DemandeDeverrouillageCreateRequest;
 import com.sirh.assiduite.dto.DemandeDeverrouillageDto;
 import com.sirh.assiduite.dto.DemandeDeverrouillageTraiterRequest;
+import com.sirh.assiduite.entity.DemandeDeverrouillage;
 import com.sirh.assiduite.service.AssiduiteCalculService;
 import com.sirh.assiduite.service.CloturePaieService;
 import com.sirh.auth.entity.Role;
@@ -43,6 +44,15 @@ public class AssiduiteController {
         return ResponseEntity.ok(assiduiteCalculService.calculerMois(YearMonth.parse(mois), departementEffectif));
     }
 
+    // Lecture seule du statut de clôture, sans forcer la clôture ni exiger
+    // qu'une ligne existe déjà (mois jamais clôturé -> OUVERT) — mêmes rôles
+    // que calcul-mensuel, pas de scope département (la clôture est globale).
+    @GetMapping("/cloture-paie")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER', 'ROLE_MANAGER')")
+    public ResponseEntity<ClotureDto> statutCloture(@RequestParam String mois) {
+        return ResponseEntity.ok(ClotureDto.from(cloturePaieService.trouverOuDefaut(YearMonth.parse(mois))));
+    }
+
     @PostMapping("/cloturer-paie")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
     public ResponseEntity<ClotureDto> cloturerPaie(@Valid @RequestBody ClotureRequest request,
@@ -55,15 +65,26 @@ public class AssiduiteController {
     public ResponseEntity<DemandeDeverrouillageDto> demanderDeverrouillage(
             @Valid @RequestBody DemandeDeverrouillageCreateRequest request,
             @AuthenticationPrincipal SirhUserDetails principal) {
-        return ResponseEntity.status(201).body(DemandeDeverrouillageDto.from(
-                cloturePaieService.demanderDeverrouillage(request.mois(), request.motif(), principal.getEmployeId())));
+        var demande = cloturePaieService.demanderDeverrouillage(request.mois(), request.motif(), principal.getEmployeId());
+        return ResponseEntity.status(201).body(cloturePaieService.enrichir(List.of(demande)).get(0));
     }
 
+    // Ouvert à MANAGER (scope forcé à son propre département, même convention
+    // que GET /autorisations) : nécessaire pour qu'il puisse savoir si une
+    // demande EN_ATTENTE existe déjà pour le mois/département affiché (évite
+    // les doublons de soumission côté frontend).
     @GetMapping("/demandes-deverrouillage")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_RH', 'ROLE_SUPERUSER')")
     public ResponseEntity<List<DemandeDeverrouillageDto>> listerDemandesDeverrouillage(
-            @RequestParam(required = false) String statut) {
-        return ResponseEntity.ok(cloturePaieService.listerDemandes(statut).stream().map(DemandeDeverrouillageDto::from).toList());
+            @RequestParam(required = false) String mois,
+            @RequestParam(required = false) Long departementId,
+            @RequestParam(required = false) String statut,
+            @AuthenticationPrincipal SirhUserDetails principal) {
+        YearMonth moisParse = mois != null ? YearMonth.parse(mois) : null;
+        List<DemandeDeverrouillage> resultats = principal.getRole() == Role.ROLE_MANAGER
+                ? cloturePaieService.listerDemandesPourManager(moisParse, principal.getDepartementId(), statut)
+                : cloturePaieService.listerDemandes(moisParse, departementId, statut);
+        return ResponseEntity.ok(cloturePaieService.enrichir(resultats));
     }
 
     @PutMapping("/demandes-deverrouillage/{id}")
@@ -71,7 +92,7 @@ public class AssiduiteController {
     public ResponseEntity<DemandeDeverrouillageDto> traiterDemandeDeverrouillage(
             @PathVariable Long id, @Valid @RequestBody DemandeDeverrouillageTraiterRequest request,
             @AuthenticationPrincipal SirhUserDetails principal) {
-        return ResponseEntity.ok(DemandeDeverrouillageDto.from(
-                cloturePaieService.traiterDemande(id, request.statut(), principal.getEmployeId())));
+        var demande = cloturePaieService.traiterDemande(id, request.statut(), principal.getEmployeId());
+        return ResponseEntity.ok(cloturePaieService.enrichir(List.of(demande)).get(0));
     }
 }

@@ -7,14 +7,19 @@ import com.sirh.assiduite.exception.DemandeDeverrouillageNotFoundException;
 import com.sirh.assiduite.exception.DemandeDeverrouillageStatutInvalideException;
 import com.sirh.assiduite.exception.MoisDejaClotureException;
 import com.sirh.assiduite.exception.MoisNonClotureException;
+import com.sirh.assiduite.dto.DemandeDeverrouillageDto;
 import com.sirh.assiduite.repository.CloturePaieRepository;
 import com.sirh.assiduite.repository.DemandeDeverrouillageRepository;
 import com.sirh.audit.annotation.Audited;
 import com.sirh.demandes.repository.AutorisationRepository;
 import com.sirh.demandes.repository.IndisponibiliteRepository;
 import com.sirh.parametres.service.ParametreGlobalService;
+import com.sirh.personnel.entity.Employe;
+import com.sirh.personnel.repository.EmployeRepository;
 import com.sirh.pointages.entity.PointageStatut;
 import com.sirh.pointages.repository.PointageBrutRepository;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,8 +28,11 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Clôture de paie irréversible (sauf déverrouillage exceptionnel) et workflow
@@ -48,19 +56,31 @@ public class CloturePaieService {
     private final IndisponibiliteRepository indisponibiliteRepository;
     private final PointageBrutRepository pointageBrutRepository;
     private final ParametreGlobalService parametreGlobalService;
+    private final EmployeRepository employeRepository;
 
     public CloturePaieService(CloturePaieRepository cloturePaieRepository,
                                DemandeDeverrouillageRepository demandeDeverrouillageRepository,
                                AutorisationRepository autorisationRepository,
                                IndisponibiliteRepository indisponibiliteRepository,
                                PointageBrutRepository pointageBrutRepository,
-                               ParametreGlobalService parametreGlobalService) {
+                               ParametreGlobalService parametreGlobalService,
+                               EmployeRepository employeRepository) {
         this.cloturePaieRepository = cloturePaieRepository;
         this.demandeDeverrouillageRepository = demandeDeverrouillageRepository;
         this.autorisationRepository = autorisationRepository;
         this.indisponibiliteRepository = indisponibiliteRepository;
         this.pointageBrutRepository = pointageBrutRepository;
         this.parametreGlobalService = parametreGlobalService;
+        this.employeRepository = employeRepository;
+    }
+
+    // GET /assiduite/cloture-paie : lecture du statut sans forcer la clôture ni
+    // exiger qu'une ligne existe déjà (mois jamais clôturé -> OUVERT par
+    // défaut, objet transitoire non persisté).
+    @Transactional(readOnly = true)
+    public CloturePaie trouverOuDefaut(YearMonth moisParam) {
+        LocalDate mois = moisParam.atDay(1);
+        return cloturePaieRepository.findByMois(mois).orElseGet(() -> CloturePaie.builder().mois(mois).build());
     }
 
     // Appelée avant toute écriture manuelle sur pointages_bruts (correction),
@@ -158,8 +178,60 @@ public class CloturePaieService {
         return demandeDeverrouillageRepository.findById(id).orElseThrow(() -> new DemandeDeverrouillageNotFoundException(id));
     }
 
+    // Filtré par mois/statut et, indirectement, par département : le
+    // demandeur (demande_par_id) est résolu vers son département via
+    // EmployeRepository (cloture_paie/demandes_deverrouillage restent
+    // globales par mois, aucune colonne département sur la table) — même
+    // principe que AutorisationService.search (chaîne employeId -> departementId).
     @Transactional(readOnly = true)
-    public List<DemandeDeverrouillage> listerDemandes(String statut) {
-        return statut != null ? demandeDeverrouillageRepository.findByStatut(statut) : demandeDeverrouillageRepository.findAll();
+    public List<DemandeDeverrouillage> listerDemandes(YearMonth moisParam, Long departementId, String statut) {
+        LocalDate mois = moisParam != null ? moisParam.atDay(1) : null;
+        List<UUID> employeIdsDepartement = departementId != null
+                ? employeRepository.findByDepartement_Id(departementId).stream().map(Employe::getId).toList()
+                : null;
+
+        Specification<DemandeDeverrouillage> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (mois != null) {
+                predicates.add(cb.equal(root.get("mois"), mois));
+            }
+            if (statut != null) {
+                predicates.add(cb.equal(root.get("statut"), statut));
+            }
+            if (employeIdsDepartement != null) {
+                predicates.add(employeIdsDepartement.isEmpty()
+                        ? cb.disjunction()
+                        : root.get("demandeParId").in(employeIdsDepartement));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        return demandeDeverrouillageRepository.findAll(spec);
+    }
+
+    // Manager : restreint strictement à son propre département — même
+    // garde-fou que AutorisationService.searchPourManager (liste vide plutôt
+    // qu'une recherche non filtrée si le compte n'a pas de département).
+    @Transactional(readOnly = true)
+    public List<DemandeDeverrouillage> listerDemandesPourManager(YearMonth mois, Long departementIdManager, String statut) {
+        if (departementIdManager == null) {
+            return List.of();
+        }
+        return listerDemandes(mois, departementIdManager, statut);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DemandeDeverrouillageDto> enrichir(List<DemandeDeverrouillage> demandes) {
+        Map<UUID, Employe> employesParId = employeRepository
+                .findAllById(demandes.stream().map(DemandeDeverrouillage::getDemandeParId).distinct().toList())
+                .stream().collect(Collectors.toMap(Employe::getId, e -> e));
+        return demandes.stream()
+                .map(d -> {
+                    Employe employe = employesParId.get(d.getDemandeParId());
+                    return DemandeDeverrouillageDto.from(d,
+                            employe != null ? employe.getNom() : null,
+                            employe != null ? employe.getPrenom() : null,
+                            employe != null ? employe.getDepartementId() : null);
+                })
+                .toList();
     }
 }

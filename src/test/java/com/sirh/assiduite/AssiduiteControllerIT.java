@@ -4,7 +4,12 @@ import com.sirh.AbstractIntegrationTest;
 import com.sirh.auth.dto.LoginRequest;
 import com.sirh.auth.dto.TokenResponse;
 import com.sirh.auth.entity.Role;
+import com.sirh.auth.entity.Utilisateur;
+import com.sirh.auth.repository.UtilisateurRepository;
+import com.sirh.personnel.entity.Departement;
 import com.sirh.personnel.entity.Employe;
+import com.sirh.personnel.repository.DepartementRepository;
+import com.sirh.personnel.repository.EmployeRepository;
 import com.sirh.pointages.entity.MethodeValidation;
 import com.sirh.pointages.entity.PointageBrut;
 import com.sirh.pointages.entity.PointageStatut;
@@ -19,12 +24,14 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,6 +45,33 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
 
     @Autowired
     private PointageBrutRepository pointageBrutRepository;
+    @Autowired
+    private DepartementRepository departementRepository;
+    @Autowired
+    private EmployeRepository employeRepository;
+    @Autowired
+    private UtilisateurRepository utilisateurRepository;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    private record FixtureManager(String token, Long departementId) {}
+
+    // Manager réellement rattaché à un département (contrairement à
+    // createFixtureUser(ROLE_MANAGER), qui laisse departement_id=null) —
+    // nécessaire pour vérifier le filtre departementId sur
+    // GET /assiduite/demandes-deverrouillage.
+    private FixtureManager creerManagerAvecDepartement() {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        Departement departement = departementRepository.save(Departement.builder().nom("Dept-" + suffix).build());
+        Employe employe = employeRepository.save(Employe.builder()
+                .matriculeInterne("IT-MGR-" + suffix).nom("Manager").prenom("Test").typeContrat("CDI")
+                .dateEmbauche(LocalDate.now()).actif(true).departement(departement).build());
+        String username = "it-mgr-" + suffix;
+        utilisateurRepository.save(Utilisateur.builder()
+                .employe(employe).username(username).passwordHash(passwordEncoder.encode(FIXTURE_PASSWORD))
+                .role(Role.ROLE_MANAGER).compteActif(true).echecsLoginConsecutifs(0).build());
+        return new FixtureManager(login(username), departement.getId());
+    }
 
     private String login(String username) {
         return restTemplate.postForEntity(baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class)
@@ -226,5 +260,82 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
                 assertThat(dto.get("heuresNormales")).isEqualTo(8.0);
             }
         });
+    }
+
+    @Test
+    void statutCloture_moisJamaisCloture_renvoieOuvertParDefautSansLigneEnBase() {
+        String rhToken = login(createFixtureUser(Role.ROLE_RH));
+        YearMonth mois = YearMonth.now().minusMonths(8);
+
+        ResponseEntity<Map> reponse = restTemplate.exchange(
+                baseUrl("/assiduite/cloture-paie?mois=" + mois), HttpMethod.GET,
+                new HttpEntity<>(authHeaders(rhToken)), Map.class);
+
+        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(reponse.getBody().get("statut")).isEqualTo("OUVERT");
+        assertThat(reponse.getBody().get("id")).isNull();
+    }
+
+    @Test
+    void statutCloture_moisCloture_refleteLeStatutSansRelancerLaCloture() {
+        String rhToken = login(createFixtureUser(Role.ROLE_RH));
+        YearMonth mois = YearMonth.now().minusMonths(9);
+        assertThat(cloturer(rhToken, mois).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<Map> reponse = restTemplate.exchange(
+                baseUrl("/assiduite/cloture-paie?mois=" + mois), HttpMethod.GET,
+                new HttpEntity<>(authHeaders(rhToken)), Map.class);
+
+        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(reponse.getBody().get("statut")).isEqualTo("CLOTURE");
+    }
+
+    @Test
+    void demandesDeverrouillage_filtreesParDepartement_neRemonteQueCellesDuDemandeurDuDepartement() {
+        String rhToken = login(createFixtureUser(Role.ROLE_RH));
+        YearMonth mois = YearMonth.now().minusMonths(10);
+        assertThat(cloturer(rhToken, mois).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        FixtureManager managerA = creerManagerAvecDepartement();
+        FixtureManager managerB = creerManagerAvecDepartement();
+        restTemplate.exchange(baseUrl("/assiduite/demandes-deverrouillage"), HttpMethod.POST,
+                new HttpEntity<>(Map.of("mois", mois.toString(), "motif", "Demande département A"), authHeaders(managerA.token())), Map.class);
+        restTemplate.exchange(baseUrl("/assiduite/demandes-deverrouillage"), HttpMethod.POST,
+                new HttpEntity<>(Map.of("mois", mois.toString(), "motif", "Demande département B"), authHeaders(managerB.token())), Map.class);
+
+        ResponseEntity<List> reponse = restTemplate.exchange(
+                baseUrl("/assiduite/demandes-deverrouillage?mois=" + mois + "&departementId=" + managerA.departementId()),
+                HttpMethod.GET, new HttpEntity<>(authHeaders(rhToken)), List.class);
+
+        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(reponse.getBody()).hasSize(1);
+        Map<?, ?> demande = (Map<?, ?>) reponse.getBody().get(0);
+        assertThat(demande.get("motif")).isEqualTo("Demande département A");
+        assertThat(demande.get("departementId")).isEqualTo(managerA.departementId().intValue());
+    }
+
+    // Le Manager a désormais accès en lecture à ce endpoint (scope forcé à son
+    // propre département) pour savoir si une demande EN_ATTENTE existe déjà
+    // sur le mois affiché et éviter une double soumission côté frontend.
+    @Test
+    void demandesDeverrouillage_parManager_neVoitQueSonPropreDepartement() {
+        String rhToken = login(createFixtureUser(Role.ROLE_RH));
+        YearMonth mois = YearMonth.now().minusMonths(11);
+        assertThat(cloturer(rhToken, mois).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        FixtureManager managerA = creerManagerAvecDepartement();
+        FixtureManager managerB = creerManagerAvecDepartement();
+        restTemplate.exchange(baseUrl("/assiduite/demandes-deverrouillage"), HttpMethod.POST,
+                new HttpEntity<>(Map.of("mois", mois.toString(), "motif", "Demande de B"), authHeaders(managerB.token())), Map.class);
+
+        ResponseEntity<List> vuParA = restTemplate.exchange(
+                baseUrl("/assiduite/demandes-deverrouillage?mois=" + mois + "&statut=EN_ATTENTE"),
+                HttpMethod.GET, new HttpEntity<>(authHeaders(managerA.token())), List.class);
+        assertThat(vuParA.getBody()).isEmpty();
+
+        ResponseEntity<List> vuParB = restTemplate.exchange(
+                baseUrl("/assiduite/demandes-deverrouillage?mois=" + mois + "&statut=EN_ATTENTE"),
+                HttpMethod.GET, new HttpEntity<>(authHeaders(managerB.token())), List.class);
+        assertThat(vuParB.getBody()).hasSize(1);
     }
 }
