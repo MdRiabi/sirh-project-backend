@@ -43,7 +43,7 @@ Comme le reste de `docs/`, ce fichier existe en double dans les deux dépôts (c
 
 - Spring Boot 3.3.x, Java 21, Maven, PostgreSQL 16, Redis 7 (cache dashboard + blacklist JWT uniquement — pas de file de jobs, cf. `ARCHITECTURE.md` §7), Flyway pour les migrations (`src/main/resources/db/migration/`, jamais de modification d'un script déjà appliqué — toujours un nouveau `Vn+1`).
 - `spring.jpa.hibernate.ddl-auto: validate` — Flyway possède le schéma, Hibernate ne fait que le valider. Ne jamais passer en `update`/`create`.
-- Packages organisés par domaine métier : `auth`, `personnel`, `pointages`, `planning`, `assiduite`, `demandes`, `outillages`, `notifications`, `evaluations`, `renouvellement`, `calendrier`, `reporting`, `audit`, `fichiers` (cf. `ARCHITECTURE.md` §3).
+- Packages organisés par domaine métier (voir `ARCHITECTURE.md` §3 ou `ls src/main/java/com/sirh/`).
 - Aspect Spring AOP (`@Audited`) pour la journalisation des actions sensibles — voir `ARCHITECTURE.md` §9 pour la liste des actions à couvrir.
 
 ## Données de dev
