@@ -2,12 +2,13 @@ package com.sirh.demandes.repository;
 
 import com.sirh.demandes.entity.Indisponibilite;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-public interface IndisponibiliteRepository extends JpaRepository<Indisponibilite, Long> {
+public interface IndisponibiliteRepository extends JpaRepository<Indisponibilite, Long>, JpaSpecificationExecutor<Indisponibilite> {
 
     // Chevauchement avec un congé VALIDE (cahier-fonctionnel.md Module 2) :
     // indisponibilité.dateDebut <= fin ET indisponibilité.dateFin >= début.

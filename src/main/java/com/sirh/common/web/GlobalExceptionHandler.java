@@ -9,7 +9,9 @@ import com.sirh.calendrier.exception.JourFerieNotFoundException;
 import com.sirh.demandes.exception.AutorisationNotFoundException;
 import com.sirh.demandes.exception.DelaiRegularisationDepasseException;
 import com.sirh.demandes.exception.DemandeStatutInvalideException;
+import com.sirh.demandes.exception.IndisponibiliteNotFoundException;
 import com.sirh.demandes.exception.QuotaAutorisationDepasseException;
+import com.sirh.demandes.exception.SoldeInsuffisantException;
 import com.sirh.fichiers.exception.FichierNotFoundException;
 import com.sirh.personnel.exception.ContratNotFoundException;
 import com.sirh.personnel.exception.DepartementNotFoundException;
@@ -130,6 +132,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DemandeStatutInvalideException.class)
     public ResponseEntity<Map<String, Object>> handleDemandeStatutInvalide(DemandeStatutInvalideException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(IndisponibiliteNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleIndisponibiliteNotFound(IndisponibiliteNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(SoldeInsuffisantException.class)
+    public ResponseEntity<Map<String, Object>> handleSoldeInsuffisant(SoldeInsuffisantException ex) {
         return build(HttpStatus.CONFLICT, ex.getMessage());
     }
 
