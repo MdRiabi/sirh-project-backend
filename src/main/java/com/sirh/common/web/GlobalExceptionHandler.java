@@ -10,6 +10,7 @@ import com.sirh.fichiers.exception.FichierNotFoundException;
 import com.sirh.personnel.exception.ContratNotFoundException;
 import com.sirh.personnel.exception.DepartementNotFoundException;
 import com.sirh.personnel.exception.EmployeNotFoundException;
+import com.sirh.parametres.exception.ParametreNotFoundException;
 import com.sirh.pointages.exception.ImportPointagesException;
 import com.sirh.pointages.exception.PointageNotFoundException;
 import com.sirh.pointages.exception.PointeuseNotFoundException;
@@ -100,6 +101,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(JourFerieNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleJourFerieNotFound(JourFerieNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(ParametreNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleParametreNotFound(ParametreNotFoundException ex) {
         return build(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
