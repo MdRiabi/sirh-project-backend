@@ -15,4 +15,8 @@ public interface AutorisationRepository extends JpaRepository<Autorisation, Long
     // quota, pour alerter au plus tôt plutôt qu'au moment de la validation).
     List<Autorisation> findByEmployeIdAndDateAutorisationBetweenAndStatutIn(
             UUID employeId, LocalDate debut, LocalDate fin, List<String> statuts);
+
+    // Contrôle préalable à la clôture de paie (Module 3, com.sirh.assiduite) :
+    // aucune demande ne doit rester EN_ATTENTE_RH sur le mois à clôturer.
+    List<Autorisation> findByStatutAndDateAutorisationBetween(String statut, LocalDate debut, LocalDate fin);
 }

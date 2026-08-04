@@ -20,4 +20,10 @@ public interface IndisponibiliteRepository extends JpaRepository<Indisponibilite
     // s'applique qu'au congé payé, pas aux autres types d'indisponibilité).
     List<Indisponibilite> findByTypeIndisponibiliteAndStatutAndDateDebutLessThanEqualAndDateFinGreaterThanEqual(
             String typeIndisponibilite, String statut, LocalDate date, LocalDate sameDate);
+
+    // Contrôle préalable à la clôture de paie (Module 3, com.sirh.assiduite) :
+    // tous employés confondus, même principe de chevauchement que le contrôle
+    // planning (cahier-technique.md §3.9/§4.4).
+    List<Indisponibilite> findByStatutAndDateDebutLessThanEqualAndDateFinGreaterThanEqual(
+            String statut, LocalDate finMois, LocalDate debutMois);
 }

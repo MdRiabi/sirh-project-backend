@@ -4,6 +4,11 @@ import com.sirh.auth.exception.AccountLockedException;
 import com.sirh.auth.exception.InvalidCredentialsException;
 import com.sirh.auth.exception.InvalidTokenException;
 import com.sirh.auth.exception.UtilisateurNotFoundException;
+import com.sirh.assiduite.exception.ClotureRefuseeException;
+import com.sirh.assiduite.exception.DemandeDeverrouillageNotFoundException;
+import com.sirh.assiduite.exception.DemandeDeverrouillageStatutInvalideException;
+import com.sirh.assiduite.exception.MoisDejaClotureException;
+import com.sirh.assiduite.exception.MoisNonClotureException;
 import com.sirh.async.exception.AsyncJobNotFoundException;
 import com.sirh.calendrier.exception.JourFerieNotFoundException;
 import com.sirh.demandes.exception.AutorisationNotFoundException;
@@ -142,6 +147,31 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(SoldeInsuffisantException.class)
     public ResponseEntity<Map<String, Object>> handleSoldeInsuffisant(SoldeInsuffisantException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(MoisDejaClotureException.class)
+    public ResponseEntity<Map<String, Object>> handleMoisDejaCloture(MoisDejaClotureException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(ClotureRefuseeException.class)
+    public ResponseEntity<Map<String, Object>> handleClotureRefusee(ClotureRefuseeException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(MoisNonClotureException.class)
+    public ResponseEntity<Map<String, Object>> handleMoisNonCloture(MoisNonClotureException ex) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(DemandeDeverrouillageNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleDemandeDeverrouillageNotFound(DemandeDeverrouillageNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(DemandeDeverrouillageStatutInvalideException.class)
+    public ResponseEntity<Map<String, Object>> handleDemandeDeverrouillageStatutInvalide(DemandeDeverrouillageStatutInvalideException ex) {
         return build(HttpStatus.CONFLICT, ex.getMessage());
     }
 

@@ -26,4 +26,8 @@ public interface PointageBrutRepository extends JpaRepository<PointageBrut, Long
     // pointages_bruts.autorisation_id reste unidirectionnelle.
     List<PointageBrut> findByEmployeIdAndTimestampPointageBetweenAndStatut(
             UUID employeId, LocalDateTime debut, LocalDateTime fin, PointageStatut statut);
+
+    // Contrôle préalable à la clôture de paie (Module 3, com.sirh.assiduite) :
+    // taux d'anomalies justifiées sur le mois, tous employés confondus.
+    long countByTimestampPointageBetweenAndStatut(LocalDateTime debut, LocalDateTime fin, PointageStatut statut);
 }

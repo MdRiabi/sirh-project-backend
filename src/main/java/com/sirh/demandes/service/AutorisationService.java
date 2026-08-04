@@ -1,5 +1,6 @@
 package com.sirh.demandes.service;
 
+import com.sirh.assiduite.service.CloturePaieService;
 import com.sirh.audit.annotation.Audited;
 import com.sirh.demandes.dto.AutorisationDto;
 import com.sirh.demandes.entity.Autorisation;
@@ -50,13 +51,16 @@ public class AutorisationService {
     private final EmployeRepository employeRepository;
     private final PointageBrutService pointageBrutService;
     private final PlanningService planningService;
+    private final CloturePaieService cloturePaieService;
 
     public AutorisationService(AutorisationRepository autorisationRepository, EmployeRepository employeRepository,
-                                PointageBrutService pointageBrutService, PlanningService planningService) {
+                                PointageBrutService pointageBrutService, PlanningService planningService,
+                                CloturePaieService cloturePaieService) {
         this.autorisationRepository = autorisationRepository;
         this.employeRepository = employeRepository;
         this.pointageBrutService = pointageBrutService;
         this.planningService = planningService;
+        this.cloturePaieService = cloturePaieService;
     }
 
     @Transactional
@@ -64,6 +68,9 @@ public class AutorisationService {
                                LocalTime heureFin, Integer dureeMinutes, String motif, UUID creeParId,
                                String creeParRole, String avisManagerStatut, String avisManagerCommentaire) {
         employeRepository.findById(employeId).orElseThrow(() -> new EmployeNotFoundException(employeId));
+        // Cas exceptionnel Module 3 : une nouvelle autorisation ne peut pas être
+        // saisie sur un mois déjà clôturé, y compris via le workflow d'urgence RH.
+        cloturePaieService.verifierMoisOuvert(dateAutorisation);
 
         if (ROLE_MANAGER.equals(creeParRole)) {
             LocalDateTime reference = LocalDateTime.of(dateAutorisation, heureDebut);

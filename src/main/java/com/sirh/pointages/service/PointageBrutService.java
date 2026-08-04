@@ -1,5 +1,6 @@
 package com.sirh.pointages.service;
 
+import com.sirh.assiduite.service.CloturePaieService;
 import com.sirh.audit.entity.AuditLog;
 import com.sirh.audit.repository.AuditLogRepository;
 import com.sirh.pointages.dto.CorrectionPointageRequest;
@@ -37,10 +38,13 @@ public class PointageBrutService {
 
     private final PointageBrutRepository pointageBrutRepository;
     private final AuditLogRepository auditLogRepository;
+    private final CloturePaieService cloturePaieService;
 
-    public PointageBrutService(PointageBrutRepository pointageBrutRepository, AuditLogRepository auditLogRepository) {
+    public PointageBrutService(PointageBrutRepository pointageBrutRepository, AuditLogRepository auditLogRepository,
+                                CloturePaieService cloturePaieService) {
         this.pointageBrutRepository = pointageBrutRepository;
         this.auditLogRepository = auditLogRepository;
+        this.cloturePaieService = cloturePaieService;
     }
 
     @Transactional
@@ -175,6 +179,12 @@ public class PointageBrutService {
     @Transactional
     public PointageBrut corriger(Long id, CorrectionPointageRequest request, Long utilisateurId, String adresseIp) {
         PointageBrut pointage = findById(id);
+        // Cas exceptionnel Module 3 : "un Manager tente d'ajouter une autorisation
+        // ou un pointage sur un mois dont la paie a déjà été validée" — vérifie à
+        // la fois le mois d'origine du pointage et celui de la nouvelle date
+        // demandée (une correction peut déplacer le pointage vers un autre mois).
+        cloturePaieService.verifierMoisOuvert(pointage.getTimestampPointage().toLocalDate());
+        cloturePaieService.verifierMoisOuvert(request.timestampPointage().toLocalDate());
 
         String ancienneValeur = String.format(
                 "{\"timestampPointage\":\"%s\",\"typeEvenement\":\"%s\",\"statut\":\"%s\"}",

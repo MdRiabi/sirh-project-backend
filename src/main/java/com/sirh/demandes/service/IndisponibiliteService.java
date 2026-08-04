@@ -1,5 +1,6 @@
 package com.sirh.demandes.service;
 
+import com.sirh.assiduite.service.CloturePaieService;
 import com.sirh.audit.annotation.Audited;
 import com.sirh.calendrier.entity.TypeJourFerie;
 import com.sirh.calendrier.repository.JourFerieRepository;
@@ -54,15 +55,17 @@ public class IndisponibiliteService {
     private final HistoriqueSoldeRepository historiqueSoldeRepository;
     private final JourFerieRepository jourFerieRepository;
     private final PlanningService planningService;
+    private final CloturePaieService cloturePaieService;
 
     public IndisponibiliteService(IndisponibiliteRepository indisponibiliteRepository, EmployeRepository employeRepository,
                                    HistoriqueSoldeRepository historiqueSoldeRepository, JourFerieRepository jourFerieRepository,
-                                   PlanningService planningService) {
+                                   PlanningService planningService, CloturePaieService cloturePaieService) {
         this.indisponibiliteRepository = indisponibiliteRepository;
         this.employeRepository = employeRepository;
         this.historiqueSoldeRepository = historiqueSoldeRepository;
         this.jourFerieRepository = jourFerieRepository;
         this.planningService = planningService;
+        this.cloturePaieService = cloturePaieService;
     }
 
     @Transactional
@@ -70,6 +73,10 @@ public class IndisponibiliteService {
                                   String commentaire, Long pieceJointeId, UUID creeParId, String creeParRole,
                                   String avisManagerStatut, String avisManagerCommentaire, boolean forcer) {
         employeRepository.findById(employeId).orElseThrow(() -> new EmployeNotFoundException(employeId));
+        // Cas exceptionnel Module 3 : idem AutorisationService.creer — vérifie les
+        // deux bornes, une indisponibilité peut chevaucher deux mois calendaires.
+        cloturePaieService.verifierMoisOuvert(dateDebut);
+        cloturePaieService.verifierMoisOuvert(dateFin);
 
         boolean urgenceRh = ROLE_RH.equals(creeParRole);
         Indisponibilite indisponibilite = Indisponibilite.builder()
