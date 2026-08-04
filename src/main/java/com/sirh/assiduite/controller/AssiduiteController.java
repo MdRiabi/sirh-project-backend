@@ -57,7 +57,8 @@ public class AssiduiteController {
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
     public ResponseEntity<ClotureDto> cloturerPaie(@Valid @RequestBody ClotureRequest request,
                                                      @AuthenticationPrincipal SirhUserDetails principal) {
-        return ResponseEntity.ok(ClotureDto.from(cloturePaieService.cloturer(request.mois(), principal.getEmployeId())));
+        return ResponseEntity.ok(ClotureDto.from(
+                cloturePaieService.cloturer(YearMonth.parse(request.mois()), principal.getEmployeId())));
     }
 
     @PostMapping("/demandes-deverrouillage")
@@ -65,7 +66,7 @@ public class AssiduiteController {
     public ResponseEntity<DemandeDeverrouillageDto> demanderDeverrouillage(
             @Valid @RequestBody DemandeDeverrouillageCreateRequest request,
             @AuthenticationPrincipal SirhUserDetails principal) {
-        var demande = cloturePaieService.demanderDeverrouillage(request.mois(), request.motif(), principal.getEmployeId());
+        var demande = cloturePaieService.demanderDeverrouillage(YearMonth.parse(request.mois()), request.motif(), principal.getEmployeId());
         return ResponseEntity.status(201).body(cloturePaieService.enrichir(List.of(demande)).get(0));
     }
 
