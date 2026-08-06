@@ -26,7 +26,16 @@ public class SecurityConfig {
             "/swagger-ui.html",
             // Pointeuses physiques : pas de JWT, sécurisé par liste blanche IP
             // (HikvisionIpAllowlistFilter, cf. cahier-technique.md §1.1).
-            "/api/v1/hikvision/**"
+            "/api/v1/hikvision/**",
+            // Forward interne Spring Boot suite à response.sendError() (ex. 400
+            // MethodArgumentNotValidException) : JwtAuthenticationFilter ne
+            // rejoue pas l'authentification sur un dispatch ERROR
+            // (OncePerRequestFilter.shouldNotFilterErrorDispatch() = true par
+            // défaut), donc sans cette entrée le forward vers /error atterrissait
+            // non authentifié et l'entry point écrasait la vraie erreur (400, 409...)
+            // par un 401 générique trompeur — bug pré-existant (Lot 0), trouvé en
+            // validant manuellement le Lot 7.
+            "/error"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;

@@ -18,6 +18,8 @@ import com.sirh.demandes.exception.IndisponibiliteNotFoundException;
 import com.sirh.demandes.exception.QuotaAutorisationDepasseException;
 import com.sirh.demandes.exception.SoldeInsuffisantException;
 import com.sirh.fichiers.exception.FichierNotFoundException;
+import com.sirh.outillages.exception.OutillageMouvementInvalideException;
+import com.sirh.outillages.exception.OutillageNotFoundException;
 import com.sirh.personnel.exception.ContratNotFoundException;
 import com.sirh.personnel.exception.DepartementNotFoundException;
 import com.sirh.personnel.exception.EmployeNotFoundException;
@@ -172,6 +174,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DemandeDeverrouillageStatutInvalideException.class)
     public ResponseEntity<Map<String, Object>> handleDemandeDeverrouillageStatutInvalide(DemandeDeverrouillageStatutInvalideException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(OutillageNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleOutillageNotFound(OutillageNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(OutillageMouvementInvalideException.class)
+    public ResponseEntity<Map<String, Object>> handleOutillageMouvementInvalide(OutillageMouvementInvalideException ex) {
         return build(HttpStatus.CONFLICT, ex.getMessage());
     }
 
