@@ -329,6 +329,12 @@ CREATE TABLE notifications (
 CREATE INDEX idx_notifications_dest ON notifications(destinataire_id, lue, created_at DESC);
 ```
 
+**🔧 Gaps comblés pendant la conception backend du Lot 8** (même nature que les gaps des Lots 3-7) : le Module 11 chiffre deux seuils dans le Workflow Nominal (3 oublis de badgeage/semaine, ≤5 jours travaillés/30 jours) sans les rattacher à `parametres_globaux`, et le cas exceptionnel "faux positif sous-activité" cite deux motifs concrets de suspension légale de contrat (congé maternité, arrêt maladie longue durée) sans qu'aucune liste fermée de types n'existe en base (`indisponibilites.type_indisponibilite` reste un `VARCHAR` libre, cf. §3.11). `V8__lot8_notifications.sql` ajoute donc trois entrées à `parametres_globaux` : `SEUIL_OUBLIS_BADGEAGE_HEBDO` (`3`), `SEUIL_JOURS_TRAVAILLES_SOUS_ACTIVITE` (`5`), `TYPES_SUSPENSION_LEGALE` (CSV, `MALADIE,MATERNITE,PATERNITE,ACCIDENT_TRAVAIL`) — modifiables par le RH sans redéploiement, même principe que les seuils des Lots 5-7. La table `notifications` elle-même n'a rien à migrer : déjà créée à l'identique par `V1__init_schema.sql` (schéma consolidé initial).
+
+**`entite_type`/`entite_id` restreints à `DEMANDE_A_VALIDER`** : `entite_id` est `BIGINT` (référence `autorisations`/`indisponibilites`, `id` `Long`) — jamais peuplé pour `ALERTE_POINTAGE`/`ALERTE_SOUS_ACTIVITE`, dont l'entité concernée est un employé (`id` `UUID`, règle transverse du projet). L'identité de l'employé reste dans le texte du `message` pour ces deux types, sans forcer un mismatch de type sur une colonne partagée.
+
+**"cumule 3 oublis" (Module 11, règle 1) interprété en ≥ seuil** : comme tous les autres seuils du projet (`SEUIL_ANOMALIES_CLOTURE`, `SEUIL_PRIME_*`), jamais en égalité stricte — un employé à 4 oublis reste alerté.
+
 ### 3.19 `jours_feries` 🆕 (absente du DDL v1 alors que les endpoints `/calendrier/jours-feries` l'exigent — gap supplémentaire trouvé pendant la correction)
 ```sql
 CREATE TABLE jours_feries (
@@ -528,7 +534,7 @@ Base : `/api/v1`, JWT obligatoire sauf mention contraire. Les endpoints **✅ IN
 - `GET /dashboard/kpi` — élargi à **DIRECTEUR** (lecture seule) en plus de MANAGER, RH, SUPERUSER.
 - `POST /reports/generer`, `GET /reports/tasks/{taskId}` — ✅ contrat inchangé, backés par `async_jobs` (type `REPORT`) au lieu d'une structure ad hoc.
 - `GET /audit-logs` — 🔧 **SUPERUSER exclusivement** (RH retiré, constat 2).
-- `GET /notifications`, `PUT /notifications/{id}/lue` 🆕 — tout rôle authentifié (scope = ses propres notifications).
+- `GET /notifications`, `PUT /notifications/{id}/lue` 🆕 — tout rôle authentifié (scope = ses propres notifications). Aucun `POST` : les notifications ne sont créées que par les déclencheurs Lot 8 (jamais par un appel client) — `DEMANDE_A_VALIDER` publié via `ApplicationEventPublisher`/`DemandeCreeEvent` par `AutorisationService`/`IndisponibiliteService` (Lot 5, uniquement le workflow Manager `EN_ATTENTE_RH`, consommé après commit par un `@TransactionalEventListener(AFTER_COMMIT)` `@Async`), `ALERTE_POINTAGE`/`ALERTE_SOUS_ACTIVITE` par les tâches `@Scheduled` (Module 11, règles 1 et 2 — dimanche soir / dernier jour du mois).
 
 ### 4.9 Renouvellement de contrats 🆕 (Module 12)
 - `GET /taches-renouvellement?statut=EN_COURS` — RH, SUPERUSER : liste des tâches à traiter.
