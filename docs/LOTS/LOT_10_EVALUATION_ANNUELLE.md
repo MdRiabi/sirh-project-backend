@@ -1,8 +1,16 @@
 # Lot 10 — Évaluation Annuelle *(Module 9 du CDF)*
 
-**Statut** : implémenté, tests unitaires/intégration/frontend verts, validé visuellement de bout en bout dans un vrai navigateur (Chrome via Claude in Chrome, cf. §16) — prêt pour commit.
+**Statut** : implémenté, testé (13 tests unitaires, 8 tests d'intégration Testcontainers, 4 tests frontend Vitest, tous verts) et validé visuellement de bout en bout dans un vrai navigateur (Chrome via Claude in Chrome, cf. §16) — validé et committé (backend + frontend).
 **Dépendances** : [Lot 1 — Personnel & Départements](LOT_1_PERSONNEL.md) (`employes`/`departements`, `evenements_360` déjà générique et `EvenementCategorie.EVALUATION` déjà anticipée dans ce lot).
 **Suite** : aucune dépendance identifiée pour l'instant (le Lot 11 — Dashboard n'agrège pas les évaluations d'après `BACKLOG.md`).
+
+**Commits** (`sirh-project-backend`) :
+- `648375f` `feat(evaluation): grille de notation Manager/RH et PDI auto (Module 9)`
+- `5f9bd04` `docs(evaluation): document Lot 10 build and cahier-technique gaps`
+
+**Commits** (`sirh-project-frontend`) :
+- `2a7b1c9` `feat(evaluations): Manager grid screen and RH validation with PDI (Module 9)`
+- `f2c29e4` `docs(evaluations): document Lot 10 build and cahier-technique gaps`
 
 ## Objectif
 
