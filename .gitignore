@@ -5,3 +5,5 @@ target/
 .env
 .DS_Store
 /storage/
+# Local /graphify knowledge-graph output — regenerate on demand, never committed.
+graphify-out/
