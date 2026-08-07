@@ -17,6 +17,9 @@ import com.sirh.demandes.exception.DemandeStatutInvalideException;
 import com.sirh.demandes.exception.IndisponibiliteNotFoundException;
 import com.sirh.demandes.exception.QuotaAutorisationDepasseException;
 import com.sirh.demandes.exception.SoldeInsuffisantException;
+import com.sirh.evaluation.exception.EvaluationIncompleteException;
+import com.sirh.evaluation.exception.EvaluationNotFoundException;
+import com.sirh.evaluation.exception.EvaluationStatutInvalideException;
 import com.sirh.fichiers.exception.FichierNotFoundException;
 import com.sirh.notifications.exception.NotificationNotFoundException;
 import com.sirh.outillages.exception.OutillageMouvementInvalideException;
@@ -203,6 +206,27 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(TacheRenouvellementStatutInvalideException.class)
     public ResponseEntity<Map<String, Object>> handleTacheRenouvellementStatutInvalide(TacheRenouvellementStatutInvalideException ex) {
         return build(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(EvaluationNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleEvaluationNotFound(EvaluationNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(EvaluationStatutInvalideException.class)
+    public ResponseEntity<Map<String, Object>> handleEvaluationStatutInvalide(EvaluationStatutInvalideException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(EvaluationIncompleteException.class)
+    public ResponseEntity<Map<String, Object>> handleEvaluationIncomplete(EvaluationIncompleteException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", Instant.now().toString());
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("error", HttpStatus.BAD_REQUEST.getReasonPhrase());
+        body.put("message", ex.getMessage());
+        body.put("competencesManquantes", ex.getCompetencesManquantes());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

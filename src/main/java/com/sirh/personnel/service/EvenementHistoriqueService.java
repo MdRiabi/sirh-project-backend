@@ -62,6 +62,11 @@ public class EvenementHistoriqueService {
         if (request.categorie() == EvenementCategorie.CONTRAT) {
             throw new IllegalArgumentException("La catégorie CONTRAT est générée automatiquement, elle ne peut pas être saisie manuellement.");
         }
+        // Même règle pour EVALUATION, générée exclusivement par EvaluationService
+        // lors de la validation RH (Module 9, Lot 10).
+        if (request.categorie() == EvenementCategorie.EVALUATION) {
+            throw new IllegalArgumentException("La catégorie EVALUATION est générée automatiquement, elle ne peut pas être saisie manuellement.");
+        }
 
         EvenementHistorique evenement = EvenementHistorique.builder()
                 .employeId(employeId)
