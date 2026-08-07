@@ -381,12 +381,15 @@ CREATE TABLE evaluations (
 ```
 
 ### 3.22 `evaluation_competences` 🆕
+
+**🔧 `note` nullable (Lot 10)** : le CDF (Module 9, cas exceptionnel "Validation incomplète de la grille") exige qu'une grille puisse être enregistrée incomplète, avec surlignage des champs manquants, et que seule la **soumission** (pas la saisie) soit bloquée. `note NOT NULL` en interdisait la représentation — `V10__lot10_evaluation_annuelle.sql` exécute `ALTER TABLE evaluation_competences ALTER COLUMN note DROP NOT NULL`. `seuil_exigence` reste `NOT NULL` (toujours connu à la création de la ligne). Le blocage réel a lieu en application (`EvaluationService#mettreAJour`, 400 avec la liste des compétences manquantes) et en filet de sécurité à la validation RH.
+
 ```sql
 CREATE TABLE evaluation_competences (
     id BIGSERIAL PRIMARY KEY,
     evaluation_id BIGINT NOT NULL REFERENCES evaluations(id) ON DELETE CASCADE,
     competence VARCHAR(100) NOT NULL,
-    note NUMERIC(3,1) NOT NULL,
+    note NUMERIC(3,1), -- 🔧 nullable (Lot 10, cf. ci-dessus)
     seuil_exigence NUMERIC(3,1) NOT NULL,
     commentaire TEXT
 );
@@ -545,6 +548,7 @@ Base : `/api/v1`, JWT obligatoire sauf mention contraire. Les endpoints **✅ IN
 - `PUT /evaluations/{id}` — MANAGER : complète/corrige la grille avant soumission ; **rejet 400 si une compétence obligatoire n'est pas notée** (Module 9, cas exceptionnel).
 - `PUT /evaluations/{id}/valider` — RH, SUPERUSER : validation finale. Génère automatiquement les lignes `plans_developpement` pour toute compétence sous le seuil.
 - `GET /evaluations/{employeId}` — MANAGER (son équipe), RH, SUPERUSER *(pas d'accès Employé — non prévu par le CDF pour ce module)*.
+- `GET /evaluations?statut=&annee=` 🔧 (Lot 10, non listé explicitement ci-dessus mais nécessaire) — MANAGER (son équipe), RH, SUPERUSER : liste sans connaître l'employé à l'avance, indispensable à l'écran de validation RH (le CDF décrit un RH qui "valide" une file de grilles, pas une consultation employé par employé) — même besoin que `GET /taches-renouvellement?statut=` au Lot 9. "Son équipe" pour MANAGER est résolu par département (comme le reste du codebase), faute de hiérarchie manager→employé indépendante en base.
 
 ---
 
