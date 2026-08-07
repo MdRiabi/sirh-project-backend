@@ -1,7 +1,17 @@
 # Lot 8 — Notifications *(Module 11 du CDF)*
 
-**Statut** : implémenté et validé (backend + frontend), non commité au moment de la rédaction.
-**Dépendances** : Lot 1 (référence `employes.id`, `departements.manager_id`), Lot 5 (déclencheurs sur les demandes `autorisations`/`indisponibilites`), Lot 6 (`parametres_globaux`, convention seuils dynamiques).
+**Statut** : implémenté, validé et committé (backend + frontend).
+**Dépendances** : [Lot 1 — Personnel & Départements](LOT_1_PERSONNEL.md) (référence `employes.id`, `departements.manager_id`), [Lot 5 — Congés & Autorisations](LOT_5_CONGES_AUTORISATIONS.md) (déclencheurs sur les demandes `autorisations`/`indisponibilites`), [Lot 6 — Assiduité & Paie](LOT_6_ASSIDUITE_PAIE.md) (`parametres_globaux`, convention seuils dynamiques).
+**Suite** : Lot 9 — Renouvellement de contrats (proposition d'architecture validée avec l'utilisateur, implémentation à venir — voir `BACKLOG.md`).
+
+**Commits** (`sirh-project-backend`) :
+- `c11c404` `feat(notifications): add V8 migration with dynamic Module 11 thresholds`
+- `0ae7086` `feat(notifications): CRUD, event-driven and scheduled alerts (Module 11)`
+- `ca4898a` `docs(notifications): document Lot 8 gaps and finalize report`
+
+**Commits** (`sirh-project-frontend`) :
+- `accbaa9` `feat(notifications): add NotificationBell component to Top Bar`
+- `f31b1a1` `docs(notifications): document Lot 8 gaps and finalize report`
 
 ## Objectif
 
