@@ -348,7 +348,7 @@ sequenceDiagram
 
 ## 9. Stratégie d'audit (piste de contrôle immuable)
 
-- Un aspect Spring AOP (`@Around`) intercepte les méthodes de service annotées `@Audited(action = "...")`, appliqué a minima sur : création/modification/suppression d'utilisateur, correction manuelle de pointage, validation/refus de demande (autorisations/indisponibilités, Lot 5), modification d'un paramètre global (Lot 5), clôture de paie, suppression de fichier, déverrouillage exceptionnel d'un mois clôturé, mouvements d'outillage avec imputation.
+- Un aspect Spring AOP (`@Around`) intercepte les méthodes de service annotées `@Audited(action = "...")`, appliqué a minima sur : création/modification/suppression d'utilisateur, correction manuelle de pointage, validation/refus de demande (autorisations/indisponibilités, Lot 5), modification d'un paramètre global (Lot 5), clôture de paie, suppression de fichier, déverrouillage exceptionnel d'un mois clôturé, mouvements d'outillage avec imputation, traitement d'une tâche de renouvellement de contrat (Valider/Non-renouvelé, Lot 9 — décision qui prolonge un contrat ou déclenche l'offboarding d'un employé).
 - Écriture systématique dans `audit_logs` (`utilisateur_id`, `action`, `table_cible`, `anciennes_valeurs`/`nouvelles_valeurs` en JSONB, `adresse_ip` récupérée depuis la requête HTTP).
 - **Immuabilité** : aucun repository Spring Data n'expose de méthode `update`/`delete` sur l'entité `AuditLog` — seule l'insertion est possible au niveau applicatif (pas de contrainte DB supplémentaire nécessaire, le compte applicatif Postgres pourrait en complément se voir retirer le droit `UPDATE`/`DELETE` sur cette table en Phase 2).
 - Accès en lecture : `SUPERUSER` exclusivement (`cahier-technique.md` §2.2).
