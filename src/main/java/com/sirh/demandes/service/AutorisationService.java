@@ -9,6 +9,7 @@ import com.sirh.demandes.exception.DelaiRegularisationDepasseException;
 import com.sirh.demandes.exception.DemandeStatutInvalideException;
 import com.sirh.demandes.exception.QuotaAutorisationDepasseException;
 import com.sirh.demandes.repository.AutorisationRepository;
+import com.sirh.notifications.event.DemandeCreeEvent;
 import com.sirh.personnel.entity.Employe;
 import com.sirh.personnel.exception.EmployeNotFoundException;
 import com.sirh.personnel.repository.EmployeRepository;
@@ -16,6 +17,7 @@ import com.sirh.planning.entity.PlanningStatut;
 import com.sirh.planning.service.PlanningService;
 import com.sirh.pointages.service.PointageBrutService;
 import jakarta.persistence.criteria.Predicate;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,15 +54,17 @@ public class AutorisationService {
     private final PointageBrutService pointageBrutService;
     private final PlanningService planningService;
     private final CloturePaieService cloturePaieService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AutorisationService(AutorisationRepository autorisationRepository, EmployeRepository employeRepository,
                                 PointageBrutService pointageBrutService, PlanningService planningService,
-                                CloturePaieService cloturePaieService) {
+                                CloturePaieService cloturePaieService, ApplicationEventPublisher eventPublisher) {
         this.autorisationRepository = autorisationRepository;
         this.employeRepository = employeRepository;
         this.pointageBrutService = pointageBrutService;
         this.planningService = planningService;
         this.cloturePaieService = cloturePaieService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -106,6 +110,9 @@ public class AutorisationService {
         // de ce chemin — traiter vite un cas réellement urgent.
         if (urgenceRh) {
             appliquerImpactValidation(autorisation);
+        } else {
+            eventPublisher.publishEvent(new DemandeCreeEvent("AUTORISATION", autorisation.getId(),
+                    autorisation.getEmployeId(), autorisation.getType()));
         }
         return autorisation;
     }

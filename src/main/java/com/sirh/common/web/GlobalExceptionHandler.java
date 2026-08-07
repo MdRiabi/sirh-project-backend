@@ -18,6 +18,7 @@ import com.sirh.demandes.exception.IndisponibiliteNotFoundException;
 import com.sirh.demandes.exception.QuotaAutorisationDepasseException;
 import com.sirh.demandes.exception.SoldeInsuffisantException;
 import com.sirh.fichiers.exception.FichierNotFoundException;
+import com.sirh.notifications.exception.NotificationNotFoundException;
 import com.sirh.outillages.exception.OutillageMouvementInvalideException;
 import com.sirh.outillages.exception.OutillageNotFoundException;
 import com.sirh.personnel.exception.ContratNotFoundException;
@@ -185,6 +186,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(OutillageMouvementInvalideException.class)
     public ResponseEntity<Map<String, Object>> handleOutillageMouvementInvalide(OutillageMouvementInvalideException ex) {
         return build(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(NotificationNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotificationNotFound(NotificationNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

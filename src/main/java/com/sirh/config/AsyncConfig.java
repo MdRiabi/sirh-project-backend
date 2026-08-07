@@ -29,4 +29,18 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    // Pool dédié pour NotificationEventListener (Lot 8) : plusieurs bean
+    // Executor existant désormais, @Async doit être qualifié explicitement
+    // partout (Spring ne résout plus un unique bean TaskExecutor par défaut).
+    @Bean(name = "notificationExecutor")
+    public Executor notificationExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(2);
+        executor.setQueueCapacity(50);
+        executor.setThreadNamePrefix("notification-");
+        executor.initialize();
+        return executor;
+    }
 }

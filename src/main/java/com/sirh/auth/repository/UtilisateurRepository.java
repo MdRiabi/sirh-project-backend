@@ -1,5 +1,6 @@
 package com.sirh.auth.repository;
 
+import com.sirh.auth.entity.Role;
 import com.sirh.auth.entity.Utilisateur;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -23,4 +24,13 @@ public interface UtilisateurRepository extends JpaRepository<Utilisateur, Long> 
     List<Utilisateur> findAllByOrderByUsernameAsc();
 
     boolean existsByEmployeId(UUID employeId);
+
+    // Résolution du compte applicatif d'un employé donné (ex. manager d'un
+    // département, Module 11 alerte hebdomadaire) — au plus un compte par
+    // employé (contrainte UNIQUE sur utilisateurs.employe_id).
+    Optional<Utilisateur> findByEmployeId(UUID employeId);
+
+    // Fan-out des notifications RH/SUPERUSER (Module 11 : DEMANDE_A_VALIDER,
+    // ALERTE_SOUS_ACTIVITE).
+    List<Utilisateur> findByRoleIn(List<Role> roles);
 }

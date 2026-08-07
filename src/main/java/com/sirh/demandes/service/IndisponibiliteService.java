@@ -12,12 +12,14 @@ import com.sirh.demandes.exception.IndisponibiliteNotFoundException;
 import com.sirh.demandes.exception.SoldeInsuffisantException;
 import com.sirh.demandes.repository.HistoriqueSoldeRepository;
 import com.sirh.demandes.repository.IndisponibiliteRepository;
+import com.sirh.notifications.event.DemandeCreeEvent;
 import com.sirh.personnel.entity.Employe;
 import com.sirh.personnel.exception.EmployeNotFoundException;
 import com.sirh.personnel.repository.EmployeRepository;
 import com.sirh.planning.entity.PlanningStatut;
 import com.sirh.planning.service.PlanningService;
 import jakarta.persistence.criteria.Predicate;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,16 +58,19 @@ public class IndisponibiliteService {
     private final JourFerieRepository jourFerieRepository;
     private final PlanningService planningService;
     private final CloturePaieService cloturePaieService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public IndisponibiliteService(IndisponibiliteRepository indisponibiliteRepository, EmployeRepository employeRepository,
                                    HistoriqueSoldeRepository historiqueSoldeRepository, JourFerieRepository jourFerieRepository,
-                                   PlanningService planningService, CloturePaieService cloturePaieService) {
+                                   PlanningService planningService, CloturePaieService cloturePaieService,
+                                   ApplicationEventPublisher eventPublisher) {
         this.indisponibiliteRepository = indisponibiliteRepository;
         this.employeRepository = employeRepository;
         this.historiqueSoldeRepository = historiqueSoldeRepository;
         this.jourFerieRepository = jourFerieRepository;
         this.planningService = planningService;
         this.cloturePaieService = cloturePaieService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -101,6 +106,9 @@ public class IndisponibiliteService {
         // planning (bug trouvé en vérification manuelle docker compose + curl).
         if (urgenceRh) {
             appliquerImpactValidation(indisponibilite, forcer);
+        } else {
+            eventPublisher.publishEvent(new DemandeCreeEvent("INDISPONIBILITE", indisponibilite.getId(),
+                    indisponibilite.getEmployeId(), indisponibilite.getTypeIndisponibilite()));
         }
         return indisponibilite;
     }
