@@ -30,6 +30,8 @@ import com.sirh.pointages.exception.PointageNotFoundException;
 import com.sirh.pointages.exception.PointeuseNotFoundException;
 import com.sirh.planning.exception.PlanningConflictException;
 import com.sirh.planning.exception.ShiftNotFoundException;
+import com.sirh.renouvellement.exception.TacheRenouvellementNotFoundException;
+import com.sirh.renouvellement.exception.TacheRenouvellementStatutInvalideException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -191,6 +193,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NotificationNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotificationNotFound(NotificationNotFoundException ex) {
         return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(TacheRenouvellementNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleTacheRenouvellementNotFound(TacheRenouvellementNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(TacheRenouvellementStatutInvalideException.class)
+    public ResponseEntity<Map<String, Object>> handleTacheRenouvellementStatutInvalide(TacheRenouvellementStatutInvalideException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
