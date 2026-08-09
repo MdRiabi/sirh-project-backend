@@ -43,4 +43,19 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    // Génération de rapports (Lot 11, Module 7) : POST /reports/generer lance
+    // toujours le calcul sur ce pool, en attend le résultat jusqu'à 5s
+    // (CDF : "si le calcul prend <5s, téléchargement direct"), puis bascule en
+    // suivi async_jobs si la tâche est encore en cours au-delà.
+    @Bean(name = "reportExecutor")
+    public Executor reportExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(4);
+        executor.setQueueCapacity(20);
+        executor.setThreadNamePrefix("report-");
+        executor.initialize();
+        return executor;
+    }
 }

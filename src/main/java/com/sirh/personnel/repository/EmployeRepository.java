@@ -58,4 +58,30 @@ public interface EmployeRepository extends JpaRepository<Employe, UUID>, JpaSpec
             ORDER BY m.mois
             """, nativeQuery = true)
     List<Object[]> departsParMois(@Param("departementId") Long departementId);
+
+    // Rapport "Turnover annuel" (Lot 11, Module 7) : mêmes principes que
+    // evolutionEffectifsParMois/departsParMois, mais bornés aux 12 mois civils
+    // d'une année donnée plutôt qu'à une fenêtre glissante depuis aujourd'hui.
+    @Query(value = """
+            SELECT to_char(m.mois, 'YYYY-MM') AS mois, COUNT(e.id) AS effectif
+            FROM generate_series(make_date(:annee, 1, 1), make_date(:annee, 12, 1), interval '1 month') AS m(mois)
+            LEFT JOIN employes e
+              ON e.date_embauche <= (m.mois + interval '1 month' - interval '1 day')
+             AND (e.date_fin_contrat IS NULL OR e.date_fin_contrat >= m.mois)
+             AND (:departementId IS NULL OR e.departement_id = :departementId)
+            GROUP BY m.mois
+            ORDER BY m.mois
+            """, nativeQuery = true)
+    List<Object[]> evolutionEffectifsAnnee(@Param("annee") int annee, @Param("departementId") Long departementId);
+
+    @Query(value = """
+            SELECT to_char(m.mois, 'YYYY-MM') AS mois, COUNT(e.id) AS departs
+            FROM generate_series(make_date(:annee, 1, 1), make_date(:annee, 12, 1), interval '1 month') AS m(mois)
+            LEFT JOIN employes e
+              ON e.date_fin_contrat >= m.mois AND e.date_fin_contrat < (m.mois + interval '1 month')
+             AND (:departementId IS NULL OR e.departement_id = :departementId)
+            GROUP BY m.mois
+            ORDER BY m.mois
+            """, nativeQuery = true)
+    List<Object[]> departsAnnee(@Param("annee") int annee, @Param("departementId") Long departementId);
 }

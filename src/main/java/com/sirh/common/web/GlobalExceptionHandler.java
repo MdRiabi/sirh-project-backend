@@ -35,6 +35,7 @@ import com.sirh.planning.exception.PlanningConflictException;
 import com.sirh.planning.exception.ShiftNotFoundException;
 import com.sirh.renouvellement.exception.TacheRenouvellementNotFoundException;
 import com.sirh.renouvellement.exception.TacheRenouvellementStatutInvalideException;
+import com.sirh.reporting.exception.ReportNotReadyException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -101,6 +102,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AsyncJobNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleAsyncJobNotFound(AsyncJobNotFoundException ex) {
         return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(ReportNotReadyException.class)
+    public ResponseEntity<Map<String, Object>> handleReportNotReady(ReportNotReadyException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
     }
 
     @ExceptionHandler(ImportPointagesException.class)

@@ -60,6 +60,18 @@ public class AsyncJobService {
         asyncJobRepository.save(job);
     }
 
+    // Rapports asynchrones (Lot 11, com.sirh.reporting) : pas de "lignes
+    // traitées" à compter, juste le lien de téléchargement du fichier généré.
+    @Transactional
+    public void marquerSuccesAvecResultat(Long jobId, String resultatUrl) {
+        AsyncJob job = findById(jobId);
+        job.setStatut(AsyncJobStatut.SUCCESS);
+        job.setProgression(100);
+        job.setResultatUrl(resultatUrl);
+        job.setCompletedAt(LocalDateTime.now());
+        asyncJobRepository.save(job);
+    }
+
     @Transactional
     public void marquerEchec(Long jobId, Integer ligneErreur, String messageErreur) {
         AsyncJob job = findById(jobId);
