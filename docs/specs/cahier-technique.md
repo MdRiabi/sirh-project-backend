@@ -535,6 +535,7 @@ Base : `/api/v1`, JWT obligatoire sauf mention contraire. Les endpoints **✅ IN
 
 ### 4.8 Dashboard, Reports & Audit — 🔧
 - `GET /dashboard/kpi` — élargi à **DIRECTEUR** (lecture seule) en plus de MANAGER, RH, SUPERUSER.
+- `GET /dashboard/charts` 🆕 (gap comblé pendant le Lot 11, même nature que les gaps des lots précédents — Module 10 du CDF exige courbes/histogrammes/anneau, absents du contrat initial qui ne nommait que `/dashboard/kpi`) — mêmes rôles que `/dashboard/kpi`, même cache Redis TTL 30-60s. Retourne `evolutionEffectifs`/`turnoverMensuel` (12 mois glissants), `congesEnCours` (répartition département ou type selon le scope), `anomaliesPointageHebdo` (8 semaines).
 - `POST /reports/generer`, `GET /reports/tasks/{taskId}` — ✅ contrat inchangé, backés par `async_jobs` (type `REPORT`) au lieu d'une structure ad hoc.
 - `GET /audit-logs` — 🔧 **SUPERUSER exclusivement** (RH retiré, constat 2).
 - `GET /notifications`, `PUT /notifications/{id}/lue` 🆕 — tout rôle authentifié (scope = ses propres notifications). Aucun `POST` : les notifications ne sont créées que par les déclencheurs Lot 8 (jamais par un appel client) — `DEMANDE_A_VALIDER` publié via `ApplicationEventPublisher`/`DemandeCreeEvent` par `AutorisationService`/`IndisponibiliteService` (Lot 5, uniquement le workflow Manager `EN_ATTENTE_RH`, consommé après commit par un `@TransactionalEventListener(AFTER_COMMIT)` `@Async`), `ALERTE_POINTAGE`/`ALERTE_SOUS_ACTIVITE` par les tâches `@Scheduled` (Module 11, règles 1 et 2 — dimanche soir / dernier jour du mois).

@@ -28,6 +28,7 @@ graph TD
     L6 --> L11["Lot 11 — Dashboard, Reporting & Audit"]
     L7 --> L11
     L9 --> L11
+    L10 --> L11
 ```
 
 **Lecture** : Lot 0 et Lot 1 sont un préalable strict à tout le reste. Au-delà, les lots 2 à 10 sont largement parallélisables entre eux (peu de dépendances croisées, sauf Lot 6 qui agrège Pointages+Planning+Calendrier+Congés, et Lot 8 qui a besoin du workflow de Lot 5). Lot 11 est le dernier car il consomme les données de presque tous les autres modules.
@@ -161,9 +162,9 @@ graph TD
 
 ## Lot 11 — Dashboard, Reporting & Audit *(Modules 10, 7, et logs)*
 
-**Dépendances** : Lot 6 (assiduité), Lot 7 (outillages), Lot 9 (renouvellement) — agrège leurs données.
+**Dépendances** : Lot 6 (assiduité), Lot 7 (outillages), Lot 9 (renouvellement), Lot 10 (évaluations — 🔧 ajouté pendant la conception : le Dashboard agrège aussi l'état des évaluations, gap qui n'apparaissait pas dans la liste initiale des dépendances) — agrège leurs données.
 
-**Backend** : `GET /dashboard/kpi` (cache Redis, ouvert à `DIRECTEUR`) ; génération de rapports asynchrones (`async_jobs` type `REPORT`) ; archivage à 12 mois (`@Scheduled` mensuel) ; `GET /audit-logs` (`SUPERUSER` exclusivement).
+**Backend** : `GET /dashboard/kpi` (cache Redis, ouvert à `DIRECTEUR`) ; `GET /dashboard/charts` 🆕 (non listé au cahier technique initial — courbes/histogrammes/anneau du Tableau de Bord) ; génération de rapports asynchrones (`async_jobs` type `REPORT`) ; archivage à 12 mois (`@Scheduled` mensuel) ; `GET /audit-logs` (`SUPERUSER` exclusivement).
 
 **Frontend** : Tableau de Bord (widgets par rôle, état "chargement en arrière-plan" si >5s) ; écran "Synthèse" (sélection rapport + export) ; écran "Logs Système"/"Logs Utilisateurs" (Espace Super User).
 
