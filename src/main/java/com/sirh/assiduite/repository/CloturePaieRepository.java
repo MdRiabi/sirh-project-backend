@@ -9,4 +9,8 @@ import java.util.Optional;
 public interface CloturePaieRepository extends JpaRepository<CloturePaie, Long> {
 
     Optional<CloturePaie> findByMois(LocalDate mois);
+
+    // KPI "taux d'anomalies justifiées" (Lot 11, Dashboard) : dernière clôture
+    // connue, tous départements confondus (métrique globale de paie).
+    Optional<CloturePaie> findTopByOrderByMoisDesc();
 }

@@ -5,6 +5,7 @@ import com.sirh.pointages.entity.PointageStatut;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -40,4 +41,19 @@ public interface PointageBrutRepository extends JpaRepository<PointageBrut, Long
             "WHERE p.timestampPointage BETWEEN :debut AND :fin AND p.statut = :statut " +
             "GROUP BY p.employeId")
     List<Object[]> compterAnomaliesParEmploye(LocalDateTime debut, LocalDateTime fin, PointageStatut statut);
+
+    // Anomalies par semaine (Lot 11, graphique Dashboard) : requête native (comme
+    // les agrégations mensuelles de EmployeRepository) — groupée aussi par
+    // employé pour permettre le filtrage/somme par département en mémoire dans
+    // DashboardService, même principe que compterAnomaliesParEmploye ci-dessus.
+    @Query(value = """
+            SELECT to_char(date_trunc('week', p.timestamp_pointage), 'YYYY-MM-DD') AS semaine,
+                   p.employe_id, COUNT(p.id)
+            FROM pointages_bruts p
+            WHERE p.timestamp_pointage BETWEEN :debut AND :fin AND p.statut = :statut
+            GROUP BY date_trunc('week', p.timestamp_pointage), p.employe_id
+            """, nativeQuery = true)
+    List<Object[]> compterAnomaliesParSemaineEtEmploye(@Param("debut") LocalDateTime debut,
+                                                          @Param("fin") LocalDateTime fin,
+                                                          @Param("statut") String statut);
 }
