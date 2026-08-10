@@ -42,7 +42,12 @@ public class AuthService {
         this.blacklistService = blacklistService;
     }
 
-    @Transactional
+    // noRollbackFor : registerFailedAttempt() doit persister l'incrémentation du
+    // compteur d'échecs même quand la méthode se termine par
+    // InvalidCredentialsException -- le rollback par défaut de Spring sur toute
+    // RuntimeException annulait sinon systématiquement ce compteur, rendant le
+    // verrouillage après 5 échecs totalement inopérant.
+    @Transactional(noRollbackFor = InvalidCredentialsException.class)
     public TokenResponse login(LoginRequest request) {
         Utilisateur utilisateur = utilisateurRepository.findByUsername(request.username())
                 .orElseThrow(() -> new InvalidCredentialsException("Identifiants invalides."));

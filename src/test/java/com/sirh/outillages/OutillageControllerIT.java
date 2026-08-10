@@ -127,7 +127,10 @@ class OutillageControllerIT extends AbstractIntegrationTest {
         ResponseEntity<Map> checkIn = restTemplate.exchange(baseUrl("/outillages/" + outilId + "/check-in"), HttpMethod.POST,
                 new HttpEntity<>(Map.of("etat", "BON"), authHeaders(manager.token())), Map.class);
         assertThat(checkIn.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(checkIn.getBody().get("montantImputation")).isEqualTo(0.0);
+        // BigDecimal.ZERO se sérialise en JSON sans décimale ("0"), désérialisé en
+        // Integer et non Double par Jackson dans un Map brut -- comparaison via
+        // Number.doubleValue() pour rester indépendant de ce détail de sérialisation.
+        assertThat(((Number) checkIn.getBody().get("montantImputation")).doubleValue()).isEqualTo(0.0);
     }
 
     @Test

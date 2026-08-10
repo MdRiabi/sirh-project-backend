@@ -41,13 +41,16 @@ class AuthControllerIT extends AbstractIntegrationTest {
     void login_apresCinqEchecs_verrouilleLeCompte() {
         String username = createFixtureUser(Role.ROLE_EMPLOYE);
 
-        for (int i = 0; i < 4; i++) {
+        // AuthService.MAX_ECHECS_CONSECUTIFS = 5 : les 5 premiers échecs répondent
+        // 401 (et arment le verrou côté serveur au 5e) ; seule la tentative
+        // suivante est effectivement bloquée en 423.
+        for (int i = 0; i < 5; i++) {
             restTemplate.postForEntity(baseUrl("/auth/login"),
                     new LoginRequest(username, "faux"), String.class);
         }
-        ResponseEntity<String> fifthAttempt = restTemplate.postForEntity(baseUrl("/auth/login"),
+        ResponseEntity<String> sixthAttempt = restTemplate.postForEntity(baseUrl("/auth/login"),
                 new LoginRequest(username, "faux"), String.class);
-        assertThat(fifthAttempt.getStatusCode()).isEqualTo(HttpStatus.LOCKED);
+        assertThat(sixthAttempt.getStatusCode()).isEqualTo(HttpStatus.LOCKED);
 
         // même avec le bon mot de passe, le compte reste verrouillé
         ResponseEntity<String> withCorrectPassword = restTemplate.postForEntity(baseUrl("/auth/login"),

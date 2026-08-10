@@ -24,7 +24,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PointagesControllerIT extends AbstractIntegrationTest {
 
+    // Format attendu par le parseur d'import Excel (PointageImportWriter.TEXTE_DATETIME).
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    // Format attendu par Jackson (JavaTimeModule) pour le JSON du webhook Hikvision --
+    // "yyyy-MM-dd HH:mm" (sans T) n'est pas désérialisable en LocalDateTime et fait
+    // échouer la requête en 400 (constat distinct de l'import Excel, qui a son propre
+    // parseur avec son propre format).
+    private static final DateTimeFormatter FMT_JSON = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private String accessTokenFor(Role role) {
         String username = createFixtureUser(role);
@@ -45,7 +51,7 @@ class PointagesControllerIT extends AbstractIntegrationTest {
         Employe employe = createFixtureEmploye();
         Map<String, Object> body = Map.of(
                 "badgeId", employe.getMatriculeInterne(),
-                "timestamp", LocalDateTime.now().format(FMT),
+                "timestamp", LocalDateTime.now().format(FMT_JSON),
                 "typeEvenement", "ENTREE",
                 "methodeValidation", "BADGE"
         );
@@ -59,7 +65,7 @@ class PointagesControllerIT extends AbstractIntegrationTest {
     void webhookHikvision_badgeIdInconnu_estRefuse() {
         Map<String, Object> body = Map.of(
                 "badgeId", "INCONNU-999",
-                "timestamp", LocalDateTime.now().format(FMT),
+                "timestamp", LocalDateTime.now().format(FMT_JSON),
                 "typeEvenement", "ENTREE",
                 "methodeValidation", "BADGE"
         );
@@ -75,13 +81,13 @@ class PointagesControllerIT extends AbstractIntegrationTest {
 
         Map<String, Object> premier = Map.of(
                 "badgeId", employe.getMatriculeInterne(),
-                "timestamp", LocalDateTime.now().format(FMT),
+                "timestamp", LocalDateTime.now().format(FMT_JSON),
                 "typeEvenement", "ENTREE",
                 "methodeValidation", "BADGE"
         );
         Map<String, Object> doublon = Map.of(
                 "badgeId", employe.getMatriculeInterne(),
-                "timestamp", LocalDateTime.now().plusMinutes(2).format(FMT),
+                "timestamp", LocalDateTime.now().plusMinutes(2).format(FMT_JSON),
                 "typeEvenement", "ENTREE",
                 "methodeValidation", "BADGE"
         );
@@ -94,9 +100,12 @@ class PointagesControllerIT extends AbstractIntegrationTest {
 
         assertThat(pointages.getBody()).hasSize(2);
         long ignores = pointages.getBody().stream().filter(p -> "IGNORE_DOUBLON".equals(p.get("statut"))).count();
-        long ok = pointages.getBody().stream().filter(p -> "OK".equals(p.get("statut"))).count();
+        // Un seul pointage ENTREE survit après dédoublonnage : nombre impair de
+        // pointages valides sur le jour, donc PointageBrutService.detecterAnomalieImpaire
+        // le requalifie en ANOMALIE_NON_JUSTIFIEE (pas de SORTIE dans ce scénario).
+        long anomalies = pointages.getBody().stream().filter(p -> "ANOMALIE_NON_JUSTIFIEE".equals(p.get("statut"))).count();
         assertThat(ignores).isEqualTo(1);
-        assertThat(ok).isEqualTo(1);
+        assertThat(anomalies).isEqualTo(1);
     }
 
     @Test
@@ -145,7 +154,7 @@ class PointagesControllerIT extends AbstractIntegrationTest {
 
         Map<String, Object> body = Map.of(
                 "badgeId", employe.getMatriculeInterne(),
-                "timestamp", LocalDateTime.now().format(FMT),
+                "timestamp", LocalDateTime.now().format(FMT_JSON),
                 "typeEvenement", "ENTREE",
                 "methodeValidation", "BADGE"
         );
@@ -157,7 +166,7 @@ class PointagesControllerIT extends AbstractIntegrationTest {
         Number pointageId = (Number) pointages.getBody().get(0).get("id");
 
         Map<String, Object> correction = Map.of(
-                "timestampPointage", LocalDateTime.now().plusHours(1).format(FMT),
+                "timestampPointage", LocalDateTime.now().plusHours(1).format(FMT_JSON),
                 "typeEvenement", "SORTIE",
                 "motif", "Oubli de badgeage corrigé suite à déclaration employé"
         );

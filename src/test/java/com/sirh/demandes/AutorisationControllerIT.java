@@ -40,7 +40,7 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
     private PointageBrutRepository pointageBrutRepository;
 
     private String accessTokenFor(Role role) {
-        return createFixtureUser(role);
+        return login(createFixtureUser(role));
     }
 
     private String login(String username) {

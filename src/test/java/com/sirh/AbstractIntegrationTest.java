@@ -5,39 +5,60 @@ import com.sirh.auth.entity.Utilisateur;
 import com.sirh.auth.repository.UtilisateurRepository;
 import com.sirh.personnel.entity.Employe;
 import com.sirh.personnel.repository.EmployeRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 
-@Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public abstract class AbstractIntegrationTest {
 
     protected static final String FIXTURE_PASSWORD = "Secret123!";
 
-    @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(DockerImageName.parse("postgres:16-alpine"))
-            .withDatabaseName("sirh_test")
-            .withUsername("sirh")
-            .withPassword("sirh");
+    // Démarrage manuel (pas @Testcontainers/@Container) : constaté en CI comme
+    // en local, l'extension JUnit5 arrête ce conteneur entre certaines classes
+    // concrètes même si le champ est `static` et partagé via une classe
+    // abstraite commune -- symptôme observé : un nouveau conteneur (nouveau
+    // port) est recréé avant chaque classe suivante, et le HikariPool de la
+    // classe en cours échoue à valider ses connexions juste après ("this
+    // connection has been closed"), chaque test attendant le plein timeout
+    // HikariCP (30s) avant d'échouer. Un bloc statique classique ne dépend
+    // d'aucun hook de cycle de vie de framework et ne démarre qu'une seule
+    // fois par classloader — pattern officiellement documenté par
+    // Testcontainers pour un singleton partagé entre classes de test
+    // (java.testcontainers.org/test_framework_integration/manual_lifecycle_control).
+    static final PostgreSQLContainer<?> POSTGRES;
+    static final GenericContainer<?> REDIS;
 
-    @Container
-    static final GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse("redis:7.2-alpine"))
-            .withExposedPorts(6379);
+    static {
+        POSTGRES = new PostgreSQLContainer<>(DockerImageName.parse("postgres:16-alpine"))
+                .withDatabaseName("sirh_test")
+                .withUsername("sirh")
+                .withPassword("sirh");
+        POSTGRES.start();
+
+        REDIS = new GenericContainer<>(DockerImageName.parse("redis:7.2-alpine"))
+                .withExposedPorts(6379);
+        REDIS.start();
+    }
 
     @TempDir
     static Path storageDir;
@@ -45,7 +66,17 @@ public abstract class AbstractIntegrationTest {
     @LocalServerPort
     protected int port;
 
-    protected final TestRestTemplate restTemplate = new TestRestTemplate();
+    // Factory par défaut de TestRestTemplate (JDK HttpURLConnection) : bug connu
+    // sur les requêtes POST/PUT avec corps + réponse non-2xx en connexion
+    // conservée keep-alive -- "cannot retry due to server authentication, in
+    // streaming mode" (HttpRetryException). Se manifestait de façon
+    // intermittente sur les tests attendant un 401/404/409 après un POST
+    // (login, autorisations...). JdkClientHttpRequestFactory (java.net.http,
+    // Spring Framework 6.1+, aucune dépendance supplémentaire) n'a pas cette
+    // limitation.
+    protected final TestRestTemplate restTemplate =
+            new TestRestTemplate(new RestTemplateBuilder()
+                    .requestFactory((Supplier<ClientHttpRequestFactory>) JdkClientHttpRequestFactory::new));
 
     @Autowired
     private EmployeRepository employeRepository;
@@ -53,6 +84,30 @@ public abstract class AbstractIntegrationTest {
     private UtilisateurRepository utilisateurRepository;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    // Tables transactionnelles à vider avant chaque test pour garantir
+    // l'isolation entre classes IT (résidus jusque-là masqués par le bug de
+    // conteneur ci-dessus : chaque classe recevait un conteneur/schéma neuf).
+    // Exclues volontairement : employes/departements/utilisateurs (fixtures de
+    // test à matricule aléatoire, jamais de collision, pas besoin d'y toucher)
+    // et parametres_globaux/pointeuses/shifts (seuils métier et référentiels
+    // seedés une fois par Flyway V3/V4/V6-9, aucune migration ne les
+    // réinsère — un TRUNCATE ... CASCADE sur employes les viderait aussi via
+    // leur FK, d'où leur exclusion complète du nettoyage).
+    private static final List<String> TABLES_A_NETTOYER = List.of(
+            "async_jobs", "audit_logs", "autorisations", "cloture_paie", "contrats",
+            "demandes_deverrouillage", "evaluation_competences", "evaluations", "evenements_360",
+            "fichiers", "historique_soldes", "indisponibilites", "jours_feries", "notifications",
+            "outillage_mouvements", "outillages", "plannings", "plans_developpement",
+            "pointages_bruts", "taches_renouvellement"
+    );
+
+    @BeforeEach
+    void nettoyerLaBaseEntreLesTests() {
+        jdbcTemplate.execute("TRUNCATE TABLE " + String.join(", ", TABLES_A_NETTOYER) + " RESTART IDENTITY");
+    }
 
     protected String createFixtureUser(Role role) {
         return createFixtureUserWithEmploye(role).username();
