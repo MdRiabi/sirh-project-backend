@@ -1,0 +1,39 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Build & tests (unit + intégration)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configuration Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # mvn verify déclenche surefire (tests unitaires) puis failsafe (tests
+      # d'intégration Testcontainers) -- le runner ubuntu-latest embarque
+      # Docker nativement, requis par Testcontainers pour Postgres/Redis.
+      - name: mvn clean verify
+        run: mvn -B clean verify
+
+  docker-build:
+    name: Build de l'image Docker
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build de l'image (validation uniquement, aucun push)
+        run: docker build -t sirh-backend:ci .
