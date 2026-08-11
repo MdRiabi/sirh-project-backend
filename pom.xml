@@ -15,11 +15,29 @@
              sur Windows (réponse /info tronquée en 400, npipe et TCP) — reste
              sur la branche 1.x pour éviter la rupture d'API de 2.0. -->
         <testcontainers.version>1.21.4</testcontainers.version>
+        <!-- Override du BOM Spring Boot 3.5.16 (netty 4.1.135.Final) : ferme
+             CVE-2026-59901 (boucle infinie netty-codec-compression), corrigée
+             en 4.1.136.Final, une version au-dessus de ce que même le
+             dernier patch 3.5.x embarque (trouvé via scan Trivy, Lot 13). -->
+        <netty.version>4.1.136.Final</netty.version>
+        <!-- Override du BOM Spring Boot 3.5.16 (postgresql 42.7.11) : ferme
+             CVE-2026-54291 (contournement SCRAM-SHA-256-PLUS, MITM),
+             corrigée en 42.7.12 (trouvé via scan Trivy, Lot 13). -->
+        <postgresql.version>42.7.12</postgresql.version>
     </properties>
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.1</version>
+        <!-- Bump 3.3.1 -> 3.5.16 (Lot 13, DevSecOps) : la branche 3.3.x est en
+             fin de support OSS depuis juin 2025 et son dernier patch (3.3.13)
+             ne rétroporte pas les correctifs Tomcat/Spring Framework/
+             Jackson/Micrometer nécessaires (structurel, pas un patch manqué),
+             confirmé en comparant les BOM 3.3.13 et 3.5.16 aux versions
+             "fixed in" remontées par le scan Trivy. 3.5.16 est le dernier
+             patch publié de la ligne 3.5.x (elle-même désormais EOL OSS
+             depuis fin juin 2026) ; reste sur Spring Boot 3.x, pas de saut
+             vers Spring Boot 4. -->
+        <version>3.5.16</version>
         <relativePath/>
     </parent>
     <dependencies>

@@ -31,9 +31,30 @@ jobs:
     name: Build de l'image Docker
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Build de l'image (validation uniquement, aucun push)
         run: docker build -t sirh-backend:ci .
+
+      # Bloquant sur CRITICAL/HIGH (cf. SECURITE.md) : contrairement à
+      # CodeQL, une CVE connue sur l'image de base a un correctif direct
+      # (bump de tag), donc bloquer est actionnable immédiatement.
+      - name: Scan de vulnérabilités (Trivy)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: sirh-backend:ci
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+
+      - name: Upload des résultats Trivy vers Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif

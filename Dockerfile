@@ -10,6 +10,11 @@ RUN mvn -q -B -DskipTests package
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
+# Paquets Alpine du tag de base parfois en retard d'un patch sur les CVE
+# publiées entre deux rebuilds upstream de l'image (constat scan Trivy,
+# Lot 13) -- pas de version à épingler/maintenir, toujours le dernier patch
+# disponible dans les dépôts Alpine au moment du build.
+RUN apk upgrade --no-cache
 RUN addgroup -S sirh && adduser -S sirh -G sirh
 COPY --from=build /workspace/target/*.jar app.jar
 USER sirh
