@@ -2,7 +2,7 @@ package com.sirh.exception;
 
 import java.util.UUID;
 
-public class EmployeNotFoundException extends RuntimeException {
+public class EmployeNotFoundException extends ResourceNotFoundException {
     public EmployeNotFoundException(UUID id) {
         super("Employé introuvable : " + id);
     }

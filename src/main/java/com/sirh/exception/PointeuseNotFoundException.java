@@ -2,7 +2,7 @@ package com.sirh.exception;
 
 import java.util.UUID;
 
-public class PointeuseNotFoundException extends RuntimeException {
+public class PointeuseNotFoundException extends ResourceNotFoundException {
     public PointeuseNotFoundException(UUID reference) {
         super("Pointeuse introuvable : " + reference);
     }

@@ -2,7 +2,7 @@ package com.sirh.exception;
 
 import java.util.UUID;
 
-public class DepartementNotFoundException extends RuntimeException {
+public class DepartementNotFoundException extends ResourceNotFoundException {
     public DepartementNotFoundException(UUID reference) {
         super("Département introuvable : " + reference);
     }

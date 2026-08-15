@@ -2,7 +2,7 @@ package com.sirh.exception;
 
 import java.util.UUID;
 
-public class ShiftNotFoundException extends RuntimeException {
+public class ShiftNotFoundException extends ResourceNotFoundException {
     public ShiftNotFoundException(UUID reference) {
         super("Shift introuvable : " + reference);
     }

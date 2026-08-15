@@ -2,7 +2,7 @@ package com.sirh.exception;
 
 import java.util.UUID;
 
-public class OutillageNotFoundException extends RuntimeException {
+public class OutillageNotFoundException extends ResourceNotFoundException {
     public OutillageNotFoundException(UUID reference) {
         super("Outil introuvable : " + reference);
     }
