@@ -4,7 +4,9 @@ import com.sirh.AbstractIntegrationTest;
 import com.sirh.model.dto.LoginRequest;
 import com.sirh.model.dto.TokenResponse;
 import com.sirh.model.enums.Role;
+import com.sirh.model.repository.DepartementRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 
@@ -16,6 +18,9 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PersonnelControllerIT extends AbstractIntegrationTest {
+
+    @Autowired
+    private DepartementRepository departementRepository;
 
     private String accessTokenFor(Role role) {
         String username = createFixtureUser(role);
@@ -40,10 +45,10 @@ class PersonnelControllerIT extends AbstractIntegrationTest {
                 baseUrl("/departements"), HttpMethod.POST, new HttpEntity<>(body, authHeaders(token)),
                 new ParameterizedTypeReference<>() {});
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        Long id = ((Number) created.getBody().get("id")).longValue();
+        String reference = (String) created.getBody().get("reference");
 
         ResponseEntity<Map<String, Object>> fetched = restTemplate.exchange(
-                baseUrl("/departements/" + id), HttpMethod.GET, new HttpEntity<>(authHeaders(token)),
+                baseUrl("/departements/" + reference), HttpMethod.GET, new HttpEntity<>(authHeaders(token)),
                 new ParameterizedTypeReference<>() {});
         assertThat(fetched.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(fetched.getBody().get("nom")).isEqualTo(body.get("nom"));
@@ -92,7 +97,8 @@ class PersonnelControllerIT extends AbstractIntegrationTest {
                 baseUrl("/departements"), HttpMethod.POST,
                 new HttpEntity<>(Map.of("nom", "Filtre Dept " + UUID.randomUUID()), headers),
                 new ParameterizedTypeReference<Map<String, Object>>() {}).getBody();
-        Long departementId = ((Number) departement.get("id")).longValue();
+        UUID departementReference = UUID.fromString((String) departement.get("reference"));
+        Long departementId = departementRepository.findByReferenceAndDeletedAtIsNull(departementReference).orElseThrow().getId();
 
         createEmploye(headers, "Actif " + UUID.randomUUID(), departementId, true);
         createEmploye(headers, "Inactif " + UUID.randomUUID(), departementId, false);

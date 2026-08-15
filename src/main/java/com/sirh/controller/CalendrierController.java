@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/calendrier/jours-feries")
@@ -71,18 +72,18 @@ public class CalendrierController {
         return ResponseEntity.status(201).body(importes);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/{reference}")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<JourFerieDto> update(@PathVariable Long id, @Valid @RequestBody JourFerieRequest request) {
-        JourFerie jourFerie = calendrierService.modifier(
-                id, request.date(), request.libelle(), request.type(), request.national(), request.region());
+    public ResponseEntity<JourFerieDto> updateJourFerieByReference(@PathVariable UUID reference, @Valid @RequestBody JourFerieRequest request) {
+        JourFerie jourFerie = calendrierService.modifierJourFerieByReference(
+                reference, request.date(), request.libelle(), request.type(), request.national(), request.region());
         return ResponseEntity.ok(JourFerieDto.from(jourFerie));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{reference}")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        calendrierService.supprimer(id);
+    public ResponseEntity<Void> deleteJourFerieByReference(@PathVariable UUID reference) {
+        calendrierService.supprimerJourFerieByReference(reference);
         return ResponseEntity.noContent().build();
     }
 }

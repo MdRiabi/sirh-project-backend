@@ -1,7 +1,9 @@
 package com.sirh.exception;
 
+import java.util.UUID;
+
 public class UtilisateurNotFoundException extends RuntimeException {
-    public UtilisateurNotFoundException(Long id) {
-        super("Utilisateur introuvable : " + id);
+    public UtilisateurNotFoundException(UUID reference) {
+        super("Utilisateur introuvable : " + reference);
     }
 }

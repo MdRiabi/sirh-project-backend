@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record ClotureDto(
-        Long id,
+        UUID reference,
         LocalDate mois,
         String statut,
         LocalDateTime dateCloture,
@@ -16,7 +16,7 @@ public record ClotureDto(
         BigDecimal tauxAnomaliesJustifiees) {
 
     public static ClotureDto from(CloturePaie cloture) {
-        return new ClotureDto(cloture.getId(), cloture.getMois(), cloture.getStatut(), cloture.getDateCloture(),
+        return new ClotureDto(cloture.getReference(), cloture.getMois(), cloture.getStatut(), cloture.getDateCloture(),
                 cloture.getClotureParId(), cloture.getTauxAnomaliesJustifiees());
     }
 }

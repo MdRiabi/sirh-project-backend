@@ -48,7 +48,7 @@ public class HikvisionController {
 
         pointageBrutService.enregistrer(employe.getId(), pointeuse.getId(), request.timestamp(),
                 request.typeEvenement(), request.methodeValidation(), SourceImport.HIKVISION_PUSH);
-        pointeuseService.enregistrerSynchro(pointeuse.getId());
+        pointeuseService.enregistrerSynchroByReference(pointeuse.getReference());
 
         return ResponseEntity.accepted().build();
     }

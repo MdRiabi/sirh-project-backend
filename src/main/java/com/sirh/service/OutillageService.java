@@ -71,7 +71,12 @@ public class OutillageService {
     }
 
     @Transactional(readOnly = true)
-    public Outillage findById(Long id) {
+    public Outillage getOutillageByReference(UUID reference) {
+        return outillageRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new OutillageNotFoundException(reference));
+    }
+
+    private Outillage getOutillageById(Long id) {
         return outillageRepository.findById(id).orElseThrow(() -> new OutillageNotFoundException(id));
     }
 
@@ -88,7 +93,7 @@ public class OutillageService {
     @Audited(action = "CHECK_OUT_OUTILLAGE", tableCible = "outillage_mouvements")
     @Transactional
     public OutillageMouvement checkOut(Long outillageId, UUID employeId, Long effectueParId) {
-        Outillage outillage = findById(outillageId);
+        Outillage outillage = getOutillageById(outillageId);
         if (outillage.getAttribueAEmployeId() != null) {
             throw new OutillageMouvementInvalideException(
                     "Outil déjà attribué : une restitution (check-in) est requise avant tout nouveau rattachement.");
@@ -116,7 +121,7 @@ public class OutillageService {
     @Audited(action = "CHECK_IN_OUTILLAGE", tableCible = "outillage_mouvements")
     @Transactional
     public OutillageMouvement checkIn(Long outillageId, EtatMouvement etat, String commentaire, Long effectueParId) {
-        Outillage outillage = findById(outillageId);
+        Outillage outillage = getOutillageById(outillageId);
         if (outillage.getAttribueAEmployeId() == null) {
             throw new OutillageMouvementInvalideException("Outil non attribué : aucune restitution à effectuer.");
         }
@@ -167,7 +172,7 @@ public class OutillageService {
 
     @Transactional(readOnly = true)
     public List<OutillageMouvement> historique(Long outillageId) {
-        findById(outillageId);
+        getOutillageById(outillageId);
         return outillageMouvementRepository.findByOutillageIdAndDeletedAtIsNullOrderByCreatedAtDesc(outillageId);
     }
 

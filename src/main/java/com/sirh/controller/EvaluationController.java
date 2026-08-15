@@ -38,18 +38,18 @@ public class EvaluationController {
     }
 
     @PreAuthorize("hasAuthority('ROLE_MANAGER')")
-    @PutMapping("/{id}")
-    public ResponseEntity<EvaluationDto> mettreAJour(@PathVariable Long id,
+    @PutMapping("/{reference}")
+    public ResponseEntity<EvaluationDto> mettreAJourEvaluationByReference(@PathVariable UUID reference,
                                                        @Valid @RequestBody EvaluationUpdateRequest request,
                                                        @AuthenticationPrincipal SirhUserDetails principal) {
-        EvaluationDto dto = evaluationService.mettreAJour(id, principal.getEmployeId(), request.competences());
+        EvaluationDto dto = evaluationService.mettreAJourEvaluationByReference(reference, principal.getEmployeId(), request.competences());
         return ResponseEntity.ok(dto);
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    @PutMapping("/{id}/valider")
-    public ResponseEntity<EvaluationDto> valider(@PathVariable Long id) {
-        return ResponseEntity.ok(evaluationService.valider(id));
+    @PutMapping("/{reference}/valider")
+    public ResponseEntity<EvaluationDto> validerEvaluationByReference(@PathVariable UUID reference) {
+        return ResponseEntity.ok(evaluationService.validerEvaluationByReference(reference));
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_RH', 'ROLE_SUPERUSER')")

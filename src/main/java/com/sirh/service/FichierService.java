@@ -62,15 +62,16 @@ public class FichierService {
     }
 
     @Transactional(readOnly = true)
-    public Fichier findById(Long id) {
-        return fichierRepository.findById(id).orElseThrow(() -> new FichierNotFoundException(id));
+    public Fichier getFichierByReference(UUID reference) {
+        return fichierRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new FichierNotFoundException(reference));
     }
 
     @Transactional(readOnly = true)
     public Resource loadAsResource(Fichier fichier) {
         Path path = storageRoot.resolve(fichier.getCheminRelatif()).normalize();
         if (!path.startsWith(storageRoot) || !Files.exists(path)) {
-            throw new FichierNotFoundException(fichier.getId());
+            throw new FichierNotFoundException(fichier.getReference());
         }
         return new FileSystemResource(path);
     }
@@ -82,15 +83,16 @@ public class FichierService {
 
     @Audited(action = "DELETE_FICHIER", tableCible = "fichiers")
     @Transactional
-    public void delete(Long id) {
-        Fichier fichier = findById(id);
+    public void deleteFichierByReference(UUID reference) {
+        Fichier fichier = getFichierByReference(reference);
         Path path = storageRoot.resolve(fichier.getCheminRelatif()).normalize();
         try {
             Files.deleteIfExists(path);
         } catch (IOException e) {
             throw new UncheckedIOException("Échec de la suppression du fichier sur le stockage.", e);
         }
-        fichierRepository.delete(fichier);
+        fichier.onDelete();
+        fichierRepository.save(fichier);
     }
 
     private String extractExtension(String originalFilename) {

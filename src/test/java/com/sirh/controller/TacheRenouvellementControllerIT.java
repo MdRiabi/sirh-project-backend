@@ -115,7 +115,7 @@ class TacheRenouvellementControllerIT extends AbstractIntegrationTest {
         Contrat contrat = contratCddEnCours(employe.getId(), ancienneFin);
         TacheRenouvellement tache = tache(employe.getId(), contrat.getId(), TacheRenouvellementStatut.EN_COURS);
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/taches-renouvellement/" + tache.getId()), HttpMethod.PUT,
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/taches-renouvellement/" + tache.getReference()), HttpMethod.PUT,
                 new HttpEntity<>(Map.of("statut", "VALIDE"), authHeaders(rhToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -141,7 +141,7 @@ class TacheRenouvellementControllerIT extends AbstractIntegrationTest {
         TacheRenouvellement tache = tache(employe.getId(), contrat.getId(), TacheRenouvellementStatut.URGENT_EXPIRE);
         LocalDate dateFinChoisie = ancienneFin.plusMonths(9);
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/taches-renouvellement/" + tache.getId()), HttpMethod.PUT,
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/taches-renouvellement/" + tache.getReference()), HttpMethod.PUT,
                 new HttpEntity<>(Map.of("statut", "VALIDE", "dateFin", dateFinChoisie.toString()), authHeaders(rhToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -156,7 +156,7 @@ class TacheRenouvellementControllerIT extends AbstractIntegrationTest {
         Contrat contrat = contratCddEnCours(employe.getId(), LocalDate.now().plusMonths(1));
         TacheRenouvellement tache = tache(employe.getId(), contrat.getId(), TacheRenouvellementStatut.EN_COURS);
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/taches-renouvellement/" + tache.getId()), HttpMethod.PUT,
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/taches-renouvellement/" + tache.getReference()), HttpMethod.PUT,
                 new HttpEntity<>(Map.of("statut", "NON_RENOUVELE"), authHeaders(rhToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -175,7 +175,7 @@ class TacheRenouvellementControllerIT extends AbstractIntegrationTest {
         Contrat contrat = contratCddEnCours(employe.getId(), LocalDate.now().minusDays(1));
         TacheRenouvellement tache = tache(employe.getId(), contrat.getId(), TacheRenouvellementStatut.URGENT_EXPIRE);
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/taches-renouvellement/" + tache.getId()), HttpMethod.PUT,
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/taches-renouvellement/" + tache.getReference()), HttpMethod.PUT,
                 new HttpEntity<>(Map.of("statut", "NON_RENOUVELE"), authHeaders(rhToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -188,7 +188,7 @@ class TacheRenouvellementControllerIT extends AbstractIntegrationTest {
         Contrat contrat = contratCddEnCours(employe.getId(), LocalDate.now().plusMonths(1));
         TacheRenouvellement tache = tache(employe.getId(), contrat.getId(), TacheRenouvellementStatut.VALIDE);
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/taches-renouvellement/" + tache.getId()), HttpMethod.PUT,
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/taches-renouvellement/" + tache.getReference()), HttpMethod.PUT,
                 new HttpEntity<>(Map.of("statut", "NON_RENOUVELE"), authHeaders(rhToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);

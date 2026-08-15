@@ -82,15 +82,15 @@ public class EvaluationService {
     }
 
     @Transactional
-    public EvaluationDto mettreAJour(Long evaluationId, UUID managerId, List<EvaluationCompetenceRequest> competences) {
-        Evaluation evaluation = evaluationRepository.findById(evaluationId)
-                .orElseThrow(() -> new EvaluationNotFoundException(evaluationId));
+    public EvaluationDto mettreAJourEvaluationByReference(UUID reference, UUID managerId, List<EvaluationCompetenceRequest> competences) {
+        Evaluation evaluation = evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new EvaluationNotFoundException(reference));
         if (!evaluation.getManagerId().equals(managerId)) {
             throw new AccessDeniedException("Seul le Manager ayant créé la grille peut la compléter/corriger.");
         }
         if (evaluation.getStatut() != EvaluationStatut.EN_COURS) {
             throw new EvaluationStatutInvalideException(
-                    "Grille déjà validée par le RH, elle ne peut plus être modifiée (id " + evaluationId + ").");
+                    "Grille déjà validée par le RH, elle ne peut plus être modifiée (référence " + reference + ").");
         }
 
         List<EvaluationCompetence> lignes = enregistrerCompetences(evaluation.getId(), competences);
@@ -127,14 +127,15 @@ public class EvaluationService {
 
     @Audited(action = "VALIDER_EVALUATION", tableCible = "evaluations")
     @Transactional
-    public EvaluationDto valider(Long evaluationId) {
-        Evaluation evaluation = evaluationRepository.findById(evaluationId)
-                .orElseThrow(() -> new EvaluationNotFoundException(evaluationId));
+    public EvaluationDto validerEvaluationByReference(UUID reference) {
+        Evaluation evaluation = evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new EvaluationNotFoundException(reference));
         if (evaluation.getStatut() != EvaluationStatut.EN_COURS) {
             throw new EvaluationStatutInvalideException(
-                    "Seule une évaluation EN_COURS peut être validée (id " + evaluationId + ").");
+                    "Seule une évaluation EN_COURS peut être validée (référence " + reference + ").");
         }
 
+        Long evaluationId = evaluation.getId();
         List<EvaluationCompetence> lignes = competenceRepository.findByEvaluationIdAndDeletedAtIsNull(evaluationId);
         List<String> manquantes = lignes.stream().filter(c -> c.getNote() == null).map(EvaluationCompetence::getCompetence).toList();
         if (!manquantes.isEmpty()) {

@@ -36,8 +36,9 @@ public class UtilisateurService {
     }
 
     @Transactional(readOnly = true)
-    public Utilisateur findById(Long id) {
-        return utilisateurRepository.findById(id).orElseThrow(() -> new UtilisateurNotFoundException(id));
+    public Utilisateur getUtilisateurByReference(UUID reference) {
+        return utilisateurRepository.findByReferenceAndDeletedAtIsNull(reference).orElseThrow(() -> new
+                UtilisateurNotFoundException(reference));
     }
 
     // Non journalisé volontairement : ne fait que dériver le hash, ne persiste rien.
@@ -67,8 +68,8 @@ public class UtilisateurService {
 
     @Audited(action = "UPDATE_UTILISATEUR", tableCible = "utilisateurs")
     @Transactional
-    public Utilisateur update(Long id, Role role, boolean compteActif) {
-        Utilisateur utilisateur = findById(id);
+    public Utilisateur updateUtilisateurByReference(UUID reference, Role role, boolean compteActif) {
+        Utilisateur utilisateur = getUtilisateurByReference(reference);
         utilisateur.setRole(role);
         utilisateur.setCompteActif(compteActif);
         return utilisateurRepository.save(utilisateur);
@@ -76,8 +77,8 @@ public class UtilisateurService {
 
     @Audited(action = "RESET_PASSWORD_UTILISATEUR", tableCible = "utilisateurs")
     @Transactional
-    public void resetPassword(Long id, String passwordHash) {
-        Utilisateur utilisateur = findById(id);
+    public void resetPassword(UUID reference, String passwordHash) {
+        Utilisateur utilisateur = getUtilisateurByReference(reference);
         utilisateur.setPasswordHash(passwordHash);
         utilisateur.setEchecsLoginConsecutifs(0);
         utilisateur.setVerrouilleJusquA(null);

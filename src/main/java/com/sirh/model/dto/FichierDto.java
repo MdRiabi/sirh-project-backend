@@ -5,9 +5,10 @@ import com.sirh.model.entity.Fichier;
 import com.sirh.model.enums.FichierCategorie;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public record FichierDto(
-        Long id,
+        UUID reference,
         String nomOriginal,
         String typeMime,
         Long tailleOctets,
@@ -18,7 +19,7 @@ public record FichierDto(
 ) {
     public static FichierDto from(Fichier fichier) {
         return new FichierDto(
-                fichier.getId(),
+                fichier.getReference(),
                 fichier.getNomOriginal(),
                 fichier.getTypeMime(),
                 fichier.getTailleOctets(),

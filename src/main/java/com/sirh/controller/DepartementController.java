@@ -9,6 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/departements")
@@ -29,9 +30,9 @@ public class DepartementController {
         return ResponseEntity.ok(dtos);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<DepartementDto> get(@PathVariable Long id) {
-        return ResponseEntity.ok(DepartementDto.from(departementService.findById(id)));
+    @GetMapping("/{reference}")
+    public ResponseEntity<DepartementDto> getDepartementByReference(@PathVariable UUID reference) {
+        return ResponseEntity.ok(DepartementDto.from(departementService.getDepartementByReference(reference)));
     }
 
     @PostMapping
@@ -39,8 +40,8 @@ public class DepartementController {
         return ResponseEntity.status(201).body(DepartementDto.from(departementService.create(request)));
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<DepartementDto> update(@PathVariable Long id, @Valid @RequestBody DepartementRequest request) {
-        return ResponseEntity.ok(DepartementDto.from(departementService.update(id, request)));
+    @PutMapping("/{reference}")
+    public ResponseEntity<DepartementDto> updateDepartementByReference(@PathVariable UUID reference, @Valid @RequestBody DepartementRequest request) {
+        return ResponseEntity.ok(DepartementDto.from(departementService.updateDepartementByReference(reference, request)));
     }
 }

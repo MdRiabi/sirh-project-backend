@@ -103,10 +103,10 @@ public class ReportGenerationService {
             return new ReportGenerationResult.Pret(rapport);
         } catch (TimeoutException e) {
             AsyncJob job = asyncJobService.creer(AsyncJobType.REPORT, nomFichierAttendu(request), executeParId);
-            Long jobId = job.getId();
-            futur.thenAccept(rapport -> terminerJobAvecSucces(jobId, rapport))
+            UUID jobReference = job.getReference();
+            futur.thenAccept(rapport -> terminerJobAvecSucces(jobReference, rapport))
                     .exceptionally(ex -> {
-                        asyncJobService.marquerEchec(jobId, null, ex.getMessage());
+                        asyncJobService.marquerEchecByReference(jobReference, null, ex.getMessage());
                         return null;
                     });
             return new ReportGenerationResult.Lance(AsyncJobDto.from(job));
@@ -115,12 +115,12 @@ public class ReportGenerationService {
         }
     }
 
-    // GET /reports/tasks/{taskId} : isolé des autres types de async_jobs (ex.
+    // GET /reports/tasks/{reference} : isolé des autres types de async_jobs (ex.
     // IMPORT_POINTAGES) pour ne jamais exposer un job hors périmètre reporting.
-    public AsyncJobDto obtenirTache(Long taskId) {
-        AsyncJob job = asyncJobService.findById(taskId);
+    public AsyncJobDto obtenirTache(UUID reference) {
+        AsyncJob job = asyncJobService.getAsyncJobByReference(reference);
         if (job.getType() != AsyncJobType.REPORT) {
-            throw new AsyncJobNotFoundException(taskId);
+            throw new AsyncJobNotFoundException(reference);
         }
         return AsyncJobDto.from(job);
     }
@@ -128,18 +128,18 @@ public class ReportGenerationService {
     public record FichierTelecharge(Resource resource, String nomFichier, MediaType contentType) {
     }
 
-    public FichierTelecharge chargerFichierResultat(Long taskId) {
-        AsyncJob job = asyncJobService.findById(taskId);
+    public FichierTelecharge chargerFichierResultat(UUID reference) {
+        AsyncJob job = asyncJobService.getAsyncJobByReference(reference);
         if (job.getType() != AsyncJobType.REPORT) {
-            throw new AsyncJobNotFoundException(taskId);
+            throw new AsyncJobNotFoundException(reference);
         }
         if (job.getStatut() != AsyncJobStatut.SUCCESS || job.getResultatUrl() == null) {
-            throw new ReportNotReadyException(taskId);
+            throw new ReportNotReadyException(reference);
         }
         String nomFichier = job.getResultatUrl();
         var chemin = reportStorage.resoudrePourTelechargement(nomFichier);
         if (chemin == null) {
-            throw new ReportNotReadyException(taskId);
+            throw new ReportNotReadyException(reference);
         }
         MediaType contentType = nomFichier.endsWith(".pdf")
                 ? MediaType.APPLICATION_PDF
@@ -151,12 +151,12 @@ public class ReportGenerationService {
     // storage/archives/ après la purge mensuelle, cf. ReportArchivageScheduler)
     // — le lien de téléchargement effectif est toujours GET /reports/tasks/{id}/download,
     // qui résout ce nom de fichier indépendamment de son dossier courant.
-    private void terminerJobAvecSucces(Long jobId, RapportGenere rapport) {
+    private void terminerJobAvecSucces(UUID jobReference, RapportGenere rapport) {
         try {
             reportStorage.ecrire(rapport.nomFichier(), rapport.contenu());
-            asyncJobService.marquerSuccesAvecResultat(jobId, rapport.nomFichier());
+            asyncJobService.marquerSuccesAvecResultatByReference(jobReference, rapport.nomFichier());
         } catch (IOException e) {
-            asyncJobService.marquerEchec(jobId, null, "Échec de l'écriture du rapport sur le stockage : " + e.getMessage());
+            asyncJobService.marquerEchecByReference(jobReference, null, "Échec de l'écriture du rapport sur le stockage : " + e.getMessage());
         }
     }
 

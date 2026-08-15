@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class PointeuseService {
@@ -30,9 +31,9 @@ public class PointeuseService {
     }
 
     @Transactional
-    public Pointeuse enregistrerSynchro(Long pointeuseId) {
-        Pointeuse pointeuse = pointeuseRepository.findById(pointeuseId)
-                .orElseThrow(() -> new PointeuseNotFoundException(pointeuseId));
+    public Pointeuse enregistrerSynchroByReference(UUID reference) {
+        Pointeuse pointeuse = pointeuseRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new PointeuseNotFoundException(reference));
         pointeuse.setStatutEnLigne(true);
         pointeuse.setDerniereSynchro(LocalDateTime.now());
         return pointeuseRepository.save(pointeuse);

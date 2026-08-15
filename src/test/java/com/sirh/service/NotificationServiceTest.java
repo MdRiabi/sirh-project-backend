@@ -12,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,28 +45,33 @@ class NotificationServiceTest {
 
     @Test
     void marquerLue_proprietaire_passeLueATrue() {
+        UUID reference = UUID.randomUUID();
         Notification notif = notification(42L);
-        when(notificationRepository.findById(1L)).thenReturn(Optional.of(notif));
+        notif.setReference(reference);
+        when(notificationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.of(notif));
 
-        Notification resultat = service.marquerLue(1L, 42L);
+        Notification resultat = service.marquerNotificationLueByReference(reference, 42L);
 
         assertThat(resultat.getLue()).isTrue();
     }
 
     @Test
     void marquerLue_autreDestinataire_estRefuse() {
+        UUID reference = UUID.randomUUID();
         Notification notif = notification(42L);
-        when(notificationRepository.findById(1L)).thenReturn(Optional.of(notif));
+        notif.setReference(reference);
+        when(notificationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.of(notif));
 
-        assertThatThrownBy(() -> service.marquerLue(1L, 999L))
+        assertThatThrownBy(() -> service.marquerNotificationLueByReference(reference, 999L))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
     void marquerLue_inexistante_leve404() {
-        when(notificationRepository.findById(1L)).thenReturn(Optional.empty());
+        UUID reference = UUID.randomUUID();
+        when(notificationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.marquerLue(1L, 42L))
+        assertThatThrownBy(() -> service.marquerNotificationLueByReference(reference, 42L))
                 .isInstanceOf(NotificationNotFoundException.class);
     }
 }

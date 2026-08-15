@@ -130,18 +130,18 @@ public class RenouvellementService {
 
     @Audited(action = "TRAITER_TACHE_RENOUVELLEMENT", tableCible = "taches_renouvellement")
     @Transactional
-    public TacheRenouvellementDto traiter(Long id, TacheRenouvellementStatut statutDemande, LocalDate dateFin, Long traiteParId) {
+    public TacheRenouvellementDto traiterTacheRenouvellementByReference(UUID reference, TacheRenouvellementStatut statutDemande, LocalDate dateFin, Long traiteParId) {
         if (statutDemande != TacheRenouvellementStatut.VALIDE && statutDemande != TacheRenouvellementStatut.NON_RENOUVELE) {
             throw new IllegalArgumentException("Seuls les statuts VALIDE ou NON_RENOUVELE sont acceptés en traitement.");
         }
-        TacheRenouvellement tache = tacheRenouvellementRepository.findById(id)
-                .orElseThrow(() -> new TacheRenouvellementNotFoundException(id));
+        TacheRenouvellement tache = tacheRenouvellementRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new TacheRenouvellementNotFoundException(reference));
         if (!STATUTS_ACTIONNABLES.contains(tache.getStatut())) {
             throw new TacheRenouvellementStatutInvalideException(
                     "Seule une tâche EN_COURS ou URGENT_EXPIRE peut être traitée (statut actuel : " + tache.getStatut() + ").");
         }
         Contrat contrat = contratRepository.findById(tache.getContratId())
-                .orElseThrow(() -> new IllegalStateException("Contrat introuvable pour la tâche de renouvellement " + id));
+                .orElseThrow(() -> new IllegalStateException("Contrat introuvable pour la tâche de renouvellement " + reference));
 
         if (statutDemande == TacheRenouvellementStatut.VALIDE) {
             valider(tache, contrat, dateFin, traiteParId);

@@ -1,7 +1,9 @@
 package com.sirh.exception;
 
+import java.util.UUID;
+
 public class AutorisationNotFoundException extends RuntimeException {
-    public AutorisationNotFoundException(Long id) {
-        super("Autorisation introuvable : " + id);
+    public AutorisationNotFoundException(UUID reference) {
+        super("Autorisation introuvable : " + reference);
     }
 }

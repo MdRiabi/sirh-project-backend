@@ -6,9 +6,12 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface AutorisationRepository extends JpaRepository<Autorisation, Long>, JpaSpecificationExecutor<Autorisation> {
+
+    Optional<Autorisation> findByReferenceAndDeletedAtIsNull(UUID reference);
 
     // Cumul mensuel pour le contrôle de quota (Module 13, 4h/mois) : statuts
     // EN_ATTENTE_RH + VALIDE inclus (une demande en attente réserve déjà le

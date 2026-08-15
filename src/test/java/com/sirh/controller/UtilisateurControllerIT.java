@@ -10,6 +10,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -72,10 +73,10 @@ class UtilisateurControllerIT extends AbstractIntegrationTest {
     void resetPassword_permetLeLoginAvecLeNouveauMotDePasseUniquement() {
         String rhToken = accessTokenFor(Role.ROLE_RH);
         var fixture = createFixtureUserWithEmploye(Role.ROLE_MANAGER);
-        Long utilisateurId = findUtilisateurId(rhToken, fixture.username());
+        UUID utilisateurReference = findUtilisateurReference(rhToken, fixture.username());
 
         ResponseEntity<Void> reset = restTemplate.exchange(
-                baseUrl("/utilisateurs/" + utilisateurId + "/reset-password"), HttpMethod.PUT,
+                baseUrl("/utilisateurs/" + utilisateurReference + "/reset-password"), HttpMethod.PUT,
                 new HttpEntity<>(Map.of("newPassword", "NouveauMotDePasse1!"), authHeaders(rhToken)), Void.class);
         assertThat(reset.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
@@ -92,10 +93,10 @@ class UtilisateurControllerIT extends AbstractIntegrationTest {
     void desactivation_empecheLeLoginMemeAvecLeBonMotDePasse() {
         String rhToken = accessTokenFor(Role.ROLE_RH);
         var fixture = createFixtureUserWithEmploye(Role.ROLE_MANAGER);
-        Long utilisateurId = findUtilisateurId(rhToken, fixture.username());
+        UUID utilisateurReference = findUtilisateurReference(rhToken, fixture.username());
 
         ResponseEntity<Void> update = restTemplate.exchange(
-                baseUrl("/utilisateurs/" + utilisateurId), HttpMethod.PUT,
+                baseUrl("/utilisateurs/" + utilisateurReference), HttpMethod.PUT,
                 new HttpEntity<>(Map.of("role", "ROLE_MANAGER", "compteActif", false), authHeaders(rhToken)), Void.class);
         assertThat(update.getStatusCode()).isEqualTo(HttpStatus.OK);
 
@@ -104,14 +105,14 @@ class UtilisateurControllerIT extends AbstractIntegrationTest {
         assertThat(login.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
-    private Long findUtilisateurId(String rhToken, String username) {
+    private UUID findUtilisateurReference(String rhToken, String username) {
         ResponseEntity<java.util.List<Map<String, Object>>> list = restTemplate.exchange(
                 baseUrl("/utilisateurs"), HttpMethod.GET, new HttpEntity<>(authHeaders(rhToken)),
                 new ParameterizedTypeReference<>() {});
         return list.getBody().stream()
                 .filter(u -> username.equals(u.get("username")))
                 .findFirst()
-                .map(u -> ((Number) u.get("id")).longValue())
+                .map(u -> UUID.fromString((String) u.get("reference")))
                 .orElseThrow();
     }
 }

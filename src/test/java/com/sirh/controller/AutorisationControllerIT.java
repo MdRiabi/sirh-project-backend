@@ -10,6 +10,7 @@ import com.sirh.model.entity.PointageBrut;
 import com.sirh.model.enums.PointageStatut;
 import com.sirh.model.enums.SourceImport;
 import com.sirh.model.enums.TypeEvenement;
+import com.sirh.model.repository.AutorisationRepository;
 import com.sirh.model.repository.PointageBrutRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +39,8 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
 
     @Autowired
     private PointageBrutRepository pointageBrutRepository;
+    @Autowired
+    private AutorisationRepository autorisationRepository;
 
     private String accessTokenFor(Role role) {
         return login(createFixtureUser(role));
@@ -132,7 +135,8 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
         Map<String, Object> body = requeteBase(employe.getId(), jour);
         ResponseEntity<Map> creation = creer(rhToken, body);
         assertThat(creation.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        Long autorisationId = ((Number) creation.getBody().get("id")).longValue();
+        UUID autorisationReference = UUID.fromString((String) creation.getBody().get("reference"));
+        Long autorisationId = autorisationRepository.findByReferenceAndDeletedAtIsNull(autorisationReference).orElseThrow().getId();
 
         PointageBrut rechargee = pointageBrutRepository.findById(anomalie.getId()).orElseThrow();
         assertThat(rechargee.getStatut()).isEqualTo(PointageStatut.JUSTIFIE);
@@ -180,17 +184,17 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
         derniere.put("avisManagerStatut", "FAVORABLE");
         ResponseEntity<Map> creation = creer(managerToken, derniere);
         assertThat(creation.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        Long id = ((Number) creation.getBody().get("id")).longValue();
+        String reference = (String) creation.getBody().get("reference");
         assertThat(((Number) creation.getBody().get("quotaDepasseMinutes")).intValue()).isPositive();
 
         ResponseEntity<Map> validation = restTemplate.exchange(
-                baseUrl("/autorisations/" + id + "/valider"), HttpMethod.PUT,
+                baseUrl("/autorisations/" + reference + "/valider"), HttpMethod.PUT,
                 new HttpEntity<>(null, authHeaders(rhToken)), Map.class);
         assertThat(validation.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(validation.getBody().get("message").toString()).contains("QUOTA DÉPASSÉ");
 
         ResponseEntity<Map> validationForcee = restTemplate.exchange(
-                baseUrl("/autorisations/" + id + "/valider"), HttpMethod.PUT,
+                baseUrl("/autorisations/" + reference + "/valider"), HttpMethod.PUT,
                 new HttpEntity<>(Map.of("traitementDepassement", "RECUPERATION"), authHeaders(rhToken)), Map.class);
         assertThat(validationForcee.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(validationForcee.getBody().get("statut")).isEqualTo("VALIDE");
@@ -205,10 +209,10 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
         body.put("avisManagerStatut", "DEFAVORABLE");
         ResponseEntity<Map> creation = creer(managerToken, body);
         assertThat(creation.getBody().get("statut")).isEqualTo("EN_ATTENTE_RH");
-        Long id = ((Number) creation.getBody().get("id")).longValue();
+        String reference = (String) creation.getBody().get("reference");
 
         ResponseEntity<Map> refus = restTemplate.exchange(
-                baseUrl("/autorisations/" + id + "/refuser"), HttpMethod.PUT,
+                baseUrl("/autorisations/" + reference + "/refuser"), HttpMethod.PUT,
                 new HttpEntity<>(null, authHeaders(rhToken)), Map.class);
 
         assertThat(refus.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -220,10 +224,10 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
         String rhToken = accessTokenFor(Role.ROLE_RH);
         Employe employe = createFixtureEmploye();
         ResponseEntity<Map> creation = creer(rhToken, requeteBase(employe.getId(), LocalDate.now()));
-        Long id = ((Number) creation.getBody().get("id")).longValue();
+        String reference = (String) creation.getBody().get("reference");
 
         ResponseEntity<Map> deuxiemeValidation = restTemplate.exchange(
-                baseUrl("/autorisations/" + id + "/valider"), HttpMethod.PUT,
+                baseUrl("/autorisations/" + reference + "/valider"), HttpMethod.PUT,
                 new HttpEntity<>(null, authHeaders(rhToken)), Map.class);
 
         assertThat(deuxiemeValidation.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);

@@ -5,9 +5,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface PlanningRepository extends JpaRepository<Planning, Long> {
+
+    Optional<Planning> findByReferenceAndDeletedAtIsNull(UUID reference);
 
     // Fenêtre élargie autour d'une nouvelle affectation pour contrôler le repos
     // légal de 11h et détecter un chevauchement direct (cahier-technique.md §3.9).

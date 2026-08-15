@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -75,7 +76,7 @@ class ReportControllerIT extends AbstractIntegrationTest {
     void tache_inexistante_renvoie404() {
         String token = login(createFixtureUser(Role.ROLE_RH));
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/reports/tasks/999999999"), HttpMethod.GET,
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/reports/tasks/" + UUID.randomUUID()), HttpMethod.GET,
                 new HttpEntity<>(authHeaders(token)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);

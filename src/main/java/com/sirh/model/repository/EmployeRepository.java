@@ -11,6 +11,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface EmployeRepository extends JpaRepository<Employe, UUID>, JpaSpecificationExecutor<Employe> {
+
+    Optional<Employe> findByReferenceAndDeletedAtIsNull(UUID reference);
+
     // matricule_interne = "badgeId" transmis par les pointeuses Hikvision et par
     // la colonne badgeId des imports Excel (cahier-technique.md §3.2).
     Optional<Employe> findByMatriculeInterneAndDeletedAtIsNull(String matriculeInterne);

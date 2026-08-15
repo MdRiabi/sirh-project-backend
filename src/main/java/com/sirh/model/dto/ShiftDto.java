@@ -4,9 +4,10 @@ import com.sirh.model.entity.Shift;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.UUID;
 
 public record ShiftDto(
-        Long id,
+        UUID reference,
         String nom,
         String typeRotation,
         LocalTime heureDebut,
@@ -14,6 +15,6 @@ public record ShiftDto(
         LocalDateTime createdAt
 ) {
     public static ShiftDto from(Shift s) {
-        return new ShiftDto(s.getId(), s.getNom(), s.getTypeRotation(), s.getHeureDebut(), s.getHeureFin(), s.getCreatedAt());
+        return new ShiftDto(s.getReference(), s.getNom(), s.getTypeRotation(), s.getHeureDebut(), s.getHeureFin(), s.getCreatedAt());
     }
 }

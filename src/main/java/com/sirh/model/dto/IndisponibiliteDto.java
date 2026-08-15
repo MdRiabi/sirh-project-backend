@@ -6,7 +6,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 public record IndisponibiliteDto(
-        Long id,
+        UUID reference,
         UUID employeId,
         String employeNom,
         String employePrenom,
@@ -25,7 +25,7 @@ public record IndisponibiliteDto(
 ) {
     public static IndisponibiliteDto from(Indisponibilite i, String employeNom, String employePrenom, Integer joursOuvresDecomptes) {
         return new IndisponibiliteDto(
-                i.getId(), i.getEmployeId(), employeNom, employePrenom, i.getTypeIndisponibilite(),
+                i.getReference(), i.getEmployeId(), employeNom, employePrenom, i.getTypeIndisponibilite(),
                 i.getDateDebut(), i.getDateFin(), i.getStatut(), i.getCommentaire(), i.getPieceJointeId(),
                 i.getCreeParId(), i.getCreeParRole(), i.getAvisManagerStatut(), i.getAvisManagerCommentaire(),
                 i.getValideParRhId(), joursOuvresDecomptes);

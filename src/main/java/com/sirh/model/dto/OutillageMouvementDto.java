@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record OutillageMouvementDto(
-        Long id,
+        UUID reference,
         Long outillageId,
         UUID employeId,
         TypeMouvement typeMouvement,
@@ -20,7 +20,7 @@ public record OutillageMouvementDto(
         LocalDateTime dateMouvement) {
 
     public static OutillageMouvementDto from(OutillageMouvement mouvement) {
-        return new OutillageMouvementDto(mouvement.getId(), mouvement.getOutillageId(), mouvement.getEmployeId(),
+        return new OutillageMouvementDto(mouvement.getReference(), mouvement.getOutillageId(), mouvement.getEmployeId(),
                 mouvement.getTypeMouvement(), mouvement.getEtat(), mouvement.getMontantImputation(),
                 mouvement.getCommentaire(), mouvement.getEffectueParId(), mouvement.getCreatedAt());
     }

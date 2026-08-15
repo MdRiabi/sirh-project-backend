@@ -43,7 +43,7 @@ public class ImportPointagesService {
         validerNombreDeLignes(contenu);
 
         AsyncJob job = asyncJobService.creer(AsyncJobType.IMPORT_POINTAGES, fichier.getOriginalFilename(), executeParId);
-        asyncLauncher.traiterAsync(job.getId(), contenu);
+        asyncLauncher.traiterAsync(job.getReference(), contenu);
         return job;
     }
 

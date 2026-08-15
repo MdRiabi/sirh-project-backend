@@ -168,7 +168,7 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
         Map<String, Object> correction = Map.of(
                 "timestampPointage", mois.atDay(10).atTime(8, 15).toString(),
                 "typeEvenement", "ENTREE", "motif", "Correction test");
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/pointages/" + pointage.getId() + "/corriger"), HttpMethod.PUT,
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/pointages/" + pointage.getReference() + "/corriger"), HttpMethod.PUT,
                 new HttpEntity<>(correction, authHeaders(rhToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
@@ -211,7 +211,7 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
                 new HttpEntity<>(Map.of("mois", mois.toString(), "motif", "Oubli de badgeage à régulariser"), authHeaders(managerToken)), Map.class);
         assertThat(demande.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(demande.getBody().get("statut")).isEqualTo("EN_ATTENTE");
-        Long demandeId = ((Number) demande.getBody().get("id")).longValue();
+        String demandeReference = (String) demande.getBody().get("reference");
 
         Map<String, Object> autorisationBody = Map.of(
                 "employeId", employe.getId(), "type", "RETARD_JUSTIFIE",
@@ -222,7 +222,7 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
                 new HttpEntity<>(autorisationBody, authHeaders(rhToken)), Map.class);
         assertThat(ecritureAvantApprobation.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 
-        ResponseEntity<Map> approbation = restTemplate.exchange(baseUrl("/assiduite/demandes-deverrouillage/" + demandeId), HttpMethod.PUT,
+        ResponseEntity<Map> approbation = restTemplate.exchange(baseUrl("/assiduite/demandes-deverrouillage/" + demandeReference), HttpMethod.PUT,
                 new HttpEntity<>(Map.of("statut", "APPROUVEE"), authHeaders(rhToken)), Map.class);
         assertThat(approbation.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(approbation.getBody().get("statut")).isEqualTo("APPROUVEE");
@@ -232,7 +232,7 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
         assertThat(ecritureApresApprobation.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
         // Retraiter une demande déjà traitée est refusé (409).
-        ResponseEntity<Map> retraitement = restTemplate.exchange(baseUrl("/assiduite/demandes-deverrouillage/" + demandeId), HttpMethod.PUT,
+        ResponseEntity<Map> retraitement = restTemplate.exchange(baseUrl("/assiduite/demandes-deverrouillage/" + demandeReference), HttpMethod.PUT,
                 new HttpEntity<>(Map.of("statut", "REFUSEE"), authHeaders(rhToken)), Map.class);
         assertThat(retraitement.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     }
@@ -273,7 +273,7 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(reponse.getBody().get("statut")).isEqualTo("OUVERT");
-        assertThat(reponse.getBody().get("id")).isNull();
+        assertThat(reponse.getBody().get("reference")).isNull();
     }
 
     @Test

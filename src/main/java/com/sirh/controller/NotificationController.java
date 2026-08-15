@@ -8,6 +8,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/notifications")
@@ -25,9 +26,9 @@ public class NotificationController {
                 .map(NotificationDto::from).toList());
     }
 
-    @PutMapping("/{id}/lue")
-    public ResponseEntity<NotificationDto> marquerLue(@PathVariable Long id,
+    @PutMapping("/{reference}/lue")
+    public ResponseEntity<NotificationDto> marquerNotificationLueByReference(@PathVariable UUID reference,
                                                         @AuthenticationPrincipal SirhUserDetails principal) {
-        return ResponseEntity.ok(NotificationDto.from(notificationService.marquerLue(id, principal.getUserId())));
+        return ResponseEntity.ok(NotificationDto.from(notificationService.marquerNotificationLueByReference(reference, principal.getUserId())));
     }
 }

@@ -8,7 +8,7 @@ import java.time.LocalTime;
 import java.util.UUID;
 
 public record AutorisationDto(
-        Long id,
+        UUID reference,
         UUID employeId,
         String employeNom,
         String employePrenom,
@@ -29,7 +29,7 @@ public record AutorisationDto(
 ) {
     public static AutorisationDto from(Autorisation a, String employeNom, String employePrenom, Integer quotaDepasseMinutes) {
         return new AutorisationDto(
-                a.getId(), a.getEmployeId(), employeNom, employePrenom, a.getType(), a.getDateAutorisation(),
+                a.getReference(), a.getEmployeId(), employeNom, employePrenom, a.getType(), a.getDateAutorisation(),
                 a.getHeureDebut(), a.getHeureFin(), a.getDureeMinutes(), a.getMotif(), a.getStatut(),
                 a.getCreeParId(), a.getCreeParRole(), a.getAvisManagerStatut(), a.getAvisManagerCommentaire(),
                 a.getValideParRhId(), quotaDepasseMinutes, a.getCreatedAt());

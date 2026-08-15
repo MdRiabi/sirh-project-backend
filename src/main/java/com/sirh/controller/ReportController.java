@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 // Module 7 (CDF) : "Le RH sélectionne un type de rapport ... clique sur
 // EXPORTER." — RH/SUPERUSER seulement (même scope que la génération de tout
 // export sensible du projet, cf. import Excel pointages).
@@ -48,18 +50,18 @@ public class ReportController {
         };
     }
 
-    @GetMapping("/tasks/{taskId}")
-    public ResponseEntity<AsyncJobDto> tache(@PathVariable Long taskId) {
-        return ResponseEntity.ok(reportGenerationService.obtenirTache(taskId));
+    @GetMapping("/tasks/{reference}")
+    public ResponseEntity<AsyncJobDto> tache(@PathVariable UUID reference) {
+        return ResponseEntity.ok(reportGenerationService.obtenirTache(reference));
     }
 
     // 🆕 non listé au cahier technique (seuls POST /reports/generer et
-    // GET /reports/tasks/{taskId} y figurent) — nécessaire pour récupérer le
+    // GET /reports/tasks/{reference} y figurent) — nécessaire pour récupérer le
     // fichier une fois le job async_jobs passé à SUCCESS, même principe que
-    // GET /fichiers/{id}/download.
-    @GetMapping("/tasks/{taskId}/download")
-    public ResponseEntity<Resource> telecharger(@PathVariable Long taskId) {
-        ReportGenerationService.FichierTelecharge fichier = reportGenerationService.chargerFichierResultat(taskId);
+    // GET /fichiers/{reference}/download.
+    @GetMapping("/tasks/{reference}/download")
+    public ResponseEntity<Resource> telecharger(@PathVariable UUID reference) {
+        ReportGenerationService.FichierTelecharge fichier = reportGenerationService.chargerFichierResultat(reference);
         return ResponseEntity.ok()
                 .contentType(fichier.contentType())
                 .header(HttpHeaders.CONTENT_DISPOSITION,

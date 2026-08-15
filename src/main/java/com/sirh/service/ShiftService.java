@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class ShiftService {
@@ -24,8 +25,9 @@ public class ShiftService {
     }
 
     @Transactional(readOnly = true)
-    public Shift findById(Long id) {
-        return shiftRepository.findById(id).orElseThrow(() -> new ShiftNotFoundException(id));
+    public Shift getShiftByReference(UUID reference) {
+        return shiftRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new ShiftNotFoundException(reference));
     }
 
     @Transactional

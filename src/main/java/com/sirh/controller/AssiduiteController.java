@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.YearMonth;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/assiduite")
@@ -88,12 +89,12 @@ public class AssiduiteController {
         return ResponseEntity.ok(cloturePaieService.enrichir(resultats));
     }
 
-    @PutMapping("/demandes-deverrouillage/{id}")
+    @PutMapping("/demandes-deverrouillage/{reference}")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<DemandeDeverrouillageDto> traiterDemandeDeverrouillage(
-            @PathVariable Long id, @Valid @RequestBody DemandeDeverrouillageTraiterRequest request,
+    public ResponseEntity<DemandeDeverrouillageDto> traiterDemandeDeverrouillageByReference(
+            @PathVariable UUID reference, @Valid @RequestBody DemandeDeverrouillageTraiterRequest request,
             @AuthenticationPrincipal SirhUserDetails principal) {
-        var demande = cloturePaieService.traiterDemande(id, request.statut(), principal.getEmployeId());
+        var demande = cloturePaieService.traiterDemandeByReference(reference, request.statut(), principal.getEmployeId());
         return ResponseEntity.ok(cloturePaieService.enrichir(List.of(demande)).get(0));
     }
 }

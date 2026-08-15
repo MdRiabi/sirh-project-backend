@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record ContratDto(
-        Long id,
+        UUID reference,
         UUID employeId,
         ContratType type,
         LocalDate dateDebut,
@@ -21,7 +21,7 @@ public record ContratDto(
 ) {
     public static ContratDto from(Contrat contrat) {
         return new ContratDto(
-                contrat.getId(),
+                contrat.getReference(),
                 contrat.getEmployeId(),
                 contrat.getType(),
                 contrat.getDateDebut(),

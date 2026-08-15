@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class DepartementService {
@@ -24,8 +25,9 @@ public class DepartementService {
     }
 
     @Transactional(readOnly = true)
-    public Departement findById(Long id) {
-        return departementRepository.findById(id).orElseThrow(() -> new DepartementNotFoundException(id));
+    public Departement getDepartementByReference(UUID reference) {
+        return departementRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new DepartementNotFoundException(reference));
     }
 
     @Transactional
@@ -38,8 +40,8 @@ public class DepartementService {
     }
 
     @Transactional
-    public Departement update(Long id, DepartementRequest request) {
-        Departement departement = findById(id);
+    public Departement updateDepartementByReference(UUID reference, DepartementRequest request) {
+        Departement departement = getDepartementByReference(reference);
         departement.setNom(request.nom());
         departement.setManagerId(request.managerId());
         return departementRepository.save(departement);

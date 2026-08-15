@@ -9,9 +9,12 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface PointageBrutRepository extends JpaRepository<PointageBrut, Long>, JpaSpecificationExecutor<PointageBrut> {
+
+    Optional<PointageBrut> findByReferenceAndDeletedAtIsNull(UUID reference);
 
     // Fenêtre de détection des doublons (cahier-technique.md §3.7) : même employé
     // + même pointeuse, tous statuts confondus (on doit voir un IGNORE_DOUBLON

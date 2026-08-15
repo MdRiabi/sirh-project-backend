@@ -15,6 +15,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -52,21 +53,21 @@ class ReportControllerAsyncIT extends AbstractIntegrationTest {
                 new HttpEntity<>(body, authHeaders(token)), Map.class);
 
         assertThat(reponseGeneration.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
-        Number taskId = (Number) reponseGeneration.getBody().get("id");
+        String taskReference = (String) reponseGeneration.getBody().get("reference");
         assertThat(reponseGeneration.getBody().get("type")).isEqualTo("REPORT");
 
-        attendreSucces(taskId, token);
+        attendreSucces(taskReference, token);
 
-        ResponseEntity<byte[]> reponseTelechargement = restTemplate.exchange(baseUrl("/reports/tasks/" + taskId + "/download"),
+        ResponseEntity<byte[]> reponseTelechargement = restTemplate.exchange(baseUrl("/reports/tasks/" + taskReference + "/download"),
                 HttpMethod.GET, new HttpEntity<>(authHeaders(token)), byte[].class);
 
         assertThat(reponseTelechargement.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(reponseTelechargement.getBody()).isNotEmpty();
     }
 
-    private void attendreSucces(Number taskId, String token) {
+    private void attendreSucces(String taskReference, String token) {
         for (int tentative = 0; tentative < 50; tentative++) {
-            ResponseEntity<Map> reponseTache = restTemplate.exchange(baseUrl("/reports/tasks/" + taskId), HttpMethod.GET,
+            ResponseEntity<Map> reponseTache = restTemplate.exchange(baseUrl("/reports/tasks/" + taskReference), HttpMethod.GET,
                     new HttpEntity<>(authHeaders(token)), Map.class);
             if ("SUCCESS".equals(reponseTache.getBody().get("statut"))) {
                 return;

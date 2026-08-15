@@ -5,9 +5,10 @@ import com.sirh.model.enums.AsyncJobStatut;
 import com.sirh.model.enums.AsyncJobType;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public record AsyncJobDto(
-        Long id,
+        UUID reference,
         AsyncJobType type,
         String nomFichier,
         AsyncJobStatut statut,
@@ -21,7 +22,7 @@ public record AsyncJobDto(
 ) {
     public static AsyncJobDto from(AsyncJob job) {
         return new AsyncJobDto(
-                job.getId(),
+                job.getReference(),
                 job.getType(),
                 job.getNomFichier(),
                 job.getStatut(),

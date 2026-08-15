@@ -113,18 +113,18 @@ class OutillageControllerIT extends AbstractIntegrationTest {
         Departement departement = creerDepartement();
         FixtureManager manager = creerManagerAvecDepartement(departement);
         Employe membreEquipe = creerEmployeDuDepartement(departement);
-        Long outilId = ((Number) creerOutil(manager.token()).getBody().get("id")).longValue();
+        String outilReference = (String) creerOutil(manager.token()).getBody().get("reference");
 
-        ResponseEntity<Map> checkOut = restTemplate.exchange(baseUrl("/outillages/" + outilId + "/check-out"), HttpMethod.POST,
+        ResponseEntity<Map> checkOut = restTemplate.exchange(baseUrl("/outillages/" + outilReference + "/check-out"), HttpMethod.POST,
                 new HttpEntity<>(Map.of("employeId", membreEquipe.getId().toString()), authHeaders(manager.token())), Map.class);
         assertThat(checkOut.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(checkOut.getBody().get("typeMouvement")).isEqualTo("CHECK_OUT");
 
-        ResponseEntity<Map> doubleCheckOut = restTemplate.exchange(baseUrl("/outillages/" + outilId + "/check-out"), HttpMethod.POST,
+        ResponseEntity<Map> doubleCheckOut = restTemplate.exchange(baseUrl("/outillages/" + outilReference + "/check-out"), HttpMethod.POST,
                 new HttpEntity<>(Map.of("employeId", membreEquipe.getId().toString()), authHeaders(manager.token())), Map.class);
         assertThat(doubleCheckOut.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 
-        ResponseEntity<Map> checkIn = restTemplate.exchange(baseUrl("/outillages/" + outilId + "/check-in"), HttpMethod.POST,
+        ResponseEntity<Map> checkIn = restTemplate.exchange(baseUrl("/outillages/" + outilReference + "/check-in"), HttpMethod.POST,
                 new HttpEntity<>(Map.of("etat", "BON"), authHeaders(manager.token())), Map.class);
         assertThat(checkIn.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         // BigDecimal.ZERO se sérialise en JSON sans décimale ("0"), désérialisé en
@@ -136,9 +136,9 @@ class OutillageControllerIT extends AbstractIntegrationTest {
     @Test
     void checkIn_sansAttributionPrealable_estRefuseAvec409() {
         FixtureManager manager = creerManagerAvecDepartement(creerDepartement());
-        Long outilId = ((Number) creerOutil(manager.token()).getBody().get("id")).longValue();
+        String outilReference = (String) creerOutil(manager.token()).getBody().get("reference");
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/outillages/" + outilId + "/check-in"), HttpMethod.POST,
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/outillages/" + outilReference + "/check-in"), HttpMethod.POST,
                 new HttpEntity<>(Map.of("etat", "BON"), authHeaders(manager.token())), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
@@ -150,9 +150,9 @@ class OutillageControllerIT extends AbstractIntegrationTest {
         Departement autreDepartement = creerDepartement();
         FixtureManager manager = creerManagerAvecDepartement(departementOutil);
         Employe employeExterne = creerEmployeDuDepartement(autreDepartement);
-        Long outilId = ((Number) creerOutil(manager.token()).getBody().get("id")).longValue();
+        String outilReference = (String) creerOutil(manager.token()).getBody().get("reference");
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/outillages/" + outilId + "/check-out"), HttpMethod.POST,
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/outillages/" + outilReference + "/check-out"), HttpMethod.POST,
                 new HttpEntity<>(Map.of("employeId", employeExterne.getId().toString()), authHeaders(manager.token())), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
@@ -162,9 +162,9 @@ class OutillageControllerIT extends AbstractIntegrationTest {
     void checkOut_parManagerDUnAutreDepartement_estRefuseAvec403() {
         FixtureManager proprietaire = creerManagerAvecDepartement(creerDepartement());
         FixtureManager autreManager = creerManagerAvecDepartement(creerDepartement());
-        Long outilId = ((Number) creerOutil(proprietaire.token()).getBody().get("id")).longValue();
+        String outilReference = (String) creerOutil(proprietaire.token()).getBody().get("reference");
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/outillages/" + outilId + "/check-out"), HttpMethod.POST,
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/outillages/" + outilReference + "/check-out"), HttpMethod.POST,
                 new HttpEntity<>(Map.of("employeId", UUID.randomUUID().toString()), authHeaders(autreManager.token())), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
@@ -175,17 +175,17 @@ class OutillageControllerIT extends AbstractIntegrationTest {
         Departement departement = creerDepartement();
         FixtureManager manager = creerManagerAvecDepartement(departement);
         Employe membreEquipe = creerEmployeDuDepartement(departement);
-        Long outilId = ((Number) creerOutil(manager.token()).getBody().get("id")).longValue();
-        restTemplate.exchange(baseUrl("/outillages/" + outilId + "/check-out"), HttpMethod.POST,
+        String outilReference = (String) creerOutil(manager.token()).getBody().get("reference");
+        restTemplate.exchange(baseUrl("/outillages/" + outilReference + "/check-out"), HttpMethod.POST,
                 new HttpEntity<>(Map.of("employeId", membreEquipe.getId().toString()), authHeaders(manager.token())), Map.class);
 
-        ResponseEntity<Map> checkIn = restTemplate.exchange(baseUrl("/outillages/" + outilId + "/check-in"), HttpMethod.POST,
+        ResponseEntity<Map> checkIn = restTemplate.exchange(baseUrl("/outillages/" + outilReference + "/check-in"), HttpMethod.POST,
                 new HttpEntity<>(Map.of("etat", "PERDU"), authHeaders(manager.token())), Map.class);
 
         assertThat(checkIn.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat((Double) checkIn.getBody().get("montantImputation")).isGreaterThan(0.0);
 
-        ResponseEntity<List> historique = restTemplate.exchange(baseUrl("/outillages/" + outilId + "/historique"),
+        ResponseEntity<List> historique = restTemplate.exchange(baseUrl("/outillages/" + outilReference + "/historique"),
                 HttpMethod.GET, new HttpEntity<>(authHeaders(manager.token())), List.class);
         assertThat(historique.getBody()).hasSize(2);
     }

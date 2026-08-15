@@ -115,8 +115,8 @@ public class IndisponibiliteService {
 
     @Audited(action = "VALIDER_INDISPONIBILITE", tableCible = "indisponibilites")
     @Transactional
-    public Indisponibilite valider(Long id, String bascule, boolean forcer, UUID valideParRhId) {
-        Indisponibilite indisponibilite = findById(id);
+    public Indisponibilite validerIndisponibiliteByReference(UUID reference, String bascule, boolean forcer, UUID valideParRhId) {
+        Indisponibilite indisponibilite = getIndisponibiliteByReference(reference);
         if (!STATUT_EN_ATTENTE_RH.equals(indisponibilite.getStatut())) {
             throw new DemandeStatutInvalideException(
                     "Seule une indisponibilité EN_ATTENTE_RH peut être validée (statut actuel : " + indisponibilite.getStatut() + ").");
@@ -196,8 +196,8 @@ public class IndisponibiliteService {
 
     @Audited(action = "REFUSER_INDISPONIBILITE", tableCible = "indisponibilites")
     @Transactional
-    public Indisponibilite refuser(Long id) {
-        Indisponibilite indisponibilite = findById(id);
+    public Indisponibilite refuserIndisponibiliteByReference(UUID reference) {
+        Indisponibilite indisponibilite = getIndisponibiliteByReference(reference);
         if (!STATUT_EN_ATTENTE_RH.equals(indisponibilite.getStatut())) {
             throw new DemandeStatutInvalideException(
                     "Seule une indisponibilité EN_ATTENTE_RH peut être refusée (statut actuel : " + indisponibilite.getStatut() + ").");
@@ -207,8 +207,9 @@ public class IndisponibiliteService {
     }
 
     @Transactional(readOnly = true)
-    public Indisponibilite findById(Long id) {
-        return indisponibiliteRepository.findById(id).orElseThrow(() -> new IndisponibiliteNotFoundException(id));
+    public Indisponibilite getIndisponibiliteByReference(UUID reference) {
+        return indisponibiliteRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new IndisponibiliteNotFoundException(reference));
     }
 
     @Transactional(readOnly = true)

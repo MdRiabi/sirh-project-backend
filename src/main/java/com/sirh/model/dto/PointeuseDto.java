@@ -3,9 +3,10 @@ package com.sirh.model.dto;
 import com.sirh.model.entity.Pointeuse;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public record PointeuseDto(
-        Long id,
+        UUID reference,
         String nom,
         String adresseIp,
         Integer port,
@@ -15,7 +16,7 @@ public record PointeuseDto(
 ) {
     public static PointeuseDto from(Pointeuse pointeuse) {
         return new PointeuseDto(
-                pointeuse.getId(),
+                pointeuse.getReference(),
                 pointeuse.getNom(),
                 pointeuse.getAdresseIp(),
                 pointeuse.getPort(),

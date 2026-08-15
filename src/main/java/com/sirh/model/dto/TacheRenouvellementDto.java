@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record TacheRenouvellementDto(
-        Long id,
+        UUID reference,
         UUID employeId,
         String employeNom,
         String employePrenom,
@@ -22,7 +22,7 @@ public record TacheRenouvellementDto(
 ) {
     public static TacheRenouvellementDto from(TacheRenouvellement tache, String employeNom, String employePrenom) {
         return new TacheRenouvellementDto(
-                tache.getId(), tache.getEmployeId(), employeNom, employePrenom, tache.getContratId(),
+                tache.getReference(), tache.getEmployeId(), employeNom, employePrenom, tache.getContratId(),
                 tache.getTypeEcheance(), tache.getDateEcheance(), tache.getStatut(),
                 tache.getDateTraitement(), tache.getTraiteParId(), tache.getCreatedAt());
     }

@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record OutillageDto(
-        Long id,
+        UUID reference,
         String codeBarres,
         String nomOutil,
         OutillageEtat etat,
@@ -22,7 +22,7 @@ public record OutillageDto(
         LocalDate dateAchat) {
 
     public static OutillageDto from(Outillage outillage, String employeNom, String employePrenom) {
-        return new OutillageDto(outillage.getId(), outillage.getCodeBarres(), outillage.getNomOutil(),
+        return new OutillageDto(outillage.getReference(), outillage.getCodeBarres(), outillage.getNomOutil(),
                 outillage.getEtat(), outillage.getAttribueAEmployeId(), employeNom, employePrenom,
                 outillage.getDateAttribution(), outillage.getDepartementId(), outillage.getValeurAchat(),
                 outillage.getDateAchat());

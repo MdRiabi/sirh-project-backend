@@ -1,7 +1,9 @@
 package com.sirh.exception;
 
+import java.util.UUID;
+
 public class JourFerieNotFoundException extends RuntimeException {
-    public JourFerieNotFoundException(Long id) {
-        super("Jour férié introuvable : " + id);
+    public JourFerieNotFoundException(UUID reference) {
+        super("Jour férié introuvable : " + reference);
     }
 }

@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * CRUD du référentiel jours fériés / fermetures collectives, avec recrédit
@@ -76,8 +77,8 @@ public class CalendrierService {
     // correction ultérieure (libellé, région) ne doit pas recréditer une 2e fois
     // les employés déjà traités lors de la création initiale.
     @Transactional
-    public JourFerie modifier(Long id, LocalDate date, String libelle, TypeJourFerie type, Boolean national, String region) {
-        JourFerie jourFerie = jourFerieRepository.findById(id).orElseThrow(() -> new JourFerieNotFoundException(id));
+    public JourFerie modifierJourFerieByReference(UUID reference, LocalDate date, String libelle, TypeJourFerie type, Boolean national, String region) {
+        JourFerie jourFerie = getJourFerieByReference(reference);
         jourFerie.setDate(date);
         jourFerie.setLibelle(libelle);
         jourFerie.setType(type);
@@ -87,11 +88,13 @@ public class CalendrierService {
     }
 
     @Transactional
-    public void supprimer(Long id) {
-        if (!jourFerieRepository.existsById(id)) {
-            throw new JourFerieNotFoundException(id);
-        }
-        jourFerieRepository.deleteById(id);
+    public void supprimerJourFerieByReference(UUID reference) {
+        jourFerieRepository.delete(getJourFerieByReference(reference));
+    }
+
+    private JourFerie getJourFerieByReference(UUID reference) {
+        return jourFerieRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new JourFerieNotFoundException(reference));
     }
 
     // Seul le type FERIE (férié, y compris mobile) déclenche le recrédit : une

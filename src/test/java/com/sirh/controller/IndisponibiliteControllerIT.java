@@ -132,10 +132,10 @@ class IndisponibiliteControllerIT extends AbstractIntegrationTest {
                 "dateDebut", lundi.toString(), "dateFin", lundi.plusDays(4).toString(),
                 "avisManagerStatut", "FAVORABLE");
         ResponseEntity<Map> creation = creer(managerToken, body);
-        Long id = ((Number) creation.getBody().get("id")).longValue();
+        String reference = (String) creation.getBody().get("reference");
 
         ResponseEntity<Map> validation = restTemplate.exchange(
-                baseUrl("/indisponibilites/" + id + "/valider"), HttpMethod.PUT,
+                baseUrl("/indisponibilites/" + reference + "/valider"), HttpMethod.PUT,
                 new HttpEntity<>(null, authHeaders(rhToken)), Map.class);
 
         assertThat(validation.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
@@ -159,10 +159,10 @@ class IndisponibiliteControllerIT extends AbstractIntegrationTest {
                 "avisManagerStatut", "FAVORABLE");
         ResponseEntity<Map> creation = creer(managerToken, body);
         assertThat(creation.getBody().get("statut")).isEqualTo("EN_ATTENTE_RH");
-        Long id = ((Number) creation.getBody().get("id")).longValue();
+        String reference = (String) creation.getBody().get("reference");
 
         ResponseEntity<Map> validation = restTemplate.exchange(
-                baseUrl("/indisponibilites/" + id + "/valider"), HttpMethod.PUT,
+                baseUrl("/indisponibilites/" + reference + "/valider"), HttpMethod.PUT,
                 new HttpEntity<>(Map.of("forcer", true), authHeaders(rhToken)), Map.class);
 
         assertThat(validation.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -246,10 +246,10 @@ class IndisponibiliteControllerIT extends AbstractIntegrationTest {
                 "dateDebut", lundi.toString(), "dateFin", lundi.plusDays(1).toString(),
                 "avisManagerStatut", "DEFAVORABLE");
         ResponseEntity<Map> creation = creer(managerToken, body);
-        Long id = ((Number) creation.getBody().get("id")).longValue();
+        String reference = (String) creation.getBody().get("reference");
 
         ResponseEntity<Map> refus = restTemplate.exchange(
-                baseUrl("/indisponibilites/" + id + "/refuser"), HttpMethod.PUT,
+                baseUrl("/indisponibilites/" + reference + "/refuser"), HttpMethod.PUT,
                 new HttpEntity<>(null, authHeaders(rhToken)), Map.class);
 
         assertThat(refus.getStatusCode()).isEqualTo(HttpStatus.OK);

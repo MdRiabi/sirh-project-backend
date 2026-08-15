@@ -146,18 +146,20 @@ class RenouvellementServiceTest {
     @Test
     void traiter_valideSansDateFin_renouvelleAncienContratEtCreeLeSuivantAvecDureeParDefaut() {
         UUID employeId = UUID.randomUUID();
+        UUID tacheReference = UUID.randomUUID();
         LocalDate ancienneFin = LocalDate.of(2026, 12, 31);
         Contrat ancien = Contrat.builder().id(1L).employeId(employeId).type(ContratType.CDD)
                 .statut(ContratStatut.EN_COURS).dateFin(ancienneFin).build();
         TacheRenouvellement tache = TacheRenouvellement.builder().id(9L).employeId(employeId).contratId(1L)
                 .statut(TacheRenouvellementStatut.EN_COURS).build();
-        when(tacheRenouvellementRepository.findById(9L)).thenReturn(Optional.of(tache));
+        tache.setReference(tacheReference);
+        when(tacheRenouvellementRepository.findByReferenceAndDeletedAtIsNull(tacheReference)).thenReturn(Optional.of(tache));
         when(contratRepository.findById(1L)).thenReturn(Optional.of(ancien));
         when(parametreGlobalService.valeurDecimale("DUREE_RENOUVELLEMENT_CDD_MOIS")).thenReturn(BigDecimal.valueOf(6));
         when(tacheRenouvellementRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(employeRepository.findAllById(any())).thenReturn(List.of(Employe.builder().id(employeId).nom("A").prenom("B").build()));
 
-        TacheRenouvellementDto resultat = service.traiter(9L, TacheRenouvellementStatut.VALIDE, null, 42L);
+        TacheRenouvellementDto resultat = service.traiterTacheRenouvellementByReference(tacheReference, TacheRenouvellementStatut.VALIDE, null, 42L);
 
         assertThat(ancien.getStatut()).isEqualTo(ContratStatut.RENOUVELE);
         verify(contratService).create(eq(employeId), contratRequestCaptor.capture(), eq(42L));
@@ -170,17 +172,19 @@ class RenouvellementServiceTest {
     @Test
     void traiter_valideAvecDateFinExplicite_ignoreLeParametreDynamique() {
         UUID employeId = UUID.randomUUID();
+        UUID tacheReference = UUID.randomUUID();
         Contrat ancien = Contrat.builder().id(1L).employeId(employeId).type(ContratType.CDD)
                 .statut(ContratStatut.EN_COURS).dateFin(LocalDate.of(2026, 6, 30)).build();
         TacheRenouvellement tache = TacheRenouvellement.builder().id(9L).employeId(employeId).contratId(1L)
                 .statut(TacheRenouvellementStatut.URGENT_EXPIRE).build();
-        when(tacheRenouvellementRepository.findById(9L)).thenReturn(Optional.of(tache));
+        tache.setReference(tacheReference);
+        when(tacheRenouvellementRepository.findByReferenceAndDeletedAtIsNull(tacheReference)).thenReturn(Optional.of(tache));
         when(contratRepository.findById(1L)).thenReturn(Optional.of(ancien));
         when(tacheRenouvellementRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(employeRepository.findAllById(any())).thenReturn(List.of(Employe.builder().id(employeId).nom("A").prenom("B").build()));
         LocalDate dateFinChoisie = LocalDate.of(2027, 3, 1);
 
-        service.traiter(9L, TacheRenouvellementStatut.VALIDE, dateFinChoisie, 42L);
+        service.traiterTacheRenouvellementByReference(tacheReference, TacheRenouvellementStatut.VALIDE, dateFinChoisie, 42L);
 
         verify(contratService).create(eq(employeId), contratRequestCaptor.capture(), eq(42L));
         assertThat(contratRequestCaptor.getValue().dateFin()).isEqualTo(dateFinChoisie);
@@ -190,18 +194,20 @@ class RenouvellementServiceTest {
     @Test
     void traiter_nonRenouvele_termineLeContratEtDesactiveLEmploye() {
         UUID employeId = UUID.randomUUID();
+        UUID tacheReference = UUID.randomUUID();
         Contrat contrat = Contrat.builder().id(1L).employeId(employeId).type(ContratType.CDD)
                 .statut(ContratStatut.EN_COURS).build();
         TacheRenouvellement tache = TacheRenouvellement.builder().id(9L).employeId(employeId).contratId(1L)
                 .statut(TacheRenouvellementStatut.URGENT_EXPIRE).build();
+        tache.setReference(tacheReference);
         Employe employe = Employe.builder().id(employeId).nom("A").prenom("B").actif(true).build();
-        when(tacheRenouvellementRepository.findById(9L)).thenReturn(Optional.of(tache));
+        when(tacheRenouvellementRepository.findByReferenceAndDeletedAtIsNull(tacheReference)).thenReturn(Optional.of(tache));
         when(contratRepository.findById(1L)).thenReturn(Optional.of(contrat));
         when(employeRepository.findById(employeId)).thenReturn(Optional.of(employe));
         when(tacheRenouvellementRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(employeRepository.findAllById(any())).thenReturn(List.of(employe));
 
-        service.traiter(9L, TacheRenouvellementStatut.NON_RENOUVELE, null, 42L);
+        service.traiterTacheRenouvellementByReference(tacheReference, TacheRenouvellementStatut.NON_RENOUVELE, null, 42L);
 
         assertThat(contrat.getStatut()).isEqualTo(ContratStatut.TERMINE);
         assertThat(contrat.getMotifFin()).isEqualTo(MotifFin.FIN_CDD);
@@ -211,24 +217,28 @@ class RenouvellementServiceTest {
 
     @Test
     void traiter_tacheDejaValidee_estRefuseAvecStatutInvalide() {
+        UUID tacheReference = UUID.randomUUID();
         TacheRenouvellement tache = TacheRenouvellement.builder().id(9L).statut(TacheRenouvellementStatut.VALIDE).build();
-        when(tacheRenouvellementRepository.findById(9L)).thenReturn(Optional.of(tache));
+        tache.setReference(tacheReference);
+        when(tacheRenouvellementRepository.findByReferenceAndDeletedAtIsNull(tacheReference)).thenReturn(Optional.of(tache));
 
-        assertThatThrownBy(() -> service.traiter(9L, TacheRenouvellementStatut.NON_RENOUVELE, null, 42L))
+        assertThatThrownBy(() -> service.traiterTacheRenouvellementByReference(tacheReference, TacheRenouvellementStatut.NON_RENOUVELE, null, 42L))
                 .isInstanceOf(TacheRenouvellementStatutInvalideException.class);
     }
 
     @Test
     void traiter_tacheInexistante_lance404() {
-        when(tacheRenouvellementRepository.findById(99L)).thenReturn(Optional.empty());
+        UUID tacheReference = UUID.randomUUID();
+        when(tacheRenouvellementRepository.findByReferenceAndDeletedAtIsNull(tacheReference)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.traiter(99L, TacheRenouvellementStatut.VALIDE, null, 42L))
+        assertThatThrownBy(() -> service.traiterTacheRenouvellementByReference(tacheReference, TacheRenouvellementStatut.VALIDE, null, 42L))
                 .isInstanceOf(TacheRenouvellementNotFoundException.class);
     }
 
     @Test
     void traiter_statutDemandeInvalide_estRefuseAvecIllegalArgument() {
-        assertThatThrownBy(() -> service.traiter(9L, TacheRenouvellementStatut.EN_COURS, null, 42L))
+        UUID tacheReference = UUID.randomUUID();
+        assertThatThrownBy(() -> service.traiterTacheRenouvellementByReference(tacheReference, TacheRenouvellementStatut.EN_COURS, null, 42L))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Module 11 (Gestion des Notifications) : création par les déclencheurs
@@ -42,9 +43,9 @@ public class NotificationService {
     }
 
     @Transactional
-    public Notification marquerLue(Long id, Long destinataireId) {
-        Notification notification = notificationRepository.findById(id)
-                .orElseThrow(() -> new NotificationNotFoundException(id));
+    public Notification marquerNotificationLueByReference(UUID reference, Long destinataireId) {
+        Notification notification = notificationRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new NotificationNotFoundException(reference));
         if (!notification.getDestinataireId().equals(destinataireId)) {
             throw new AccessDeniedException("Cette notification n'appartient pas à l'utilisateur authentifié.");
         }

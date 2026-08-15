@@ -74,18 +74,18 @@ public class PointageController {
     }
 
     @PostMapping(value = "/import", consumes = "multipart/form-data")
-    public ResponseEntity<Map<String, Long>> importer(@RequestParam("file") MultipartFile file,
+    public ResponseEntity<Map<String, UUID>> importer(@RequestParam("file") MultipartFile file,
                                                         @AuthenticationPrincipal SirhUserDetails principal) {
         var job = importPointagesService.creerJob(file, principal.getUserId());
-        return ResponseEntity.accepted().body(Map.of("jobId", job.getId()));
+        return ResponseEntity.accepted().body(Map.of("jobId", job.getReference()));
     }
 
-    @PutMapping("/{id}/corriger")
-    public ResponseEntity<PointageBrutDto> corriger(@PathVariable Long id,
+    @PutMapping("/{reference}/corriger")
+    public ResponseEntity<PointageBrutDto> corrigerPointageByReference(@PathVariable UUID reference,
                                                       @Valid @RequestBody CorrectionPointageRequest request,
                                                       @AuthenticationPrincipal SirhUserDetails principal,
                                                       HttpServletRequest httpRequest) {
-        var pointage = pointageBrutService.corriger(id, request, principal.getUserId(), httpRequest.getRemoteAddr());
+        var pointage = pointageBrutService.corrigerPointageByReference(reference, request, principal.getUserId(), httpRequest.getRemoteAddr());
         Employe employe = employeRepository.findById(pointage.getEmployeId()).orElse(null);
         Pointeuse pointeuse = pointage.getPointeuseId() != null
                 ? pointeuseRepository.findById(pointage.getPointeuseId()).orElse(null) : null;

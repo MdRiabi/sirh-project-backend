@@ -4,8 +4,11 @@ import com.sirh.model.entity.Shift;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
+import java.util.UUID;
 
 public interface ShiftRepository extends JpaRepository<Shift, Long> {
+
+    Optional<Shift> findByReferenceAndDeletedAtIsNull(UUID reference);
 
     // Le shift "système" (seedé en V5) sert de support générique aux créneaux
     // CONGE/ABSENCE générés automatiquement (com.sirh.demandes, Lot 5) : ces

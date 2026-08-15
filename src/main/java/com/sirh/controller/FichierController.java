@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/fichiers")
@@ -39,9 +40,9 @@ public class FichierController {
         return ResponseEntity.status(201).body(FichierDto.from(fichier));
     }
 
-    @GetMapping("/{id}/download")
-    public ResponseEntity<Resource> download(@PathVariable Long id) {
-        Fichier fichier = fichierService.findById(id);
+    @GetMapping("/{reference}/download")
+    public ResponseEntity<Resource> download(@PathVariable UUID reference) {
+        Fichier fichier = fichierService.getFichierByReference(reference);
         Resource resource = fichierService.loadAsResource(fichier);
         ContentDisposition disposition = ContentDisposition.attachment()
                 .filename(fichier.getNomOriginal())
@@ -61,10 +62,10 @@ public class FichierController {
         return ResponseEntity.ok(dtos);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{reference}")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        fichierService.delete(id);
+    public ResponseEntity<Void> deleteFichierByReference(@PathVariable UUID reference) {
+        fichierService.deleteFichierByReference(reference);
         return ResponseEntity.noContent().build();
     }
 }

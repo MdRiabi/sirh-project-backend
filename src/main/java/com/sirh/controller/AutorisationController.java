@@ -40,20 +40,20 @@ public class AutorisationController {
         return ResponseEntity.status(201).body(autorisationService.enrichirAvecQuota(autorisation));
     }
 
-    @PutMapping("/{id}/valider")
+    @PutMapping("/{reference}/valider")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<AutorisationDto> valider(@PathVariable Long id,
+    public ResponseEntity<AutorisationDto> validerAutorisationByReference(@PathVariable UUID reference,
                                                      @RequestBody(required = false) AutorisationValiderRequest request,
                                                      @AuthenticationPrincipal SirhUserDetails principal) {
         String traitementDepassement = request != null ? request.traitementDepassement() : null;
-        Autorisation autorisation = autorisationService.valider(id, traitementDepassement, principal.getEmployeId());
+        Autorisation autorisation = autorisationService.validerAutorisationByReference(reference, traitementDepassement, principal.getEmployeId());
         return ResponseEntity.ok(autorisationService.enrichirAvecQuota(autorisation));
     }
 
-    @PutMapping("/{id}/refuser")
+    @PutMapping("/{reference}/refuser")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<AutorisationDto> refuser(@PathVariable Long id) {
-        Autorisation autorisation = autorisationService.refuser(id);
+    public ResponseEntity<AutorisationDto> refuserAutorisationByReference(@PathVariable UUID reference) {
+        Autorisation autorisation = autorisationService.refuserAutorisationByReference(reference);
         return ResponseEntity.ok(autorisationService.enrichirAvecQuota(autorisation));
     }
 

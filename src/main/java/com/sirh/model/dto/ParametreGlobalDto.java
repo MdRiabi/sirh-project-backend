@@ -3,9 +3,10 @@ package com.sirh.model.dto;
 import com.sirh.model.entity.ParametreGlobal;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public record ParametreGlobalDto(
-        Long id,
+        UUID reference,
         String cle,
         String valeur,
         String type,
@@ -13,6 +14,6 @@ public record ParametreGlobalDto(
         LocalDateTime updatedAt
 ) {
     public static ParametreGlobalDto from(ParametreGlobal p) {
-        return new ParametreGlobalDto(p.getId(), p.getCle(), p.getValeur(), p.getType(), p.getDescription(), p.getUpdatedAt());
+        return new ParametreGlobalDto(p.getReference(), p.getCle(), p.getValeur(), p.getType(), p.getDescription(), p.getUpdatedAt());
     }
 }

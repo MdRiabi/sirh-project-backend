@@ -11,6 +11,8 @@ import java.util.UUID;
 
 public interface ContratRepository extends JpaRepository<Contrat, Long> {
 
+    Optional<Contrat> findByReferenceAndDeletedAtIsNull(UUID reference);
+
     List<Contrat> findByEmployeIdAndDeletedAtIsNullOrderByDateDebutDesc(UUID employeId);
 
     Optional<Contrat> findFirstByEmployeIdAndDeletedAtIsNullOrderByDateDebutDesc(UUID employeId);

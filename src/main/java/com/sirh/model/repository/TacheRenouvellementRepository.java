@@ -5,8 +5,12 @@ import com.sirh.model.enums.TacheRenouvellementStatut;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 public interface TacheRenouvellementRepository extends JpaRepository<TacheRenouvellement, Long> {
+
+    Optional<TacheRenouvellement> findByReferenceAndDeletedAtIsNull(UUID reference);
 
     List<TacheRenouvellement> findByStatutAndDeletedAtIsNullOrderByDateEcheanceAsc(TacheRenouvellementStatut statut);
 

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 public record EvaluationDto(
-        Long id,
+        UUID reference,
         UUID employeId,
         String employeNom,
         String employePrenom,
@@ -32,7 +32,7 @@ public record EvaluationDto(
                 .filter(c -> c.getNote() == null)
                 .map(EvaluationCompetence::getCompetence)
                 .toList();
-        return new EvaluationDto(evaluation.getId(), evaluation.getEmployeId(), employeNom, employePrenom,
+        return new EvaluationDto(evaluation.getReference(), evaluation.getEmployeId(), employeNom, employePrenom,
                 evaluation.getManagerId(), evaluation.getAnnee(), evaluation.getStatut(), evaluation.getDateEntretien(),
                 evaluation.getDateValidationRh(), evaluation.getCreatedAt(), competenceDtos, manquantes,
                 plansDeveloppement.stream().map(PlanDeveloppementDto::from).toList());

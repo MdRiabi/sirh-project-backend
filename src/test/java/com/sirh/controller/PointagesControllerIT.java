@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -117,9 +118,9 @@ class PointagesControllerIT extends AbstractIntegrationTest {
                 new String[]{employe.getMatriculeInterne(), LocalDateTime.now().format(FMT), "ENTREE", "BADGE"}
         ));
 
-        Long jobId = lancerImport(token, fichier);
+        UUID jobReference = lancerImport(token, fichier);
 
-        Map<String, Object> job = attendreJobTermine(token, jobId);
+        Map<String, Object> job = attendreJobTermine(token, jobReference);
         assertThat(job.get("statut")).isEqualTo("SUCCESS");
         assertThat(job.get("nombreLignesTraitees")).isEqualTo(1);
     }
@@ -134,9 +135,9 @@ class PointagesControllerIT extends AbstractIntegrationTest {
                 new String[]{"MATRICULE-INEXISTANT", LocalDateTime.now().format(FMT), "SORTIE", "BADGE"}
         ));
 
-        Long jobId = lancerImport(token, fichier);
+        UUID jobReference = lancerImport(token, fichier);
 
-        Map<String, Object> job = attendreJobTermine(token, jobId);
+        Map<String, Object> job = attendreJobTermine(token, jobReference);
         assertThat(job.get("statut")).isEqualTo("FAILED");
         assertThat(job.get("ligneErreur")).isEqualTo(3); // ligne 1 = en-tête, ligne 2 = OK, ligne 3 = invalide
 
@@ -163,7 +164,7 @@ class PointagesControllerIT extends AbstractIntegrationTest {
         ResponseEntity<List<Map<String, Object>>> pointages = restTemplate.exchange(
                 baseUrl("/pointages?employeId=" + employe.getId()), HttpMethod.GET,
                 new HttpEntity<>(authHeaders(token)), new ParameterizedTypeReference<>() {});
-        Number pointageId = (Number) pointages.getBody().get(0).get("id");
+        String pointageReference = (String) pointages.getBody().get(0).get("reference");
 
         Map<String, Object> correction = Map.of(
                 "timestampPointage", LocalDateTime.now().plusHours(1).format(FMT_JSON),
@@ -171,7 +172,7 @@ class PointagesControllerIT extends AbstractIntegrationTest {
                 "motif", "Oubli de badgeage corrigé suite à déclaration employé"
         );
         ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                baseUrl("/pointages/" + pointageId + "/corriger"), HttpMethod.PUT,
+                baseUrl("/pointages/" + pointageReference + "/corriger"), HttpMethod.PUT,
                 new HttpEntity<>(correction, authHeaders(token)), new ParameterizedTypeReference<>() {});
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -186,10 +187,10 @@ class PointagesControllerIT extends AbstractIntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
-    private Map<String, Object> attendreJobTermine(String token, Long jobId) {
+    private Map<String, Object> attendreJobTermine(String token, UUID jobReference) {
         for (int i = 0; i < 50; i++) {
             ResponseEntity<Map<String, Object>> job = restTemplate.exchange(
-                    baseUrl("/async-jobs/" + jobId), HttpMethod.GET, new HttpEntity<>(authHeaders(token)),
+                    baseUrl("/async-jobs/" + jobReference), HttpMethod.GET, new HttpEntity<>(authHeaders(token)),
                     new ParameterizedTypeReference<>() {});
             String statut = (String) job.getBody().get("statut");
             if ("SUCCESS".equals(statut) || "FAILED".equals(statut)) {
@@ -202,10 +203,10 @@ class PointagesControllerIT extends AbstractIntegrationTest {
                 throw new RuntimeException(e);
             }
         }
-        throw new AssertionError("Job " + jobId + " non terminé après 10s");
+        throw new AssertionError("Job " + jobReference + " non terminé après 10s");
     }
 
-    private Long lancerImport(String token, byte[] fichier) {
+    private UUID lancerImport(String token, byte[] fichier) {
         MultiValueMap<String, Object> multipart = new LinkedMultiValueMap<>();
         multipart.add("file", new ByteArrayResource(fichier) {
             @Override
@@ -221,7 +222,7 @@ class PointagesControllerIT extends AbstractIntegrationTest {
                 baseUrl("/pointages/import"), HttpMethod.POST, new HttpEntity<>(multipart, headers),
                 new ParameterizedTypeReference<>() {});
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
-        return ((Number) response.getBody().get("jobId")).longValue();
+        return UUID.fromString((String) response.getBody().get("jobId"));
     }
 
     private byte[] construireFichier(List<String[]> lignes) throws Exception {

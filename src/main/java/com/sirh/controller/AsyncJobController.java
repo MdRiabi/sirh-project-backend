@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/async-jobs")
@@ -30,8 +31,8 @@ public class AsyncJobController {
         return ResponseEntity.ok(dtos);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<AsyncJobDto> get(@PathVariable Long id) {
-        return ResponseEntity.ok(AsyncJobDto.from(asyncJobService.findById(id)));
+    @GetMapping("/{reference}")
+    public ResponseEntity<AsyncJobDto> getAsyncJobByReference(@PathVariable UUID reference) {
+        return ResponseEntity.ok(AsyncJobDto.from(asyncJobService.getAsyncJobByReference(reference)));
     }
 }

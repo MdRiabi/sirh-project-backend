@@ -1,7 +1,9 @@
 package com.sirh.exception;
 
+import java.util.UUID;
+
 public class AsyncJobNotFoundException extends RuntimeException {
-    public AsyncJobNotFoundException(Long id) {
-        super("Job asynchrone introuvable : " + id);
+    public AsyncJobNotFoundException(UUID reference) {
+        super("Job asynchrone introuvable : " + reference);
     }
 }

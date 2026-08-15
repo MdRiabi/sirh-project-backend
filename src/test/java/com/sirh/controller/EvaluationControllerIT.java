@@ -137,13 +137,13 @@ class EvaluationControllerIT extends AbstractIntegrationTest {
         Departement departement = creerDepartement();
         FixtureManager manager = creerManagerAvecDepartement(departement);
         Employe employe = creerEmployeDuDepartement(departement);
-        Long evaluationId = creerEvaluation(manager.token(), employe.getId(),
+        String evaluationReference = creerEvaluation(manager.token(), employe.getId(),
                 List.of(competence("Rigueur", 15, 10), competence("Esprit d'équipe", null, 10)));
 
         Map<String, Object> body = Map.of("competences", List.of(
                 competence("Rigueur", 15, 10), competence("Esprit d'équipe", null, 10)));
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/evaluations/" + evaluationId), HttpMethod.PUT,
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/evaluations/" + evaluationReference), HttpMethod.PUT,
                 new HttpEntity<>(body, authHeaders(manager.token())), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -155,12 +155,12 @@ class EvaluationControllerIT extends AbstractIntegrationTest {
         Departement departement = creerDepartement();
         FixtureManager manager = creerManagerAvecDepartement(departement);
         Employe employe = creerEmployeDuDepartement(departement);
-        Long evaluationId = creerEvaluation(manager.token(), employe.getId(),
+        String evaluationReference = creerEvaluation(manager.token(), employe.getId(),
                 List.of(competence("Rigueur", null, 10)));
 
         Map<String, Object> body = Map.of("competences", List.of(competence("Rigueur", 15, 10)));
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/evaluations/" + evaluationId), HttpMethod.PUT,
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/evaluations/" + evaluationReference), HttpMethod.PUT,
                 new HttpEntity<>(body, authHeaders(manager.token())), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -172,14 +172,14 @@ class EvaluationControllerIT extends AbstractIntegrationTest {
         Departement departement = creerDepartement();
         FixtureManager manager = creerManagerAvecDepartement(departement);
         Employe employe = creerEmployeDuDepartement(departement);
-        Long evaluationId = creerEvaluation(manager.token(), employe.getId(),
+        String evaluationReference = creerEvaluation(manager.token(), employe.getId(),
                 List.of(competence("Rigueur", 6, 10)));
 
-        ResponseEntity<Map> refusManager = restTemplate.exchange(baseUrl("/evaluations/" + evaluationId + "/valider"),
+        ResponseEntity<Map> refusManager = restTemplate.exchange(baseUrl("/evaluations/" + evaluationReference + "/valider"),
                 HttpMethod.PUT, new HttpEntity<>(authHeaders(manager.token())), Map.class);
         assertThat(refusManager.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/evaluations/" + evaluationId + "/valider"),
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/evaluations/" + evaluationReference + "/valider"),
                 HttpMethod.PUT, new HttpEntity<>(authHeaders(rhToken())), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -194,12 +194,12 @@ class EvaluationControllerIT extends AbstractIntegrationTest {
         Departement departement = creerDepartement();
         FixtureManager manager = creerManagerAvecDepartement(departement);
         Employe employe = creerEmployeDuDepartement(departement);
-        Long evaluationId = creerEvaluation(manager.token(), employe.getId(), List.of(competence("Rigueur", 15, 10)));
+        String evaluationReference = creerEvaluation(manager.token(), employe.getId(), List.of(competence("Rigueur", 15, 10)));
         String rh = rhToken();
-        restTemplate.exchange(baseUrl("/evaluations/" + evaluationId + "/valider"), HttpMethod.PUT,
+        restTemplate.exchange(baseUrl("/evaluations/" + evaluationReference + "/valider"), HttpMethod.PUT,
                 new HttpEntity<>(authHeaders(rh)), Map.class);
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/evaluations/" + evaluationId + "/valider"),
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/evaluations/" + evaluationReference + "/valider"),
                 HttpMethod.PUT, new HttpEntity<>(authHeaders(rh)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
@@ -234,10 +234,10 @@ class EvaluationControllerIT extends AbstractIntegrationTest {
     }
 
     @SuppressWarnings("unchecked")
-    private Long creerEvaluation(String managerToken, UUID employeId, List<Map<String, Object>> competences) {
+    private String creerEvaluation(String managerToken, UUID employeId, List<Map<String, Object>> competences) {
         Map<String, Object> body = Map.of("employeId", employeId, "competences", competences);
         ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/evaluations"), HttpMethod.POST,
                 new HttpEntity<>(body, authHeaders(managerToken)), Map.class);
-        return ((Number) reponse.getBody().get("id")).longValue();
+        return (String) reponse.getBody().get("reference");
     }
 }

@@ -128,8 +128,9 @@ public class PointageBrutService {
     }
 
     @Transactional(readOnly = true)
-    public PointageBrut findById(Long id) {
-        return pointageBrutRepository.findById(id).orElseThrow(() -> new PointageNotFoundException(id));
+    public PointageBrut getPointageByReference(UUID reference) {
+        return pointageBrutRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new PointageNotFoundException(reference));
     }
 
     // Appelé par com.sirh.demandes.AutorisationService à la validation RH d'une
@@ -177,8 +178,8 @@ public class PointageBrutService {
     // ("Qui, Quand, Valeur précédente"). Écriture directe et complète de
     // l'AuditLog ici plutôt qu'un contournement partiel de l'annotation.
     @Transactional
-    public PointageBrut corriger(Long id, CorrectionPointageRequest request, Long utilisateurId, String adresseIp) {
-        PointageBrut pointage = findById(id);
+    public PointageBrut corrigerPointageByReference(UUID reference, CorrectionPointageRequest request, Long utilisateurId, String adresseIp) {
+        PointageBrut pointage = getPointageByReference(reference);
         // Cas exceptionnel Module 3 : "un Manager tente d'ajouter une autorisation
         // ou un pointage sur un mois dont la paie a déjà été validée" — vérifie à
         // la fois le mois d'origine du pointage et celui de la nouvelle date

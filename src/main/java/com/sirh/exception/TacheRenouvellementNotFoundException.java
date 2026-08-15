@@ -1,7 +1,9 @@
 package com.sirh.exception;
 
+import java.util.UUID;
+
 public class TacheRenouvellementNotFoundException extends RuntimeException {
-    public TacheRenouvellementNotFoundException(Long id) {
-        super("Tâche de renouvellement introuvable : " + id);
+    public TacheRenouvellementNotFoundException(UUID reference) {
+        super("Tâche de renouvellement introuvable : " + reference);
     }
 }

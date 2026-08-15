@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record EvenementDto(
-        Long id,
+        UUID reference,
         UUID employeId,
         String titre,
         String description,
@@ -20,7 +20,7 @@ public record EvenementDto(
 ) {
     public static EvenementDto from(EvenementHistorique evenement) {
         return new EvenementDto(
-                evenement.getId(),
+                evenement.getReference(),
                 evenement.getEmployeId(),
                 evenement.getTitre(),
                 evenement.getDescription(),

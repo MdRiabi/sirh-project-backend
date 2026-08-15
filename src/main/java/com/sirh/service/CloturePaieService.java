@@ -152,8 +152,8 @@ public class CloturePaieService {
 
     @Audited(action = "TRAITER_DEMANDE_DEVERROUILLAGE", tableCible = "demandes_deverrouillage")
     @Transactional
-    public DemandeDeverrouillage traiterDemande(Long id, String statut, UUID traiteParId) {
-        DemandeDeverrouillage demande = findDemandeById(id);
+    public DemandeDeverrouillage traiterDemandeByReference(UUID reference, String statut, UUID traiteParId) {
+        DemandeDeverrouillage demande = getDemandeByReference(reference);
         if (!STATUT_EN_ATTENTE.equals(demande.getStatut())) {
             throw new DemandeDeverrouillageStatutInvalideException(demande.getStatut());
         }
@@ -174,8 +174,9 @@ public class CloturePaieService {
     }
 
     @Transactional(readOnly = true)
-    public DemandeDeverrouillage findDemandeById(Long id) {
-        return demandeDeverrouillageRepository.findById(id).orElseThrow(() -> new DemandeDeverrouillageNotFoundException(id));
+    public DemandeDeverrouillage getDemandeByReference(UUID reference) {
+        return demandeDeverrouillageRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new DemandeDeverrouillageNotFoundException(reference));
     }
 
     // Filtré par mois/statut et, indirectement, par département : le

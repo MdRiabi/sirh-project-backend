@@ -1,7 +1,9 @@
 package com.sirh.exception;
 
+import java.util.UUID;
+
 public class FichierNotFoundException extends RuntimeException {
-    public FichierNotFoundException(Long id) {
-        super("Fichier introuvable : " + id);
+    public FichierNotFoundException(UUID reference) {
+        super("Fichier introuvable : " + reference);
     }
 }

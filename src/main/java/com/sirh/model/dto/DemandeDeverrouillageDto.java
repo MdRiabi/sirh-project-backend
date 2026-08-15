@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record DemandeDeverrouillageDto(
-        Long id,
+        UUID reference,
         LocalDate mois,
         String motif,
         UUID demandeParId,
@@ -23,7 +23,7 @@ public record DemandeDeverrouillageDto(
     // frontend pour filtrer la liste par le département affiché à l'écran.
     public static DemandeDeverrouillageDto from(DemandeDeverrouillage demande, String demandeParNom,
                                                   String demandeParPrenom, Long departementId) {
-        return new DemandeDeverrouillageDto(demande.getId(), demande.getMois(), demande.getMotif(),
+        return new DemandeDeverrouillageDto(demande.getReference(), demande.getMois(), demande.getMotif(),
                 demande.getDemandeParId(), demandeParNom, demandeParPrenom, departementId,
                 demande.getStatut(), demande.getTraiteParId(), demande.getDateTraitement());
     }

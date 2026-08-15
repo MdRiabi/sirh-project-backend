@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record PlanningDto(
-        Long id,
+        UUID reference,
         UUID employeId,
         String employeNom,
         String employePrenom,
@@ -21,7 +21,7 @@ public record PlanningDto(
 ) {
     public static PlanningDto from(Planning p, String employeNom, String employePrenom, String shiftNom) {
         return new PlanningDto(
-                p.getId(), p.getEmployeId(), employeNom, employePrenom,
+                p.getReference(), p.getEmployeId(), employeNom, employePrenom,
                 p.getShiftId(), shiftNom, p.getDateDebut(), p.getDateFin(),
                 p.getStatut(), p.getCommentaire(), p.getCreatedAt());
     }

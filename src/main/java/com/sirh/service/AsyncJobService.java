@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class AsyncJobService {
@@ -34,8 +35,9 @@ public class AsyncJobService {
     }
 
     @Transactional(readOnly = true)
-    public AsyncJob findById(Long id) {
-        return asyncJobRepository.findById(id).orElseThrow(() -> new AsyncJobNotFoundException(id));
+    public AsyncJob getAsyncJobByReference(UUID reference) {
+        return asyncJobRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new AsyncJobNotFoundException(reference));
     }
 
     @Transactional(readOnly = true)
@@ -44,15 +46,15 @@ public class AsyncJobService {
     }
 
     @Transactional
-    public void marquerEnCours(Long jobId) {
-        AsyncJob job = findById(jobId);
+    public void marquerEnCoursByReference(UUID reference) {
+        AsyncJob job = getAsyncJobByReference(reference);
         job.setStatut(AsyncJobStatut.IN_PROGRESS);
         asyncJobRepository.save(job);
     }
 
     @Transactional
-    public void marquerSucces(Long jobId, int nombreLignesTraitees) {
-        AsyncJob job = findById(jobId);
+    public void marquerSuccesByReference(UUID reference, int nombreLignesTraitees) {
+        AsyncJob job = getAsyncJobByReference(reference);
         job.setStatut(AsyncJobStatut.SUCCESS);
         job.setProgression(100);
         job.setNombreLignesTraitees(nombreLignesTraitees);
@@ -63,8 +65,8 @@ public class AsyncJobService {
     // Rapports asynchrones (Lot 11, com.sirh.reporting) : pas de "lignes
     // traitées" à compter, juste le lien de téléchargement du fichier généré.
     @Transactional
-    public void marquerSuccesAvecResultat(Long jobId, String resultatUrl) {
-        AsyncJob job = findById(jobId);
+    public void marquerSuccesAvecResultatByReference(UUID reference, String resultatUrl) {
+        AsyncJob job = getAsyncJobByReference(reference);
         job.setStatut(AsyncJobStatut.SUCCESS);
         job.setProgression(100);
         job.setResultatUrl(resultatUrl);
@@ -73,8 +75,8 @@ public class AsyncJobService {
     }
 
     @Transactional
-    public void marquerEchec(Long jobId, Integer ligneErreur, String messageErreur) {
-        AsyncJob job = findById(jobId);
+    public void marquerEchecByReference(UUID reference, Integer ligneErreur, String messageErreur) {
+        AsyncJob job = getAsyncJobByReference(reference);
         job.setStatut(AsyncJobStatut.FAILED);
         job.setLigneErreur(ligneErreur);
         job.setMessageErreur(messageErreur);

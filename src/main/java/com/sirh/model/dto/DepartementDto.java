@@ -6,14 +6,14 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record DepartementDto(
-        Long id,
+        UUID reference,
         String nom,
         UUID managerId,
         LocalDateTime createdAt
 ) {
     public static DepartementDto from(Departement departement) {
         return new DepartementDto(
-                departement.getId(),
+                departement.getReference(),
                 departement.getNom(),
                 departement.getManagerId(),
                 departement.getCreatedAt()

@@ -119,8 +119,8 @@ public class AutorisationService {
 
     @Audited(action = "VALIDER_AUTORISATION", tableCible = "autorisations")
     @Transactional
-    public Autorisation valider(Long id, String traitementDepassement, UUID valideParRhId) {
-        Autorisation autorisation = findById(id);
+    public Autorisation validerAutorisationByReference(UUID reference, String traitementDepassement, UUID valideParRhId) {
+        Autorisation autorisation = getAutorisationByReference(reference);
         if (!STATUT_EN_ATTENTE_RH.equals(autorisation.getStatut())) {
             throw new DemandeStatutInvalideException(
                     "Seule une autorisation EN_ATTENTE_RH peut être validée (statut actuel : " + autorisation.getStatut() + ").");
@@ -156,8 +156,8 @@ public class AutorisationService {
 
     @Audited(action = "REFUSER_AUTORISATION", tableCible = "autorisations")
     @Transactional
-    public Autorisation refuser(Long id) {
-        Autorisation autorisation = findById(id);
+    public Autorisation refuserAutorisationByReference(UUID reference) {
+        Autorisation autorisation = getAutorisationByReference(reference);
         if (!STATUT_EN_ATTENTE_RH.equals(autorisation.getStatut())) {
             throw new DemandeStatutInvalideException(
                     "Seule une autorisation EN_ATTENTE_RH peut être refusée (statut actuel : " + autorisation.getStatut() + ").");
@@ -167,8 +167,9 @@ public class AutorisationService {
     }
 
     @Transactional(readOnly = true)
-    public Autorisation findById(Long id) {
-        return autorisationRepository.findById(id).orElseThrow(() -> new AutorisationNotFoundException(id));
+    public Autorisation getAutorisationByReference(UUID reference) {
+        return autorisationRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new AutorisationNotFoundException(reference));
     }
 
     // Somme des durées EN_ATTENTE_RH + VALIDE sur le mois calendaire de

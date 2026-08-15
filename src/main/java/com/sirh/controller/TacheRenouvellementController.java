@@ -12,6 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/taches-renouvellement")
@@ -29,10 +30,10 @@ public class TacheRenouvellementController {
         return ResponseEntity.ok(renouvellementService.search(statut));
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<TacheRenouvellementDto> traiter(@PathVariable Long id,
+    @PutMapping("/{reference}")
+    public ResponseEntity<TacheRenouvellementDto> traiterTacheRenouvellementByReference(@PathVariable UUID reference,
                                                             @Valid @RequestBody TacheRenouvellementTraiterRequest request,
                                                             @AuthenticationPrincipal SirhUserDetails principal) {
-        return ResponseEntity.ok(renouvellementService.traiter(id, request.statut(), request.dateFin(), principal.getUserId()));
+        return ResponseEntity.ok(renouvellementService.traiterTacheRenouvellementByReference(reference, request.statut(), request.dateFin(), principal.getUserId()));
     }
 }

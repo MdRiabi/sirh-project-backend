@@ -6,9 +6,12 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface IndisponibiliteRepository extends JpaRepository<Indisponibilite, Long>, JpaSpecificationExecutor<Indisponibilite> {
+
+    Optional<Indisponibilite> findByReferenceAndDeletedAtIsNull(UUID reference);
 
     // Chevauchement avec un congé VALIDE (cahier-fonctionnel.md Module 2) :
     // indisponibilité.dateDebut <= fin ET indisponibilité.dateFin >= début.

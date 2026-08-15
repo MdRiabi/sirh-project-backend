@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 /**
  * Bean séparé de ImportPointagesService : @Async ne fonctionne que sur un
  * appel externe passant par le proxy Spring. Si ImportPointagesService
@@ -28,17 +30,17 @@ public class PointageImportAsyncLauncher {
     }
 
     @Async("pointagesImportExecutor")
-    public void traiterAsync(Long jobId, byte[] contenu) {
-        asyncJobService.marquerEnCours(jobId);
+    public void traiterAsync(UUID jobReference, byte[] contenu) {
+        asyncJobService.marquerEnCoursByReference(jobReference);
         try {
             int nombreLignesTraitees = pointageImportWriter.importer(contenu);
-            asyncJobService.marquerSucces(jobId, nombreLignesTraitees);
+            asyncJobService.marquerSuccesByReference(jobReference, nombreLignesTraitees);
         } catch (ImportPointagesException e) {
-            log.warn("Import pointages job {} rejeté ligne {} : {}", jobId, e.getLigne(), e.getMessage());
-            asyncJobService.marquerEchec(jobId, e.getLigne(), e.getMessage());
+            log.warn("Import pointages job {} rejeté ligne {} : {}", jobReference, e.getLigne(), e.getMessage());
+            asyncJobService.marquerEchecByReference(jobReference, e.getLigne(), e.getMessage());
         } catch (Exception e) {
-            log.error("Import pointages job {} en échec inattendu", jobId, e);
-            asyncJobService.marquerEchec(jobId, null, "Erreur inattendue : " + e.getMessage());
+            log.error("Import pointages job {} en échec inattendu", jobReference, e);
+            asyncJobService.marquerEchecByReference(jobReference, null, "Erreur inattendue : " + e.getMessage());
         }
     }
 }

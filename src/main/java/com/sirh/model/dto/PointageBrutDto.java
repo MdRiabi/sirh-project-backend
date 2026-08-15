@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record PointageBrutDto(
-        Long id,
+        UUID reference,
         UUID employeId,
         String employeNom,
         String employePrenom,
@@ -30,7 +30,7 @@ public record PointageBrutDto(
 
     public static PointageBrutDto from(PointageBrut p, String employeNom, String employePrenom, String pointeuseNom) {
         return new PointageBrutDto(
-                p.getId(),
+                p.getReference(),
                 p.getEmployeId(),
                 employeNom,
                 employePrenom,

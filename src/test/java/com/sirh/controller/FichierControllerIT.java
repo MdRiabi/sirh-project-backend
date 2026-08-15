@@ -11,6 +11,8 @@ import org.springframework.http.*;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
+import java.util.UUID;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FichierControllerIT extends AbstractIntegrationTest {
@@ -46,12 +48,12 @@ class FichierControllerIT extends AbstractIntegrationTest {
 
         ResponseEntity<FichierDto> uploadResponse = uploadTestFile(accessToken);
         assertThat(uploadResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        Long fichierId = uploadResponse.getBody().id();
+        UUID fichierReference = uploadResponse.getBody().reference();
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
         ResponseEntity<byte[]> downloadResponse = restTemplate.exchange(
-                baseUrl("/fichiers/" + fichierId + "/download"), HttpMethod.GET,
+                baseUrl("/fichiers/" + fichierReference + "/download"), HttpMethod.GET,
                 new HttpEntity<>(headers), byte[].class);
 
         assertThat(downloadResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -61,13 +63,13 @@ class FichierControllerIT extends AbstractIntegrationTest {
     @Test
     void delete_avecRoleEmploye_estRefuse() {
         String rhToken = accessTokenFor(Role.ROLE_RH);
-        Long fichierId = uploadTestFile(rhToken).getBody().id();
+        UUID fichierReference = uploadTestFile(rhToken).getBody().reference();
 
         String employeToken = accessTokenFor(Role.ROLE_EMPLOYE);
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(employeToken);
         ResponseEntity<String> response = restTemplate.exchange(
-                baseUrl("/fichiers/" + fichierId), HttpMethod.DELETE,
+                baseUrl("/fichiers/" + fichierReference), HttpMethod.DELETE,
                 new HttpEntity<>(headers), String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
@@ -76,12 +78,12 @@ class FichierControllerIT extends AbstractIntegrationTest {
     @Test
     void delete_avecRoleRh_estAutorise() {
         String rhToken = accessTokenFor(Role.ROLE_RH);
-        Long fichierId = uploadTestFile(rhToken).getBody().id();
+        UUID fichierReference = uploadTestFile(rhToken).getBody().reference();
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(rhToken);
         ResponseEntity<Void> response = restTemplate.exchange(
-                baseUrl("/fichiers/" + fichierId), HttpMethod.DELETE,
+                baseUrl("/fichiers/" + fichierReference), HttpMethod.DELETE,
                 new HttpEntity<>(headers), Void.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);

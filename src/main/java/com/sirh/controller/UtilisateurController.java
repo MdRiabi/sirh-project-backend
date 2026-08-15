@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/utilisateurs")
@@ -29,9 +30,9 @@ public class UtilisateurController {
         return ResponseEntity.ok(dtos);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<UtilisateurDto> get(@PathVariable Long id) {
-        return ResponseEntity.ok(UtilisateurDto.from(utilisateurService.findById(id)));
+    @GetMapping("/{reference}")
+    public ResponseEntity<UtilisateurDto> getUtilisateurByReference(@PathVariable UUID reference) {
+        return ResponseEntity.ok(UtilisateurDto.from(utilisateurService.getUtilisateurByReference(reference)));
     }
 
     @PostMapping
@@ -41,16 +42,16 @@ public class UtilisateurController {
         return ResponseEntity.status(201).body(UtilisateurDto.from(utilisateur));
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<UtilisateurDto> update(@PathVariable Long id, @Valid @RequestBody UtilisateurUpdateRequest request) {
-        var utilisateur = utilisateurService.update(id, request.role(), request.compteActif());
+    @PutMapping("/{reference}")
+    public ResponseEntity<UtilisateurDto> updateUtilisateurByReference(@PathVariable UUID reference, @Valid @RequestBody UtilisateurUpdateRequest request) {
+        var utilisateur = utilisateurService.updateUtilisateurByReference(reference, request.role(), request.compteActif());
         return ResponseEntity.ok(UtilisateurDto.from(utilisateur));
     }
 
-    @PutMapping("/{id}/reset-password")
-    public ResponseEntity<Void> resetPassword(@PathVariable Long id, @Valid @RequestBody ResetPasswordRequest request) {
+    @PutMapping("/{reference}/reset-password")
+    public ResponseEntity<Void> resetPassword(@PathVariable UUID reference, @Valid @RequestBody ResetPasswordRequest request) {
         String passwordHash = utilisateurService.hashPassword(request.newPassword());
-        utilisateurService.resetPassword(id, passwordHash);
+        utilisateurService.resetPassword(reference, passwordHash);
         return ResponseEntity.noContent().build();
     }
 }

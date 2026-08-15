@@ -41,24 +41,24 @@ public class IndisponibiliteController {
         return ResponseEntity.status(201).body(indisponibiliteService.enrichirAvecDecompte(indisponibilite));
     }
 
-    @PutMapping("/{id}/valider")
+    @PutMapping("/{reference}/valider")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<IndisponibiliteDto> valider(@PathVariable Long id,
+    public ResponseEntity<IndisponibiliteDto> validerIndisponibiliteByReference(@PathVariable UUID reference,
                                                         @RequestBody(required = false) IndisponibiliteValiderRequest request,
                                                         @AuthenticationPrincipal SirhUserDetails principal) {
         String bascule = request != null ? request.bascule() : null;
         boolean forcer = request != null && Boolean.TRUE.equals(request.forcer());
-        Indisponibilite indisponibilite = indisponibiliteService.valider(id, bascule, forcer, principal.getEmployeId());
+        Indisponibilite indisponibilite = indisponibiliteService.validerIndisponibiliteByReference(reference, bascule, forcer, principal.getEmployeId());
         return ResponseEntity.ok(indisponibiliteService.enrichirAvecDecompte(indisponibilite));
     }
 
-    // Gap symétrique comblé (documenté §4.6 pour /autorisations/{id}/refuser
+    // Gap symétrique comblé (documenté §4.6 pour /autorisations/{reference}/refuser
     // uniquement — absent côté indisponibilités alors que le workflow RH est
     // identique, valider/refuser, sur les deux modules).
-    @PutMapping("/{id}/refuser")
+    @PutMapping("/{reference}/refuser")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<IndisponibiliteDto> refuser(@PathVariable Long id) {
-        Indisponibilite indisponibilite = indisponibiliteService.refuser(id);
+    public ResponseEntity<IndisponibiliteDto> refuserIndisponibiliteByReference(@PathVariable UUID reference) {
+        Indisponibilite indisponibilite = indisponibiliteService.refuserIndisponibiliteByReference(reference);
         return ResponseEntity.ok(indisponibiliteService.enrichirAvecDecompte(indisponibilite));
     }
 

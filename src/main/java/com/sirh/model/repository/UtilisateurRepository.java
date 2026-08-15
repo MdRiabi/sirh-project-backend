@@ -33,4 +33,8 @@ public interface UtilisateurRepository extends JpaRepository<Utilisateur, Long> 
     // Fan-out des notifications RH/SUPERUSER (Module 11 : DEMANDE_A_VALIDER,
     // ALERTE_SOUS_ACTIVITE).
     List<Utilisateur> findByRoleInAndDeletedAtIsNull(List<Role> roles);
+
+    Optional<Utilisateur> findByReferenceAndDeletedAtIsNull(UUID reference);
+
+    Optional<Utilisateur> findByEmployeIdAndRoleAndDeletedAtIsNull(UUID employeId, Role role);
 }

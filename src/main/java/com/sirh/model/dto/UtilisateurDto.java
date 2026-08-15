@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record UtilisateurDto(
-        Long id,
+        UUID reference,
         UUID employeId,
         String employeNom,
         String employePrenom,
@@ -21,7 +21,7 @@ public record UtilisateurDto(
     public static UtilisateurDto from(Utilisateur utilisateur) {
         var employe = utilisateur.getEmploye();
         return new UtilisateurDto(
-                utilisateur.getId(),
+                utilisateur.getReference(),
                 employe.getId(),
                 employe.getNom(),
                 employe.getPrenom(),

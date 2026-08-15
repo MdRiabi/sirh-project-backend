@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 // Gestion du matériel (cahier-fonctionnel.md Module 5) : rattachement/
 // restitution exclusifs au Responsable Département de l'outil ("gestion
@@ -68,35 +69,37 @@ public class OutillageController {
         return ResponseEntity.ok(outillageService.enrichir(outillages));
     }
 
-    @PostMapping("/{id}/check-out")
+    @PostMapping("/{reference}/check-out")
     @PreAuthorize("hasAuthority('ROLE_MANAGER')")
-    public ResponseEntity<OutillageMouvementDto> checkOut(@PathVariable Long id,
+    public ResponseEntity<OutillageMouvementDto> checkOut(@PathVariable UUID reference,
                                                             @Valid @RequestBody CheckOutRequest request,
                                                             @AuthenticationPrincipal SirhUserDetails principal) {
-        verifierScopeManager(principal, outillageService.findById(id));
-        var mouvement = outillageService.checkOut(id, request.employeId(), principal.getUserId());
+        Outillage outillage = outillageService.getOutillageByReference(reference);
+        verifierScopeManager(principal, outillage);
+        var mouvement = outillageService.checkOut(outillage.getId(), request.employeId(), principal.getUserId());
         return ResponseEntity.status(201).body(OutillageMouvementDto.from(mouvement));
     }
 
-    @PostMapping("/{id}/check-in")
+    @PostMapping("/{reference}/check-in")
     @PreAuthorize("hasAuthority('ROLE_MANAGER')")
-    public ResponseEntity<OutillageMouvementDto> checkIn(@PathVariable Long id,
+    public ResponseEntity<OutillageMouvementDto> checkIn(@PathVariable UUID reference,
                                                            @Valid @RequestBody CheckInRequest request,
                                                            @AuthenticationPrincipal SirhUserDetails principal) {
-        verifierScopeManager(principal, outillageService.findById(id));
-        var mouvement = outillageService.checkIn(id, request.etat(), request.commentaire(), principal.getUserId());
+        Outillage outillage = outillageService.getOutillageByReference(reference);
+        verifierScopeManager(principal, outillage);
+        var mouvement = outillageService.checkIn(outillage.getId(), request.etat(), request.commentaire(), principal.getUserId());
         return ResponseEntity.status(201).body(OutillageMouvementDto.from(mouvement));
     }
 
-    @GetMapping("/{id}/historique")
+    @GetMapping("/{reference}/historique")
     @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<List<OutillageMouvementDto>> historique(@PathVariable Long id,
+    public ResponseEntity<List<OutillageMouvementDto>> historique(@PathVariable UUID reference,
                                                                     @AuthenticationPrincipal SirhUserDetails principal) {
-        Outillage outillage = outillageService.findById(id);
+        Outillage outillage = outillageService.getOutillageByReference(reference);
         if (principal.getRole() == Role.ROLE_MANAGER) {
             verifierScopeManager(principal, outillage);
         }
-        return ResponseEntity.ok(outillageService.historique(id).stream().map(OutillageMouvementDto::from).toList());
+        return ResponseEntity.ok(outillageService.historique(outillage.getId()).stream().map(OutillageMouvementDto::from).toList());
     }
 
     private void verifierScopeManager(SirhUserDetails principal, Outillage outillage) {

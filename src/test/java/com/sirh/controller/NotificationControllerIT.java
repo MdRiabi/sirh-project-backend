@@ -79,7 +79,7 @@ class NotificationControllerIT extends AbstractIntegrationTest {
         Notification notif = notificationRepository.save(Notification.builder().destinataireId(destinataireId)
                 .type(NotificationType.ALERTE_POINTAGE).message("A lire").lue(false).build());
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/notifications/" + notif.getId() + "/lue"),
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/notifications/" + notif.getReference() + "/lue"),
                 HttpMethod.PUT, new HttpEntity<>(authHeaders(login(username))), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -93,7 +93,7 @@ class NotificationControllerIT extends AbstractIntegrationTest {
                 .type(NotificationType.ALERTE_POINTAGE).message("Pas pour moi").lue(false).build());
         String usurpateur = createFixtureUser(Role.ROLE_MANAGER);
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/notifications/" + notif.getId() + "/lue"),
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/notifications/" + notif.getReference() + "/lue"),
                 HttpMethod.PUT, new HttpEntity<>(authHeaders(login(usurpateur))), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);

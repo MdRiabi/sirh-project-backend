@@ -124,37 +124,43 @@ class EvaluationServiceTest {
 
     @Test
     void mettreAJour_parUnAutreManagerQueLeCreateur_estRefuseAvecAccessDenied() {
+        UUID reference = UUID.randomUUID();
         Evaluation evaluation = Evaluation.builder().id(1L).managerId(UUID.randomUUID())
                 .statut(EvaluationStatut.EN_COURS).build();
-        when(evaluationRepository.findById(1L)).thenReturn(Optional.of(evaluation));
+        evaluation.setReference(reference);
+        when(evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.of(evaluation));
 
-        assertThatThrownBy(() -> service.mettreAJour(1L, UUID.randomUUID(), List.of(
+        assertThatThrownBy(() -> service.mettreAJourEvaluationByReference(reference, UUID.randomUUID(), List.of(
                 new EvaluationCompetenceRequest("Rigueur", BigDecimal.TEN, BigDecimal.TEN, null))))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
     void mettreAJour_grilleDejaValideeRh_estRefuseeAvecStatutInvalide() {
+        UUID reference = UUID.randomUUID();
         UUID managerId = UUID.randomUUID();
         Evaluation evaluation = Evaluation.builder().id(1L).managerId(managerId)
                 .statut(EvaluationStatut.VALIDEE_RH).build();
-        when(evaluationRepository.findById(1L)).thenReturn(Optional.of(evaluation));
+        evaluation.setReference(reference);
+        when(evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.of(evaluation));
 
-        assertThatThrownBy(() -> service.mettreAJour(1L, managerId, List.of(
+        assertThatThrownBy(() -> service.mettreAJourEvaluationByReference(reference, managerId, List.of(
                 new EvaluationCompetenceRequest("Rigueur", BigDecimal.TEN, BigDecimal.TEN, null))))
                 .isInstanceOf(EvaluationStatutInvalideException.class);
     }
 
     @Test
     void mettreAJour_avecUneCompetenceNonNotee_bloqueLaSoumissionAvec400EtListeLaCompetenceManquante() {
+        UUID reference = UUID.randomUUID();
         UUID managerId = UUID.randomUUID();
         UUID employeId = UUID.randomUUID();
         Evaluation evaluation = Evaluation.builder().id(1L).employeId(employeId).managerId(managerId)
                 .statut(EvaluationStatut.EN_COURS).build();
-        when(evaluationRepository.findById(1L)).thenReturn(Optional.of(evaluation));
+        evaluation.setReference(reference);
+        when(evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.of(evaluation));
         when(competenceRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        assertThatThrownBy(() -> service.mettreAJour(1L, managerId, List.of(
+        assertThatThrownBy(() -> service.mettreAJourEvaluationByReference(reference, managerId, List.of(
                 new EvaluationCompetenceRequest("Rigueur", BigDecimal.TEN, BigDecimal.TEN, null),
                 new EvaluationCompetenceRequest("Esprit d'équipe", null, BigDecimal.TEN, null))))
                 .isInstanceOf(EvaluationIncompleteException.class)
@@ -167,15 +173,17 @@ class EvaluationServiceTest {
 
     @Test
     void mettreAJour_grilleComplete_reussitSansException() {
+        UUID reference = UUID.randomUUID();
         UUID managerId = UUID.randomUUID();
         UUID employeId = UUID.randomUUID();
         Evaluation evaluation = Evaluation.builder().id(1L).employeId(employeId).managerId(managerId)
                 .statut(EvaluationStatut.EN_COURS).build();
-        when(evaluationRepository.findById(1L)).thenReturn(Optional.of(evaluation));
+        evaluation.setReference(reference);
+        when(evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.of(evaluation));
         when(competenceRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         when(employeRepository.findById(employeId)).thenReturn(Optional.of(employeDansDepartement(employeId, 1L)));
 
-        EvaluationDto dto = service.mettreAJour(1L, managerId, List.of(
+        EvaluationDto dto = service.mettreAJourEvaluationByReference(reference, managerId, List.of(
                 new EvaluationCompetenceRequest("Rigueur", BigDecimal.valueOf(15), BigDecimal.TEN, null)));
 
         assertThat(dto.competencesManquantes()).isEmpty();
@@ -183,36 +191,43 @@ class EvaluationServiceTest {
 
     @Test
     void valider_grilleIncomplete_estRefuseeEnFiletDeSecurite() {
+        UUID reference = UUID.randomUUID();
         Evaluation evaluation = Evaluation.builder().id(1L).statut(EvaluationStatut.EN_COURS).build();
-        when(evaluationRepository.findById(1L)).thenReturn(Optional.of(evaluation));
+        evaluation.setReference(reference);
+        when(evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.of(evaluation));
         when(competenceRepository.findByEvaluationIdAndDeletedAtIsNull(1L)).thenReturn(List.of(
                 EvaluationCompetence.builder().competence("Rigueur").note(null).seuilExigence(BigDecimal.TEN).build()));
 
-        assertThatThrownBy(() -> service.valider(1L)).isInstanceOf(EvaluationIncompleteException.class);
+        assertThatThrownBy(() -> service.validerEvaluationByReference(reference)).isInstanceOf(EvaluationIncompleteException.class);
         verify(evaluationRepository, never()).save(any());
     }
 
     @Test
     void valider_deuxFois_estRefuseeAvecStatutInvalide() {
+        UUID reference = UUID.randomUUID();
         Evaluation evaluation = Evaluation.builder().id(1L).statut(EvaluationStatut.VALIDEE_RH).build();
-        when(evaluationRepository.findById(1L)).thenReturn(Optional.of(evaluation));
+        evaluation.setReference(reference);
+        when(evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.of(evaluation));
 
-        assertThatThrownBy(() -> service.valider(1L)).isInstanceOf(EvaluationStatutInvalideException.class);
+        assertThatThrownBy(() -> service.validerEvaluationByReference(reference)).isInstanceOf(EvaluationStatutInvalideException.class);
     }
 
     @Test
     void valider_evaluationInexistante_lance404() {
-        when(evaluationRepository.findById(99L)).thenReturn(Optional.empty());
+        UUID reference = UUID.randomUUID();
+        when(evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.valider(99L)).isInstanceOf(EvaluationNotFoundException.class);
+        assertThatThrownBy(() -> service.validerEvaluationByReference(reference)).isInstanceOf(EvaluationNotFoundException.class);
     }
 
     @Test
     void valider_competenceSousLeSeuil_genereUnPdiEtPousseUnEvenement360() {
+        UUID reference = UUID.randomUUID();
         UUID employeId = UUID.randomUUID();
         Evaluation evaluation = Evaluation.builder().id(1L).employeId(employeId).annee(2026)
                 .statut(EvaluationStatut.EN_COURS).build();
-        when(evaluationRepository.findById(1L)).thenReturn(Optional.of(evaluation));
+        evaluation.setReference(reference);
+        when(evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.of(evaluation));
         when(competenceRepository.findByEvaluationIdAndDeletedAtIsNull(1L)).thenReturn(List.of(
                 EvaluationCompetence.builder().competence("Rigueur").note(BigDecimal.valueOf(8)).seuilExigence(BigDecimal.TEN).build(),
                 EvaluationCompetence.builder().competence("Autonomie").note(BigDecimal.valueOf(15)).seuilExigence(BigDecimal.TEN).build()));
@@ -220,7 +235,7 @@ class EvaluationServiceTest {
         when(planDeveloppementRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(employeRepository.findById(employeId)).thenReturn(Optional.of(employeDansDepartement(employeId, 1L)));
 
-        EvaluationDto dto = service.valider(1L);
+        EvaluationDto dto = service.validerEvaluationByReference(reference);
 
         assertThat(dto.statut()).isEqualTo(EvaluationStatut.VALIDEE_RH);
         assertThat(dto.plansDeveloppement()).hasSize(1);
@@ -231,16 +246,18 @@ class EvaluationServiceTest {
 
     @Test
     void valider_toutesLesCompetencesAuNiveau_neGenereAucunPdi() {
+        UUID reference = UUID.randomUUID();
         UUID employeId = UUID.randomUUID();
         Evaluation evaluation = Evaluation.builder().id(1L).employeId(employeId).annee(2026)
                 .statut(EvaluationStatut.EN_COURS).build();
-        when(evaluationRepository.findById(1L)).thenReturn(Optional.of(evaluation));
+        evaluation.setReference(reference);
+        when(evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.of(evaluation));
         when(competenceRepository.findByEvaluationIdAndDeletedAtIsNull(1L)).thenReturn(List.of(
                 EvaluationCompetence.builder().competence("Rigueur").note(BigDecimal.TEN).seuilExigence(BigDecimal.TEN).build()));
         when(evaluationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(employeRepository.findById(employeId)).thenReturn(Optional.of(employeDansDepartement(employeId, 1L)));
 
-        EvaluationDto dto = service.valider(1L);
+        EvaluationDto dto = service.validerEvaluationByReference(reference);
 
         assertThat(dto.plansDeveloppement()).isEmpty();
         verify(planDeveloppementRepository, never()).save(any());

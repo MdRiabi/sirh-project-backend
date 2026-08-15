@@ -1,7 +1,9 @@
 package com.sirh.exception;
 
+import java.util.UUID;
+
 public class DemandeDeverrouillageNotFoundException extends RuntimeException {
-    public DemandeDeverrouillageNotFoundException(Long id) {
-        super("Demande de déverrouillage introuvable : " + id);
+    public DemandeDeverrouillageNotFoundException(UUID reference) {
+        super("Demande de déverrouillage introuvable : " + reference);
     }
 }
