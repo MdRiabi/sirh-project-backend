@@ -1,5 +1,0 @@
-package com.sirh.reporting.dto;
-
-// Répartition pour un graphique en anneau (donut) — libellé + effectif brut.
-public record RepartitionDto(String label, long valeur) {
-}

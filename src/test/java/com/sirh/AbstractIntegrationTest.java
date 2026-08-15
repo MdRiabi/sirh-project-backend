@@ -1,10 +1,10 @@
 package com.sirh;
 
-import com.sirh.auth.entity.Role;
-import com.sirh.auth.entity.Utilisateur;
-import com.sirh.auth.repository.UtilisateurRepository;
-import com.sirh.personnel.entity.Employe;
-import com.sirh.personnel.repository.EmployeRepository;
+import com.sirh.model.enums.Role;
+import com.sirh.model.entity.Utilisateur;
+import com.sirh.model.repository.UtilisateurRepository;
+import com.sirh.model.entity.Employe;
+import com.sirh.model.repository.EmployeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;

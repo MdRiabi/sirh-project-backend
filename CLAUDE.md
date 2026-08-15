@@ -43,8 +43,15 @@ Comme le reste de `docs/`, ce fichier existe en double dans les deux dépôts (c
 
 - Spring Boot 3.3.x, Java 21, Maven, PostgreSQL 16, Redis 7 (cache dashboard + blacklist JWT uniquement — pas de file de jobs, cf. `ARCHITECTURE.md` §7), Flyway pour les migrations (`src/main/resources/db/migration/`, jamais de modification d'un script déjà appliqué — toujours un nouveau `Vn+1`).
 - `spring.jpa.hibernate.ddl-auto: validate` — Flyway possède le schéma, Hibernate ne fait que le valider. Ne jamais passer en `update`/`create`.
-- Packages organisés par domaine métier (voir `ARCHITECTURE.md` §3 ou `ls src/main/java/com/sirh/`).
+- Packages organisés par couche technique (`controller`, `service`, `model` [`entity`, `dto`, `repository`, `enums`], `exception`, `security`, `scheduler`, `config`, `annotation`, `aspect`, `event`, `listener` — `ls src/main/java/com/sirh/`) ; les modules fonctionnels du CDF (§2.3) restent visibles dans `ARCHITECTURE.md` §3 comme découpage logique, sans correspondance 1:1 avec les packages physiques.
 - Aspect Spring AOP (`@Audited`) pour la journalisation des actions sensibles — voir `ARCHITECTURE.md` §9 pour la liste des actions à couvrir.
+
+## BaseEntity, soft delete & audit (toutes entités sauf `audit_logs`)
+
+- Toute nouvelle entité JPA **doit** `extends BaseEntity` (`com.sirh.model.entity.BaseEntity`) — hérite `reference` (UUID), `createdAt`/`updatedAt` (Spring Data JPA Auditing) et `deletedAt`. Seule exception : les tables d'audit immuables (`AuditLog`/`audit_logs`), qui ne doivent jamais être soft-deletables (cf. règle « Audit » ci-dessus).
+- Toute entité `extends BaseEntity` porte `@SQLDelete(sql = "UPDATE <table> SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")` + `@SQLRestriction("deleted_at IS NULL")`.
+- Toute nouvelle contrainte `UNIQUE` en base **doit** être un index partiel `WHERE deleted_at IS NULL`, jamais une contrainte `UNIQUE` classique — sinon une valeur reste bloquée après soft delete de la ligne qui la portait. Exemple : `CREATE UNIQUE INDEX idx_x_y ON x(y) WHERE deleted_at IS NULL;`.
+- Toute méthode de lecture d'une interface Repository Spring Data (`findBy...`, `findAllBy...`, `existsBy...`, `countBy...`) doit expliciter `AndDeletedAtIsNull` dans son nom (ex. `findByReference` → `findByReferenceAndDeletedAtIsNull`), même si `@SQLRestriction` filtre déjà automatiquement — exigence de lisibilité/défense en profondeur. Pour les `@Query(nativeQuery = true)`, ajouter manuellement `AND deleted_at IS NULL` dans le SQL natif (`@SQLRestriction` ne s'applique pas au SQL natif). Exception inévitable : les méthodes qui *surchargent* un contrat `JpaRepository` (ex. `findById`) gardent leur nom imposé — la protection vient alors uniquement de `@SQLRestriction`.
 
 ## Données de dev
 

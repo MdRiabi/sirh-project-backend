@@ -65,6 +65,23 @@ Tout endpoint sécurisé `RH` en v1 reste accessible à `SUPERUSER` (superset), 
 
 ## 3. Modèle Conceptuel de Données — Schéma PostgreSQL corrigé
 
+### 3.0 Socle commun — `BaseEntity` (2026-08-15, toutes tables sauf `audit_logs`)
+
+Toutes les tables listées en §3.1–§3.26, **à l'exception de `audit_logs`** (§3.17, immuable/append-only), portent désormais 4 colonnes communes ajoutées par `V11__base_entity_audit_soft_delete.sql` et non répétées dans chaque bloc SQL ci-dessous pour éviter la duplication :
+
+```sql
+reference   UUID NOT NULL UNIQUE,   -- généré côté Java à l'instanciation (com.sirh.model.entity.BaseEntity)
+created_at  TIMESTAMP,              -- Spring Data JPA Auditing (@CreatedDate)
+updated_at  TIMESTAMP,              -- Spring Data JPA Auditing (@LastModifiedDate)
+deleted_at  TIMESTAMP               -- soft delete (@SQLDelete + @SQLRestriction), NULL = actif
+```
+
+Règles pour tout nouveau développement :
+
+- Toute nouvelle entité JPA **doit** `extends BaseEntity` (`com.sirh.model.entity.BaseEntity`), sauf table d'audit immuable de type `audit_logs`.
+- Toute nouvelle contrainte `UNIQUE` **doit** être un index partiel `WHERE deleted_at IS NULL` (`CREATE UNIQUE INDEX ... ON table(colonne) WHERE deleted_at IS NULL`), jamais une contrainte `UNIQUE` classique — une valeur doit redevenir disponible après soft delete de la ligne qui la portait. Les contraintes historiques (`matricule_interne`, `email`, `username`, `code_barres`, etc.) ont été migrées sous cette forme en V11.
+- Toute méthode de lecture Spring Data (`findBy...`, `findAllBy...`, `existsBy...`, `countBy...`) doit expliciter `AndDeletedAtIsNull` dans son nom. Les requêtes natives (`@Query(nativeQuery = true)`) doivent ajouter `AND deleted_at IS NULL` manuellement.
+
 ### 3.1 `departements` — 🔧 `manager_id` en UUID (cascade §3.2)
 ```sql
 CREATE TABLE departements (
