@@ -1,5 +1,6 @@
 package com.sirh.service;
 
+import com.sirh.model.dto.AsyncJobDto;
 import com.sirh.model.entity.AsyncJob;
 import com.sirh.model.enums.AsyncJobStatut;
 import com.sirh.model.enums.AsyncJobType;
@@ -21,6 +22,8 @@ public class AsyncJobService {
         this.asyncJobRepository = asyncJobRepository;
     }
 
+    // Retourne l'entité (pas le DTO) : réutilisé en interne par ImportPointagesService/
+    // ReportGenerationService qui ont besoin de la référence du job juste créé.
     @Transactional
     public AsyncJob creer(AsyncJobType type, String nomFichier, Long executeParId) {
         AsyncJob job = AsyncJob.builder()
@@ -34,6 +37,8 @@ public class AsyncJobService {
         return asyncJobRepository.save(job);
     }
 
+    // Retourne l'entité (pas le DTO) : réutilisé en interne par ReportGenerationService
+    // pour accéder au type/statut/resultatUrl bruts du job.
     @Transactional(readOnly = true)
     public AsyncJob getAsyncJobByReference(UUID reference) {
         return asyncJobRepository.findByReferenceAndDeletedAtIsNull(reference)
@@ -41,8 +46,13 @@ public class AsyncJobService {
     }
 
     @Transactional(readOnly = true)
-    public List<AsyncJob> findByType(AsyncJobType type) {
-        return asyncJobRepository.findByTypeAndDeletedAtIsNullOrderByCreatedAtDesc(type);
+    public AsyncJobDto getAsyncJobDtoByReference(UUID reference) {
+        return toDto(getAsyncJobByReference(reference));
+    }
+
+    @Transactional(readOnly = true)
+    public List<AsyncJobDto> findByType(AsyncJobType type) {
+        return asyncJobRepository.findByTypeAndDeletedAtIsNullOrderByCreatedAtDesc(type).stream().map(this::toDto).toList();
     }
 
     @Transactional
@@ -82,5 +92,21 @@ public class AsyncJobService {
         job.setMessageErreur(messageErreur);
         job.setCompletedAt(LocalDateTime.now());
         asyncJobRepository.save(job);
+    }
+
+    public AsyncJobDto toDto(AsyncJob job) {
+        return new AsyncJobDto(
+                job.getReference(),
+                job.getType(),
+                job.getNomFichier(),
+                job.getStatut(),
+                job.getProgression(),
+                job.getResultatUrl(),
+                job.getNombreLignesTraitees(),
+                job.getLigneErreur(),
+                job.getMessageErreur(),
+                job.getCreatedAt(),
+                job.getCompletedAt()
+        );
     }
 }

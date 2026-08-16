@@ -1,8 +1,8 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.ListingPageDto;
 import com.sirh.model.dto.AuditLogDto;
 import com.sirh.service.AuditLogService;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -32,13 +32,13 @@ public class AuditLogController {
 
     @PreAuthorize("hasAuthority('ROLE_SUPERUSER')")
     @GetMapping
-    public ResponseEntity<Page<AuditLogDto>> rechercher(
+    public ResponseEntity<ListingPageDto<AuditLogDto>> rechercher(
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String tableCible,
             @RequestParam(required = false) Long utilisateurId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateDebut,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateFin,
             @PageableDefault(size = 25, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(auditLogService.rechercher(action, tableCible, utilisateurId, dateDebut, dateFin, pageable));
+        return ResponseEntity.ok(ListingPageDto.of(auditLogService.rechercher(action, tableCible, utilisateurId, dateDebut, dateFin, pageable)));
     }
 }

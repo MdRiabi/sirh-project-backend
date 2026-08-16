@@ -1,7 +1,6 @@
 package com.sirh.model.dto;
 
 import com.sirh.model.enums.EvenementCategorie;
-import com.sirh.model.entity.EvenementHistorique;
 import com.sirh.model.enums.StatutBadge;
 
 import java.time.LocalDateTime;
@@ -18,17 +17,4 @@ public record EvenementDto(
         LocalDateTime dateEvenement,
         LocalDateTime createdAt
 ) {
-    public static EvenementDto from(EvenementHistorique evenement) {
-        return new EvenementDto(
-                evenement.getReference(),
-                evenement.getEmployeId(),
-                evenement.getTitre(),
-                evenement.getDescription(),
-                evenement.getCategorie(),
-                evenement.getStatutBadge(),
-                evenement.getSaisiParId(),
-                evenement.getDateEvenement(),
-                evenement.getCreatedAt()
-        );
-    }
 }

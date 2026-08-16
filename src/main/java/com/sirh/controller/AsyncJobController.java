@@ -1,5 +1,7 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.ListingPageDto;
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.dto.AsyncJobDto;
 import com.sirh.model.enums.AsyncJobType;
 import com.sirh.service.AsyncJobService;
@@ -11,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -26,13 +27,12 @@ public class AsyncJobController {
     }
 
     @GetMapping
-    public ResponseEntity<List<AsyncJobDto>> list(@RequestParam AsyncJobType type) {
-        List<AsyncJobDto> dtos = asyncJobService.findByType(type).stream().map(AsyncJobDto::from).toList();
-        return ResponseEntity.ok(dtos);
+    public ResponseEntity<ListingPageDto<AsyncJobDto>> list(@RequestParam AsyncJobType type) {
+        return ResponseEntity.ok(ListingPageDto.of(asyncJobService.findByType(type)));
     }
 
     @GetMapping("/{reference}")
-    public ResponseEntity<AsyncJobDto> getAsyncJobByReference(@PathVariable UUID reference) {
-        return ResponseEntity.ok(AsyncJobDto.from(asyncJobService.getAsyncJobByReference(reference)));
+    public ResponseEntity<SingleObjectDto<AsyncJobDto>> getAsyncJobByReference(@PathVariable UUID reference) {
+        return ResponseEntity.ok(SingleObjectDto.of(asyncJobService.getAsyncJobDtoByReference(reference)));
     }
 }

@@ -1,12 +1,14 @@
 package com.sirh.controller;
 
 import com.sirh.AbstractIntegrationTest;
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.dto.LoginRequest;
 import com.sirh.model.dto.RefreshTokenRequest;
 import com.sirh.model.dto.TokenResponse;
 import com.sirh.model.dto.UserSummary;
 import com.sirh.model.enums.Role;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,14 +19,12 @@ class AuthControllerIT extends AbstractIntegrationTest {
     void login_avecIdentifiantsValides_retourneDesTokens() {
         String username = createFixtureUser(Role.ROLE_MANAGER);
 
-        ResponseEntity<TokenResponse> response = restTemplate.postForEntity(
-                baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class);
+        TokenResponse body = login(username, FIXTURE_PASSWORD);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().accessToken()).isNotBlank();
-        assertThat(response.getBody().refreshToken()).isNotBlank();
-        assertThat(response.getBody().user().role()).isEqualTo("ROLE_MANAGER");
+        assertThat(body).isNotNull();
+        assertThat(body.accessToken()).isNotBlank();
+        assertThat(body.refreshToken()).isNotBlank();
+        assertThat(body.user().role()).isEqualTo("ROLE_MANAGER");
     }
 
     @Test
@@ -61,14 +61,15 @@ class AuthControllerIT extends AbstractIntegrationTest {
     @Test
     void refreshToken_avecTokenValide_retourneNouveauxTokens() {
         String username = createFixtureUser(Role.ROLE_RH);
-        TokenResponse login = restTemplate.postForEntity(
-                baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class).getBody();
+        TokenResponse login = login(username, FIXTURE_PASSWORD);
 
-        ResponseEntity<TokenResponse> refreshed = restTemplate.postForEntity(
-                baseUrl("/auth/refresh-token"), new RefreshTokenRequest(login.refreshToken()), TokenResponse.class);
+        ResponseEntity<SingleObjectDto<TokenResponse>> refreshed = restTemplate.exchange(
+                baseUrl("/auth/refresh-token"), HttpMethod.POST,
+                new HttpEntity<>(new RefreshTokenRequest(login.refreshToken())),
+                new ParameterizedTypeReference<SingleObjectDto<TokenResponse>>() {});
 
         assertThat(refreshed.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(refreshed.getBody().accessToken()).isNotBlank();
+        assertThat(refreshed.getBody().data().accessToken()).isNotBlank();
     }
 
     @Test
@@ -80,23 +81,22 @@ class AuthControllerIT extends AbstractIntegrationTest {
     @Test
     void me_avecTokenValide_retourneLeProfil() {
         String username = createFixtureUser(Role.ROLE_DIRECTEUR);
-        TokenResponse login = restTemplate.postForEntity(
-                baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class).getBody();
+        TokenResponse login = login(username, FIXTURE_PASSWORD);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(login.accessToken());
-        ResponseEntity<UserSummary> response = restTemplate.exchange(
-                baseUrl("/auth/me"), HttpMethod.GET, new HttpEntity<>(headers), UserSummary.class);
+        ResponseEntity<SingleObjectDto<UserSummary>> response = restTemplate.exchange(
+                baseUrl("/auth/me"), HttpMethod.GET, new HttpEntity<>(headers),
+                new ParameterizedTypeReference<SingleObjectDto<UserSummary>>() {});
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().username()).isEqualTo(username);
+        assertThat(response.getBody().data().username()).isEqualTo(username);
     }
 
     @Test
     void logout_revoqueImmediatementLeToken() {
         String username = createFixtureUser(Role.ROLE_SUPERUSER);
-        TokenResponse login = restTemplate.postForEntity(
-                baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class).getBody();
+        TokenResponse login = login(username, FIXTURE_PASSWORD);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(login.accessToken());

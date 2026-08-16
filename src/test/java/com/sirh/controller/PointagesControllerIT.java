@@ -35,9 +35,7 @@ class PointagesControllerIT extends AbstractIntegrationTest {
 
     private String accessTokenFor(Role role) {
         String username = createFixtureUser(role);
-        TokenResponse login = restTemplate.postForEntity(
-                baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class).getBody();
-        return login.accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
     }
 
     private HttpHeaders authHeaders(String accessToken) {
@@ -75,6 +73,7 @@ class PointagesControllerIT extends AbstractIntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     void doublon_dansLaFenetreDe5Minutes_estIgnore() {
         String token = accessTokenFor(Role.ROLE_RH);
@@ -95,16 +94,17 @@ class PointagesControllerIT extends AbstractIntegrationTest {
         restTemplate.postForEntity(baseUrl("/api/v1/hikvision/events"), premier, Void.class);
         restTemplate.postForEntity(baseUrl("/api/v1/hikvision/events"), doublon, Void.class);
 
-        ResponseEntity<List<Map<String, Object>>> pointages = restTemplate.exchange(
+        ResponseEntity<Map<String, Object>> pointages = restTemplate.exchange(
                 baseUrl("/pointages?employeId=" + employe.getId()), HttpMethod.GET,
                 new HttpEntity<>(authHeaders(token)), new ParameterizedTypeReference<>() {});
 
-        assertThat(pointages.getBody()).hasSize(2);
-        long ignores = pointages.getBody().stream().filter(p -> "IGNORE_DOUBLON".equals(p.get("statut"))).count();
+        List<Map<String, Object>> content = (List<Map<String, Object>>) pointages.getBody().get("content");
+        assertThat(content).hasSize(2);
+        long ignores = content.stream().filter(p -> "IGNORE_DOUBLON".equals(p.get("statut"))).count();
         // Un seul pointage ENTREE survit après dédoublonnage : nombre impair de
         // pointages valides sur le jour, donc PointageBrutService.detecterAnomalieImpaire
         // le requalifie en ANOMALIE_NON_JUSTIFIEE (pas de SORTIE dans ce scénario).
-        long anomalies = pointages.getBody().stream().filter(p -> "ANOMALIE_NON_JUSTIFIEE".equals(p.get("statut"))).count();
+        long anomalies = content.stream().filter(p -> "ANOMALIE_NON_JUSTIFIEE".equals(p.get("statut"))).count();
         assertThat(ignores).isEqualTo(1);
         assertThat(anomalies).isEqualTo(1);
     }
@@ -142,10 +142,10 @@ class PointagesControllerIT extends AbstractIntegrationTest {
         assertThat(job.get("ligneErreur")).isEqualTo(3); // ligne 1 = en-tête, ligne 2 = OK, ligne 3 = invalide
 
         // Rollback total : même la ligne valide n'a pas été insérée.
-        ResponseEntity<List<Map<String, Object>>> pointages = restTemplate.exchange(
+        ResponseEntity<Map<String, Object>> pointages = restTemplate.exchange(
                 baseUrl("/pointages?employeId=" + employe.getId()), HttpMethod.GET,
                 new HttpEntity<>(authHeaders(token)), new ParameterizedTypeReference<>() {});
-        assertThat(pointages.getBody()).isEmpty();
+        assertThat((List<?>) pointages.getBody().get("content")).isEmpty();
     }
 
     @Test
@@ -161,10 +161,12 @@ class PointagesControllerIT extends AbstractIntegrationTest {
         );
         restTemplate.postForEntity(baseUrl("/api/v1/hikvision/events"), body, Void.class);
 
-        ResponseEntity<List<Map<String, Object>>> pointages = restTemplate.exchange(
+        ResponseEntity<Map<String, Object>> pointages = restTemplate.exchange(
                 baseUrl("/pointages?employeId=" + employe.getId()), HttpMethod.GET,
                 new HttpEntity<>(authHeaders(token)), new ParameterizedTypeReference<>() {});
-        String pointageReference = (String) pointages.getBody().get(0).get("reference");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> content = (List<Map<String, Object>>) pointages.getBody().get("content");
+        String pointageReference = (String) content.get(0).get("reference");
 
         Map<String, Object> correction = Map.of(
                 "timestampPointage", LocalDateTime.now().plusHours(1).format(FMT_JSON),
@@ -176,7 +178,8 @@ class PointagesControllerIT extends AbstractIntegrationTest {
                 new HttpEntity<>(correction, authHeaders(token)), new ParameterizedTypeReference<>() {});
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().get("statut")).isEqualTo("JUSTIFIE");
+        Map<?, ?> data = (Map<?, ?>) response.getBody().get("data");
+        assertThat(data.get("statut")).isEqualTo("JUSTIFIE");
     }
 
     @Test
@@ -187,14 +190,16 @@ class PointagesControllerIT extends AbstractIntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
+    @SuppressWarnings("unchecked")
     private Map<String, Object> attendreJobTermine(String token, UUID jobReference) {
         for (int i = 0; i < 50; i++) {
             ResponseEntity<Map<String, Object>> job = restTemplate.exchange(
                     baseUrl("/async-jobs/" + jobReference), HttpMethod.GET, new HttpEntity<>(authHeaders(token)),
                     new ParameterizedTypeReference<>() {});
-            String statut = (String) job.getBody().get("statut");
+            Map<String, Object> data = (Map<String, Object>) job.getBody().get("data");
+            String statut = (String) data.get("statut");
             if ("SUCCESS".equals(statut) || "FAILED".equals(statut)) {
-                return job.getBody();
+                return data;
             }
             try {
                 Thread.sleep(200);
@@ -222,7 +227,8 @@ class PointagesControllerIT extends AbstractIntegrationTest {
                 baseUrl("/pointages/import"), HttpMethod.POST, new HttpEntity<>(multipart, headers),
                 new ParameterizedTypeReference<>() {});
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
-        return UUID.fromString((String) response.getBody().get("jobId"));
+        Map<?, ?> data = (Map<?, ?>) response.getBody().get("data");
+        return UUID.fromString((String) data.get("jobId"));
     }
 
     private byte[] construireFichier(List<String[]> lignes) throws Exception {

@@ -47,8 +47,11 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
     }
 
     private String login(String username) {
-        return restTemplate.postForEntity(baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class)
-                .getBody().accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
+    }
+
+    private Map<?, ?> dataDe(ResponseEntity<Map> reponse) {
+        return (Map<?, ?>) reponse.getBody().get("data");
     }
 
     private HttpHeaders authHeaders(String accessToken) {
@@ -82,9 +85,9 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
         ResponseEntity<Map> reponse = creer(managerToken, body);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(reponse.getBody().get("statut")).isEqualTo("EN_ATTENTE_RH");
-        assertThat(reponse.getBody().get("creeParRole")).isEqualTo("MANAGER");
-        assertThat(reponse.getBody().get("avisManagerStatut")).isEqualTo("FAVORABLE");
+        assertThat(dataDe(reponse).get("statut")).isEqualTo("EN_ATTENTE_RH");
+        assertThat(dataDe(reponse).get("creeParRole")).isEqualTo("MANAGER");
+        assertThat(dataDe(reponse).get("avisManagerStatut")).isEqualTo("FAVORABLE");
     }
 
     @Test
@@ -109,9 +112,9 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
         ResponseEntity<Map> reponse = creer(rhToken, body);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(reponse.getBody().get("statut")).isEqualTo("VALIDE");
-        assertThat(reponse.getBody().get("creeParRole")).isEqualTo("RH");
-        assertThat(reponse.getBody().get("avisManagerStatut")).isNull();
+        assertThat(dataDe(reponse).get("statut")).isEqualTo("VALIDE");
+        assertThat(dataDe(reponse).get("creeParRole")).isEqualTo("RH");
+        assertThat(dataDe(reponse).get("avisManagerStatut")).isNull();
     }
 
     // Workflow d'urgence RH (statut VALIDE dès la création) : la justification
@@ -135,7 +138,7 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
         Map<String, Object> body = requeteBase(employe.getId(), jour);
         ResponseEntity<Map> creation = creer(rhToken, body);
         assertThat(creation.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        UUID autorisationReference = UUID.fromString((String) creation.getBody().get("reference"));
+        UUID autorisationReference = UUID.fromString((String) dataDe(creation).get("reference"));
         Long autorisationId = autorisationRepository.findByReferenceAndDeletedAtIsNull(autorisationReference).orElseThrow().getId();
 
         PointageBrut rechargee = pointageBrutRepository.findById(anomalie.getId()).orElseThrow();
@@ -157,12 +160,12 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
 
         String url = baseUrl("/plannings/delta?employeId=" + employe.getId()
                 + "&dateDebut=" + jour + "&dateFin=" + jour);
-        ResponseEntity<List> planning = restTemplate.exchange(url, HttpMethod.GET,
-                new HttpEntity<>(authHeaders(rhToken)), List.class);
+        ResponseEntity<Map> planning = restTemplate.exchange(url, HttpMethod.GET,
+                new HttpEntity<>(authHeaders(rhToken)), Map.class);
         assertThat(planning.getStatusCode()).isEqualTo(HttpStatus.OK);
         // ABSENCE est exclue des heures théoriques (comme REPOS/CONGE) : le
         // créneau existe mais le rapport delta reste vide pour ce jour.
-        assertThat(planning.getBody()).isEmpty();
+        assertThat((List<?>) planning.getBody().get("content")).isEmpty();
     }
 
     @Test
@@ -184,8 +187,8 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
         derniere.put("avisManagerStatut", "FAVORABLE");
         ResponseEntity<Map> creation = creer(managerToken, derniere);
         assertThat(creation.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        String reference = (String) creation.getBody().get("reference");
-        assertThat(((Number) creation.getBody().get("quotaDepasseMinutes")).intValue()).isPositive();
+        String reference = (String) dataDe(creation).get("reference");
+        assertThat(((Number) dataDe(creation).get("quotaDepasseMinutes")).intValue()).isPositive();
 
         ResponseEntity<Map> validation = restTemplate.exchange(
                 baseUrl("/autorisations/" + reference + "/valider"), HttpMethod.PUT,
@@ -197,7 +200,7 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
                 baseUrl("/autorisations/" + reference + "/valider"), HttpMethod.PUT,
                 new HttpEntity<>(Map.of("traitementDepassement", "RECUPERATION"), authHeaders(rhToken)), Map.class);
         assertThat(validationForcee.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(validationForcee.getBody().get("statut")).isEqualTo("VALIDE");
+        assertThat(dataDe(validationForcee).get("statut")).isEqualTo("VALIDE");
     }
 
     @Test
@@ -208,15 +211,15 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
         Map<String, Object> body = requeteBase(employe.getId(), LocalDate.now());
         body.put("avisManagerStatut", "DEFAVORABLE");
         ResponseEntity<Map> creation = creer(managerToken, body);
-        assertThat(creation.getBody().get("statut")).isEqualTo("EN_ATTENTE_RH");
-        String reference = (String) creation.getBody().get("reference");
+        assertThat(dataDe(creation).get("statut")).isEqualTo("EN_ATTENTE_RH");
+        String reference = (String) dataDe(creation).get("reference");
 
         ResponseEntity<Map> refus = restTemplate.exchange(
                 baseUrl("/autorisations/" + reference + "/refuser"), HttpMethod.PUT,
                 new HttpEntity<>(null, authHeaders(rhToken)), Map.class);
 
         assertThat(refus.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(refus.getBody().get("statut")).isEqualTo("REFUSE");
+        assertThat(dataDe(refus).get("statut")).isEqualTo("REFUSE");
     }
 
     @Test
@@ -224,7 +227,7 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
         String rhToken = accessTokenFor(Role.ROLE_RH);
         Employe employe = createFixtureEmploye();
         ResponseEntity<Map> creation = creer(rhToken, requeteBase(employe.getId(), LocalDate.now()));
-        String reference = (String) creation.getBody().get("reference");
+        String reference = (String) dataDe(creation).get("reference");
 
         ResponseEntity<Map> deuxiemeValidation = restTemplate.exchange(
                 baseUrl("/autorisations/" + reference + "/valider"), HttpMethod.PUT,
@@ -239,13 +242,13 @@ class AutorisationControllerIT extends AbstractIntegrationTest {
         Employe employeAutreDepartement = createFixtureEmploye();
         creer(accessTokenFor(Role.ROLE_RH), requeteBase(employeAutreDepartement.getId(), LocalDate.now()));
 
-        ResponseEntity<List> reponse = restTemplate.exchange(baseUrl("/autorisations"), HttpMethod.GET,
-                new HttpEntity<>(authHeaders(managerToken)), List.class);
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/autorisations"), HttpMethod.GET,
+                new HttpEntity<>(authHeaders(managerToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         // Manager fixture et employé n'appartiennent à aucun département commun
         // (departementId = null par défaut) -> liste vide, jamais une 500/403.
-        assertThat(reponse.getBody()).isEmpty();
+        assertThat((List<?>) reponse.getBody().get("content")).isEmpty();
     }
 
     @Test

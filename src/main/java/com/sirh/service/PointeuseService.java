@@ -1,5 +1,6 @@
 package com.sirh.service;
 
+import com.sirh.model.dto.PointeuseDto;
 import com.sirh.model.entity.Pointeuse;
 import com.sirh.exception.PointeuseNotFoundException;
 import com.sirh.model.repository.PointeuseRepository;
@@ -21,8 +22,8 @@ public class PointeuseService {
     }
 
     @Transactional(readOnly = true)
-    public List<Pointeuse> findAll() {
-        return pointeuseRepository.findAll();
+    public List<PointeuseDto> findAll() {
+        return pointeuseRepository.findAll().stream().map(this::toDto).toList();
     }
 
     @Transactional(readOnly = true)
@@ -37,5 +38,17 @@ public class PointeuseService {
         pointeuse.setStatutEnLigne(true);
         pointeuse.setDerniereSynchro(LocalDateTime.now());
         return pointeuseRepository.save(pointeuse);
+    }
+
+    private PointeuseDto toDto(Pointeuse pointeuse) {
+        return new PointeuseDto(
+                pointeuse.getReference(),
+                pointeuse.getNom(),
+                pointeuse.getAdresseIp(),
+                pointeuse.getPort(),
+                pointeuse.getBatiment(),
+                pointeuse.getStatutEnLigne(),
+                pointeuse.getDerniereSynchro()
+        );
     }
 }

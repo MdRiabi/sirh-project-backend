@@ -1,5 +1,7 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.ListingPageDto;
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.dto.DepartementDto;
 import com.sirh.model.dto.DepartementRequest;
 import com.sirh.service.DepartementService;
@@ -8,7 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -23,25 +24,22 @@ public class DepartementController {
     }
 
     @GetMapping
-    public ResponseEntity<List<DepartementDto>> list() {
-        List<DepartementDto> dtos = departementService.findAll().stream()
-                .map(DepartementDto::from)
-                .toList();
-        return ResponseEntity.ok(dtos);
+    public ResponseEntity<ListingPageDto<DepartementDto>> list() {
+        return ResponseEntity.ok(ListingPageDto.of(departementService.findAll()));
     }
 
     @GetMapping("/{reference}")
-    public ResponseEntity<DepartementDto> getDepartementByReference(@PathVariable UUID reference) {
-        return ResponseEntity.ok(DepartementDto.from(departementService.getDepartementByReference(reference)));
+    public ResponseEntity<SingleObjectDto<DepartementDto>> getDepartementByReference(@PathVariable UUID reference) {
+        return ResponseEntity.ok(SingleObjectDto.of(departementService.getDepartementByReference(reference)));
     }
 
     @PostMapping
-    public ResponseEntity<DepartementDto> create(@Valid @RequestBody DepartementRequest request) {
-        return ResponseEntity.status(201).body(DepartementDto.from(departementService.create(request)));
+    public ResponseEntity<SingleObjectDto<DepartementDto>> create(@Valid @RequestBody DepartementRequest request) {
+        return ResponseEntity.status(201).body(SingleObjectDto.of(departementService.create(request)));
     }
 
     @PutMapping("/{reference}")
-    public ResponseEntity<DepartementDto> updateDepartementByReference(@PathVariable UUID reference, @Valid @RequestBody DepartementRequest request) {
-        return ResponseEntity.ok(DepartementDto.from(departementService.updateDepartementByReference(reference, request)));
+    public ResponseEntity<SingleObjectDto<DepartementDto>> updateDepartementByReference(@PathVariable UUID reference, @Valid @RequestBody DepartementRequest request) {
+        return ResponseEntity.ok(SingleObjectDto.of(departementService.updateDepartementByReference(reference, request)));
     }
 }

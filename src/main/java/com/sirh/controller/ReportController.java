@@ -1,5 +1,6 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.dto.AsyncJobDto;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.model.dto.ReportGenererRequest;
@@ -46,13 +47,13 @@ public class ReportController {
                     .header(HttpHeaders.CONTENT_DISPOSITION,
                             ContentDisposition.attachment().filename(pret.rapport().nomFichier()).build().toString())
                     .body(pret.rapport().contenu());
-            case ReportGenerationResult.Lance lance -> ResponseEntity.status(HttpStatus.ACCEPTED).body(lance.job());
+            case ReportGenerationResult.Lance lance -> ResponseEntity.status(HttpStatus.ACCEPTED).body(SingleObjectDto.of(lance.job()));
         };
     }
 
     @GetMapping("/tasks/{reference}")
-    public ResponseEntity<AsyncJobDto> tache(@PathVariable UUID reference) {
-        return ResponseEntity.ok(reportGenerationService.obtenirTache(reference));
+    public ResponseEntity<SingleObjectDto<AsyncJobDto>> tache(@PathVariable UUID reference) {
+        return ResponseEntity.ok(SingleObjectDto.of(reportGenerationService.obtenirTache(reference)));
     }
 
     // 🆕 non listé au cahier technique (seuls POST /reports/generer et

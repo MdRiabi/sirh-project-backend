@@ -1,5 +1,6 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.dto.ChangePasswordRequest;
 import com.sirh.model.dto.LoginRequest;
 import com.sirh.model.dto.RefreshTokenRequest;
@@ -24,13 +25,13 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+    public ResponseEntity<SingleObjectDto<TokenResponse>> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(SingleObjectDto.of(authService.login(request)));
     }
 
     @PostMapping("/refresh-token")
-    public ResponseEntity<TokenResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
-        return ResponseEntity.ok(authService.refresh(request.refreshToken()));
+    public ResponseEntity<SingleObjectDto<TokenResponse>> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(SingleObjectDto.of(authService.refresh(request.refreshToken())));
     }
 
     @PostMapping("/logout")
@@ -43,8 +44,8 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<UserSummary> me(@AuthenticationPrincipal SirhUserDetails principal) {
-        return ResponseEntity.ok(authService.toUserSummary(principal));
+    public ResponseEntity<SingleObjectDto<UserSummary>> me(@AuthenticationPrincipal SirhUserDetails principal) {
+        return ResponseEntity.ok(SingleObjectDto.of(authService.toUserSummary(principal)));
     }
 
     @PutMapping("/change-password")

@@ -46,9 +46,7 @@ class PlanningControllerIT extends AbstractIntegrationTest {
 
     private String accessTokenFor(Role role) {
         String username = createFixtureUser(role);
-        TokenResponse login = restTemplate.postForEntity(
-                baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class).getBody();
-        return login.accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
     }
 
     private HttpHeaders authHeaders(String accessToken) {
@@ -138,16 +136,15 @@ class PlanningControllerIT extends AbstractIntegrationTest {
         LocalDate jour = LocalDate.now().plusDays(30);
         affecter(tokenRh, fixtureEmploye.employeId(), matin.getId(), jour.atTime(6, 0), jour.atTime(14, 0));
 
-        TokenResponse loginEmploye = restTemplate.postForEntity(
-                baseUrl("/auth/login"), new LoginRequest(fixtureEmploye.username(), FIXTURE_PASSWORD), TokenResponse.class).getBody();
+        TokenResponse loginEmploye = login(fixtureEmploye.username(), FIXTURE_PASSWORD);
 
         String url = baseUrl("/mon-planning?dateDebut=" + jour.atStartOfDay()
                 + "&dateFin=" + jour.plusDays(1).atStartOfDay());
-        ResponseEntity<java.util.List> reponse = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET,
-                new HttpEntity<>(authHeaders(loginEmploye.accessToken())), java.util.List.class);
+        ResponseEntity<Map> reponse = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(authHeaders(loginEmploye.accessToken())), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody()).hasSize(1);
+        assertThat((java.util.List<?>) reponse.getBody().get("content")).hasSize(1);
     }
 
     // Régression : un MANAGER dont l'employé n'a pas de département (fixture par
@@ -183,12 +180,13 @@ class PlanningControllerIT extends AbstractIntegrationTest {
                 .sourceImport(SourceImport.MANUEL).statut(PointageStatut.OK).build());
 
         String url = baseUrl("/plannings/delta?employeId=" + employe.getId() + "&dateDebut=" + jour + "&dateFin=" + jour.plusDays(1));
-        ResponseEntity<java.util.List> reponse = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET,
-                new HttpEntity<>(authHeaders(token)), java.util.List.class);
+        ResponseEntity<Map> reponse = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(authHeaders(token)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody()).hasSize(1);
-        Map<?, ?> jourDto = (Map<?, ?>) reponse.getBody().get(0);
+        java.util.List<?> content = (java.util.List<?>) reponse.getBody().get("content");
+        assertThat(content).hasSize(1);
+        Map<?, ?> jourDto = (Map<?, ?>) content.get(0);
         assertThat(jourDto.get("jour")).isEqualTo(jour.toString());
         assertThat(((Number) jourDto.get("heuresReelles")).doubleValue()).isEqualTo(8.0);
     }
@@ -211,11 +209,11 @@ class PlanningControllerIT extends AbstractIntegrationTest {
         assertThat(affectation.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
         String url = baseUrl("/plannings/delta?employeId=" + employe.getId() + "&dateDebut=" + jour + "&dateFin=" + jour);
-        ResponseEntity<java.util.List> reponse = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET,
-                new HttpEntity<>(authHeaders(token)), java.util.List.class);
+        ResponseEntity<Map> reponse = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(authHeaders(token)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody()).isEmpty();
+        assertThat((java.util.List<?>) reponse.getBody().get("content")).isEmpty();
     }
 
     // Régression : un employeId inexistant doit produire un 404 explicite, pas

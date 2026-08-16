@@ -39,8 +39,7 @@ class NotificationControllerIT extends AbstractIntegrationTest {
     private UtilisateurRepository utilisateurRepository;
 
     private String login(String username) {
-        return restTemplate.postForEntity(baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class)
-                .getBody().accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
     }
 
     private HttpHeaders authHeaders(String token) {
@@ -64,12 +63,13 @@ class NotificationControllerIT extends AbstractIntegrationTest {
         notificationRepository.save(Notification.builder().destinataireId(autreDestinataireId)
                 .type(NotificationType.ALERTE_POINTAGE).message("Pas pour moi").lue(false).build());
 
-        ResponseEntity<List> reponse = restTemplate.exchange(baseUrl("/notifications"), HttpMethod.GET,
-                new HttpEntity<>(authHeaders(login(username))), List.class);
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/notifications"), HttpMethod.GET,
+                new HttpEntity<>(authHeaders(login(username))), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody()).hasSize(1);
-        assertThat(((Map) reponse.getBody().get(0)).get("message")).isEqualTo("Pour moi");
+        List<?> content = (List<?>) reponse.getBody().get("content");
+        assertThat(content).hasSize(1);
+        assertThat(((Map) content.get(0)).get("message")).isEqualTo("Pour moi");
     }
 
     @Test
@@ -83,7 +83,7 @@ class NotificationControllerIT extends AbstractIntegrationTest {
                 HttpMethod.PUT, new HttpEntity<>(authHeaders(login(username))), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody().get("lue")).isEqualTo(true);
+        assertThat(((Map<?, ?>) reponse.getBody().get("data")).get("lue")).isEqualTo(true);
     }
 
     @Test

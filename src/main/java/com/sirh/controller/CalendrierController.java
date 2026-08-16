@@ -1,5 +1,7 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.ListingPageDto;
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.dto.JourFerieDto;
 import com.sirh.model.dto.JourFerieRequest;
 import com.sirh.model.entity.JourFerie;
@@ -31,19 +33,18 @@ public class CalendrierController {
     }
 
     @GetMapping
-    public ResponseEntity<List<JourFerieDto>> list(
+    public ResponseEntity<ListingPageDto<JourFerieDto>> list(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateDebut,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFin) {
-        return ResponseEntity.ok(calendrierService.findByPeriode(dateDebut, dateFin).stream()
-                .map(JourFerieDto::from).toList());
+        return ResponseEntity.ok(ListingPageDto.of(calendrierService.findByPeriode(dateDebut, dateFin)));
     }
 
     @PostMapping
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<JourFerieDto> create(@Valid @RequestBody JourFerieRequest request) {
-        JourFerie jourFerie = calendrierService.creer(
+    public ResponseEntity<SingleObjectDto<JourFerieDto>> create(@Valid @RequestBody JourFerieRequest request) {
+        JourFerieDto jourFerie = calendrierService.creer(
                 request.date(), request.libelle(), request.type(), request.national(), request.region());
-        return ResponseEntity.status(201).body(JourFerieDto.from(jourFerie));
+        return ResponseEntity.status(201).body(SingleObjectDto.of(jourFerie));
     }
 
     // @Valid ne cascade pas sur les éléments d'un List<T> passé directement en
@@ -53,7 +54,7 @@ public class CalendrierController {
     // contrainte NOT NULL en base, avec un statut 409 trompeur au lieu de 400.
     @PostMapping("/import")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<List<JourFerieDto>> importer(@RequestBody List<JourFerieRequest> lignes) {
+    public ResponseEntity<ListingPageDto<JourFerieDto>> importer(@RequestBody List<JourFerieRequest> lignes) {
         for (JourFerieRequest ligne : lignes) {
             Set<ConstraintViolation<JourFerieRequest>> violations = validator.validate(ligne);
             if (!violations.isEmpty()) {
@@ -68,16 +69,16 @@ public class CalendrierController {
                         .region(r.region())
                         .build())
                 .toList();
-        List<JourFerieDto> importes = calendrierService.importer(aImporter).stream().map(JourFerieDto::from).toList();
-        return ResponseEntity.status(201).body(importes);
+        List<JourFerieDto> importes = calendrierService.importer(aImporter);
+        return ResponseEntity.status(201).body(ListingPageDto.of(importes));
     }
 
     @PutMapping("/{reference}")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<JourFerieDto> updateJourFerieByReference(@PathVariable UUID reference, @Valid @RequestBody JourFerieRequest request) {
-        JourFerie jourFerie = calendrierService.modifierJourFerieByReference(
+    public ResponseEntity<SingleObjectDto<JourFerieDto>> updateJourFerieByReference(@PathVariable UUID reference, @Valid @RequestBody JourFerieRequest request) {
+        JourFerieDto jourFerie = calendrierService.modifierJourFerieByReference(
                 reference, request.date(), request.libelle(), request.type(), request.national(), request.region());
-        return ResponseEntity.ok(JourFerieDto.from(jourFerie));
+        return ResponseEntity.ok(SingleObjectDto.of(jourFerie));
     }
 
     @DeleteMapping("/{reference}")

@@ -1,5 +1,7 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.ListingPageDto;
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.enums.Role;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.model.dto.CheckInRequest;
@@ -37,15 +39,15 @@ public class OutillageController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_MANAGER')")
-    public ResponseEntity<OutillageDto> creer(@Valid @RequestBody OutillageCreateRequest request,
+    public ResponseEntity<SingleObjectDto<OutillageDto>> creer(@Valid @RequestBody OutillageCreateRequest request,
                                                @AuthenticationPrincipal SirhUserDetails principal) {
         Long departementId = principal.getDepartementId();
         if (departementId == null) {
             throw new AccessDeniedException("Aucun département assigné à ce compte : impossible de créer un outil.");
         }
-        Outillage outillage = outillageService.creer(request.codeBarres(), request.nomOutil(), request.valeurAchat(),
+        OutillageDto outillage = outillageService.creer(request.codeBarres(), request.nomOutil(), request.valeurAchat(),
                 request.dateAchat(), departementId);
-        return ResponseEntity.status(201).body(outillageService.enrichir(List.of(outillage)).get(0));
+        return ResponseEntity.status(201).body(SingleObjectDto.of(outillage));
     }
 
     // MANAGER restreint à son propre département (departementId client ignoré),
@@ -57,49 +59,49 @@ public class OutillageController {
     // AssiduiteController.calculMensuel, hors périmètre Lot 7).
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<List<OutillageDto>> lister(@RequestParam(required = false) Long departementId,
+    public ResponseEntity<ListingPageDto<OutillageDto>> lister(@RequestParam(required = false) Long departementId,
                                                        @AuthenticationPrincipal SirhUserDetails principal) {
-        List<Outillage> outillages;
+        List<OutillageDto> outillages;
         if (principal.getRole() == Role.ROLE_MANAGER) {
             Long departementManager = principal.getDepartementId();
             outillages = departementManager != null ? outillageService.findByDepartement(departementManager) : List.of();
         } else {
             outillages = departementId != null ? outillageService.findByDepartement(departementId) : outillageService.findAll();
         }
-        return ResponseEntity.ok(outillageService.enrichir(outillages));
+        return ResponseEntity.ok(ListingPageDto.of(outillages));
     }
 
     @PostMapping("/{reference}/check-out")
     @PreAuthorize("hasAuthority('ROLE_MANAGER')")
-    public ResponseEntity<OutillageMouvementDto> checkOut(@PathVariable UUID reference,
+    public ResponseEntity<SingleObjectDto<OutillageMouvementDto>> checkOut(@PathVariable UUID reference,
                                                             @Valid @RequestBody CheckOutRequest request,
                                                             @AuthenticationPrincipal SirhUserDetails principal) {
         Outillage outillage = outillageService.getOutillageByReference(reference);
         verifierScopeManager(principal, outillage);
         var mouvement = outillageService.checkOut(outillage.getId(), request.employeId(), principal.getUserId());
-        return ResponseEntity.status(201).body(OutillageMouvementDto.from(mouvement));
+        return ResponseEntity.status(201).body(SingleObjectDto.of(mouvement));
     }
 
     @PostMapping("/{reference}/check-in")
     @PreAuthorize("hasAuthority('ROLE_MANAGER')")
-    public ResponseEntity<OutillageMouvementDto> checkIn(@PathVariable UUID reference,
+    public ResponseEntity<SingleObjectDto<OutillageMouvementDto>> checkIn(@PathVariable UUID reference,
                                                            @Valid @RequestBody CheckInRequest request,
                                                            @AuthenticationPrincipal SirhUserDetails principal) {
         Outillage outillage = outillageService.getOutillageByReference(reference);
         verifierScopeManager(principal, outillage);
         var mouvement = outillageService.checkIn(outillage.getId(), request.etat(), request.commentaire(), principal.getUserId());
-        return ResponseEntity.status(201).body(OutillageMouvementDto.from(mouvement));
+        return ResponseEntity.status(201).body(SingleObjectDto.of(mouvement));
     }
 
     @GetMapping("/{reference}/historique")
     @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<List<OutillageMouvementDto>> historique(@PathVariable UUID reference,
+    public ResponseEntity<ListingPageDto<OutillageMouvementDto>> historique(@PathVariable UUID reference,
                                                                     @AuthenticationPrincipal SirhUserDetails principal) {
         Outillage outillage = outillageService.getOutillageByReference(reference);
         if (principal.getRole() == Role.ROLE_MANAGER) {
             verifierScopeManager(principal, outillage);
         }
-        return ResponseEntity.ok(outillageService.historique(outillage.getId()).stream().map(OutillageMouvementDto::from).toList());
+        return ResponseEntity.ok(ListingPageDto.of(outillageService.historique(outillage.getId())));
     }
 
     private void verifierScopeManager(SirhUserDetails principal, Outillage outillage) {

@@ -74,7 +74,7 @@ public class IndisponibiliteService {
     }
 
     @Transactional
-    public Indisponibilite creer(UUID employeId, String typeIndisponibilite, LocalDate dateDebut, LocalDate dateFin,
+    public IndisponibiliteDto creer(UUID employeId, String typeIndisponibilite, LocalDate dateDebut, LocalDate dateFin,
                                   String commentaire, Long pieceJointeId, UUID creeParId, String creeParRole,
                                   String avisManagerStatut, String avisManagerCommentaire, boolean forcer) {
         employeRepository.findById(employeId).orElseThrow(() -> new EmployeNotFoundException(employeId));
@@ -110,12 +110,12 @@ public class IndisponibiliteService {
             eventPublisher.publishEvent(new DemandeCreeEvent("INDISPONIBILITE", indisponibilite.getId(),
                     indisponibilite.getEmployeId(), indisponibilite.getTypeIndisponibilite()));
         }
-        return indisponibilite;
+        return enrichirAvecDecompte(indisponibilite);
     }
 
     @Audited(action = "VALIDER_INDISPONIBILITE", tableCible = "indisponibilites")
     @Transactional
-    public Indisponibilite validerIndisponibiliteByReference(UUID reference, String bascule, boolean forcer, UUID valideParRhId) {
+    public IndisponibiliteDto validerIndisponibiliteByReference(UUID reference, String bascule, boolean forcer, UUID valideParRhId) {
         Indisponibilite indisponibilite = getIndisponibiliteByReference(reference);
         if (!STATUT_EN_ATTENTE_RH.equals(indisponibilite.getStatut())) {
             throw new DemandeStatutInvalideException(
@@ -129,7 +129,7 @@ public class IndisponibiliteService {
 
         indisponibilite.setStatut(STATUT_VALIDE);
         indisponibilite.setValideParRhId(valideParRhId);
-        return indisponibiliteRepository.save(indisponibilite);
+        return enrichirAvecDecompte(indisponibiliteRepository.save(indisponibilite));
     }
 
     // Partagé entre creer() (workflow d'urgence RH, statut VALIDE dès la
@@ -196,14 +196,14 @@ public class IndisponibiliteService {
 
     @Audited(action = "REFUSER_INDISPONIBILITE", tableCible = "indisponibilites")
     @Transactional
-    public Indisponibilite refuserIndisponibiliteByReference(UUID reference) {
+    public IndisponibiliteDto refuserIndisponibiliteByReference(UUID reference) {
         Indisponibilite indisponibilite = getIndisponibiliteByReference(reference);
         if (!STATUT_EN_ATTENTE_RH.equals(indisponibilite.getStatut())) {
             throw new DemandeStatutInvalideException(
                     "Seule une indisponibilité EN_ATTENTE_RH peut être refusée (statut actuel : " + indisponibilite.getStatut() + ").");
         }
         indisponibilite.setStatut(STATUT_REFUSE);
-        return indisponibiliteRepository.save(indisponibilite);
+        return enrichirAvecDecompte(indisponibiliteRepository.save(indisponibilite));
     }
 
     @Transactional(readOnly = true)
@@ -219,7 +219,11 @@ public class IndisponibiliteService {
     }
 
     @Transactional(readOnly = true)
-    public List<Indisponibilite> search(String statut, UUID employeId, Long departementId, LocalDate dateDebut, LocalDate dateFin) {
+    public List<IndisponibiliteDto> search(String statut, UUID employeId, Long departementId, LocalDate dateDebut, LocalDate dateFin) {
+        return enrichir(searchEntities(statut, employeId, departementId, dateDebut, dateFin));
+    }
+
+    private List<Indisponibilite> searchEntities(String statut, UUID employeId, Long departementId, LocalDate dateDebut, LocalDate dateFin) {
         List<UUID> employeIdsDepartement = departementId != null
                 ? employeRepository.findByDepartement_IdAndDeletedAtIsNull(departementId).stream().map(Employe::getId).toList()
                 : null;
@@ -251,34 +255,40 @@ public class IndisponibiliteService {
     // Cf. AutorisationService.searchPourManager : même garde-fou sans
     // département (liste vide plutôt qu'une recherche non filtrée).
     @Transactional(readOnly = true)
-    public List<Indisponibilite> searchPourManager(Long departementIdManager, String statut, LocalDate dateDebut, LocalDate dateFin) {
+    public List<IndisponibiliteDto> searchPourManager(Long departementIdManager, String statut, LocalDate dateDebut, LocalDate dateFin) {
         if (departementIdManager == null) {
             return List.of();
         }
         return search(statut, null, departementIdManager, dateDebut, dateFin);
     }
 
-    @Transactional(readOnly = true)
-    public List<IndisponibiliteDto> enrichir(List<Indisponibilite> indisponibilites) {
+    private List<IndisponibiliteDto> enrichir(List<Indisponibilite> indisponibilites) {
         Map<UUID, Employe> employesParId = employeRepository
                 .findAllById(indisponibilites.stream().map(Indisponibilite::getEmployeId).distinct().toList())
                 .stream().collect(Collectors.toMap(Employe::getId, e -> e));
         return indisponibilites.stream()
                 .map(i -> {
                     Employe employe = employesParId.get(i.getEmployeId());
-                    return IndisponibiliteDto.from(i, employe != null ? employe.getNom() : null,
+                    return toDto(i, employe != null ? employe.getNom() : null,
                             employe != null ? employe.getPrenom() : null, null);
                 })
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public IndisponibiliteDto enrichirAvecDecompte(Indisponibilite indisponibilite) {
+    private IndisponibiliteDto enrichirAvecDecompte(Indisponibilite indisponibilite) {
         Employe employe = employeRepository.findById(indisponibilite.getEmployeId()).orElse(null);
         Integer joursOuvresDecomptes = TYPE_CONGE_PAYE.equals(indisponibilite.getTypeIndisponibilite())
                 ? joursOuvres(indisponibilite.getDateDebut(), indisponibilite.getDateFin())
                 : null;
-        return IndisponibiliteDto.from(indisponibilite, employe != null ? employe.getNom() : null,
+        return toDto(indisponibilite, employe != null ? employe.getNom() : null,
                 employe != null ? employe.getPrenom() : null, joursOuvresDecomptes);
+    }
+
+    private IndisponibiliteDto toDto(Indisponibilite i, String employeNom, String employePrenom, Integer joursOuvresDecomptes) {
+        return new IndisponibiliteDto(
+                i.getReference(), i.getEmployeId(), employeNom, employePrenom, i.getTypeIndisponibilite(),
+                i.getDateDebut(), i.getDateFin(), i.getStatut(), i.getCommentaire(), i.getPieceJointeId(),
+                i.getCreeParId(), i.getCreeParRole(), i.getAvisManagerStatut(), i.getAvisManagerCommentaire(),
+                i.getValideParRhId(), joursOuvresDecomptes);
     }
 }

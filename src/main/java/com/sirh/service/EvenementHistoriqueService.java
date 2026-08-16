@@ -1,5 +1,6 @@
 package com.sirh.service;
 
+import com.sirh.model.dto.EvenementDto;
 import com.sirh.model.dto.EvenementRequest;
 import com.sirh.model.enums.EvenementCategorie;
 import com.sirh.model.entity.EvenementHistorique;
@@ -33,7 +34,7 @@ public class EvenementHistoriqueService {
     // cache ("could not determine data type of parameter"). Une Specification
     // n'envoie jamais ce paramètre quand le filtre est absent.
     @Transactional(readOnly = true)
-    public List<EvenementHistorique> findTimeline(UUID employeId, EvenementCategorie categorie,
+    public List<EvenementDto> findTimeline(UUID employeId, EvenementCategorie categorie,
                                                    LocalDateTime dateDebut, LocalDateTime dateFin) {
         employeService.findById(employeId);
         Specification<EvenementHistorique> spec = (root, query, cb) -> {
@@ -50,11 +51,12 @@ public class EvenementHistoriqueService {
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
-        return evenementRepository.findAll(spec, Sort.by("dateEvenement").descending());
+        return evenementRepository.findAll(spec, Sort.by("dateEvenement").descending())
+                .stream().map(this::toDto).toList();
     }
 
     @Transactional
-    public EvenementHistorique createManualEntry(UUID employeId, EvenementRequest request, Long saisiParId) {
+    public EvenementDto createManualEntry(UUID employeId, EvenementRequest request, Long saisiParId) {
         employeService.findById(employeId);
         // CONTRAT est exclusivement généré par ContratService (règle de synchronisation
         // cahier-technique.md §3.3) : une saisie manuelle ne doit pas créer une entrée
@@ -77,6 +79,20 @@ public class EvenementHistoriqueService {
                 .saisiParId(saisiParId)
                 .dateEvenement(request.dateEvenement())
                 .build();
-        return evenementRepository.save(evenement);
+        return toDto(evenementRepository.save(evenement));
+    }
+
+    private EvenementDto toDto(EvenementHistorique evenement) {
+        return new EvenementDto(
+                evenement.getReference(),
+                evenement.getEmployeId(),
+                evenement.getTitre(),
+                evenement.getDescription(),
+                evenement.getCategorie(),
+                evenement.getStatutBadge(),
+                evenement.getSaisiParId(),
+                evenement.getDateEvenement(),
+                evenement.getCreatedAt()
+        );
     }
 }

@@ -1,5 +1,8 @@
 package com.sirh;
 
+import com.sirh.common.dto.SingleObjectDto;
+import com.sirh.model.dto.LoginRequest;
+import com.sirh.model.dto.TokenResponse;
 import com.sirh.model.enums.Role;
 import com.sirh.model.entity.Utilisateur;
 import com.sirh.model.repository.UtilisateurRepository;
@@ -12,6 +15,9 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -107,6 +113,16 @@ public abstract class AbstractIntegrationTest {
     @BeforeEach
     void nettoyerLaBaseEntreLesTests() {
         jdbcTemplate.execute("TRUNCATE TABLE " + String.join(", ", TABLES_A_NETTOYER) + " RESTART IDENTITY");
+    }
+
+    // Déballe l'enveloppe SingleObjectDto<TokenResponse> de POST /auth/login —
+    // aide partagée pour éviter à chaque IT de reconstruire l'appel exchange()
+    // avec ParameterizedTypeReference.
+    protected TokenResponse login(String username, String password) {
+        return restTemplate.exchange(
+                        baseUrl("/auth/login"), HttpMethod.POST, new HttpEntity<>(new LoginRequest(username, password)),
+                        new ParameterizedTypeReference<SingleObjectDto<TokenResponse>>() {})
+                .getBody().data();
     }
 
     protected String createFixtureUser(Role role) {

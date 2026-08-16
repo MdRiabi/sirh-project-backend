@@ -1,12 +1,17 @@
 package com.sirh.service;
 
 import com.sirh.service.CloturePaieService;
+import com.sirh.model.dto.PointageBrutDto;
 import com.sirh.model.entity.AuditLog;
 import com.sirh.model.repository.AuditLogRepository;
 import com.sirh.model.dto.CorrectionPointageRequest;
+import com.sirh.model.entity.Employe;
+import com.sirh.model.repository.EmployeRepository;
 import com.sirh.model.enums.MethodeValidation;
 import com.sirh.model.entity.PointageBrut;
 import com.sirh.model.enums.PointageStatut;
+import com.sirh.model.entity.Pointeuse;
+import com.sirh.model.repository.PointeuseRepository;
 import com.sirh.model.enums.SourceImport;
 import com.sirh.model.enums.TypeEvenement;
 import com.sirh.exception.PointageNotFoundException;
@@ -22,7 +27,10 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Point d'entrée unique pour toute insertion de pointage brut (webhook
@@ -39,12 +47,17 @@ public class PointageBrutService {
     private final PointageBrutRepository pointageBrutRepository;
     private final AuditLogRepository auditLogRepository;
     private final CloturePaieService cloturePaieService;
+    private final EmployeRepository employeRepository;
+    private final PointeuseRepository pointeuseRepository;
 
     public PointageBrutService(PointageBrutRepository pointageBrutRepository, AuditLogRepository auditLogRepository,
-                                CloturePaieService cloturePaieService) {
+                                CloturePaieService cloturePaieService, EmployeRepository employeRepository,
+                                PointeuseRepository pointeuseRepository) {
         this.pointageBrutRepository = pointageBrutRepository;
         this.auditLogRepository = auditLogRepository;
         this.cloturePaieService = cloturePaieService;
+        this.employeRepository = employeRepository;
+        this.pointeuseRepository = pointeuseRepository;
     }
 
     @Transactional
@@ -152,7 +165,7 @@ public class PointageBrutService {
     }
 
     @Transactional(readOnly = true)
-    public List<PointageBrut> search(UUID employeId, LocalDateTime debut, LocalDateTime fin, PointageStatut statut) {
+    public List<PointageBrutDto> search(UUID employeId, LocalDateTime debut, LocalDateTime fin, PointageStatut statut) {
         Specification<PointageBrut> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (employeId != null) {
@@ -169,7 +182,44 @@ public class PointageBrutService {
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
-        return pointageBrutRepository.findAll(spec, Sort.by("timestampPointage").descending());
+        return enrichir(pointageBrutRepository.findAll(spec, Sort.by("timestampPointage").descending()));
+    }
+
+    private List<PointageBrutDto> enrichir(List<PointageBrut> pointages) {
+        Map<UUID, Employe> employesParId = employeRepository
+                .findAllById(pointages.stream().map(PointageBrut::getEmployeId).distinct().toList())
+                .stream().collect(Collectors.toMap(Employe::getId, Function.identity()));
+        Map<Long, Pointeuse> pointeusesParId = pointeuseRepository
+                .findAllById(pointages.stream().map(PointageBrut::getPointeuseId).filter(java.util.Objects::nonNull).distinct().toList())
+                .stream().collect(Collectors.toMap(Pointeuse::getId, Function.identity()));
+
+        return pointages.stream()
+                .map(p -> {
+                    Employe employe = employesParId.get(p.getEmployeId());
+                    Pointeuse pointeuse = p.getPointeuseId() != null ? pointeusesParId.get(p.getPointeuseId()) : null;
+                    return toDto(p, employe != null ? employe.getNom() : null,
+                            employe != null ? employe.getPrenom() : null,
+                            pointeuse != null ? pointeuse.getNom() : null);
+                })
+                .toList();
+    }
+
+    private PointageBrutDto toDto(PointageBrut p, String employeNom, String employePrenom, String pointeuseNom) {
+        return new PointageBrutDto(
+                p.getReference(),
+                p.getEmployeId(),
+                employeNom,
+                employePrenom,
+                p.getPointeuseId(),
+                pointeuseNom,
+                p.getTimestampPointage(),
+                p.getTypeEvenement(),
+                p.getMethodeValidation(),
+                p.getSourceImport(),
+                p.getStatut(),
+                p.getAutorisationId(),
+                p.getCreatedAt()
+        );
     }
 
     // Pas de @Audited ici : le mécanisme générique (AuditAspect, @AfterReturning)
@@ -178,7 +228,7 @@ public class PointageBrutService {
     // ("Qui, Quand, Valeur précédente"). Écriture directe et complète de
     // l'AuditLog ici plutôt qu'un contournement partiel de l'annotation.
     @Transactional
-    public PointageBrut corrigerPointageByReference(UUID reference, CorrectionPointageRequest request, Long utilisateurId, String adresseIp) {
+    public PointageBrutDto corrigerPointageByReference(UUID reference, CorrectionPointageRequest request, Long utilisateurId, String adresseIp) {
         PointageBrut pointage = getPointageByReference(reference);
         // Cas exceptionnel Module 3 : "un Manager tente d'ajouter une autorisation
         // ou un pointage sur un mois dont la paie a déjà été validée" — vérifie à
@@ -211,6 +261,6 @@ public class PointageBrutService {
                 .adresseIp(adresseIp)
                 .build());
 
-        return pointage;
+        return enrichir(List.of(pointage)).get(0);
     }
 }

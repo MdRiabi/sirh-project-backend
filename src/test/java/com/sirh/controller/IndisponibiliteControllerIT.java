@@ -48,8 +48,11 @@ class IndisponibiliteControllerIT extends AbstractIntegrationTest {
     }
 
     private String login(String username) {
-        return restTemplate.postForEntity(baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class)
-                .getBody().accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
+    }
+
+    private Map<?, ?> dataDe(ResponseEntity<Map> reponse) {
+        return (Map<?, ?>) reponse.getBody().get("data");
     }
 
     private HttpHeaders authHeaders(String accessToken) {
@@ -93,7 +96,7 @@ class IndisponibiliteControllerIT extends AbstractIntegrationTest {
                 "dateDebut", lundi.toString(), "dateFin", vendredi.toString());
         ResponseEntity<Map> creation = creer(rhToken, body);
         assertThat(creation.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(creation.getBody().get("statut")).isEqualTo("VALIDE");
+        assertThat(dataDe(creation).get("statut")).isEqualTo("VALIDE");
 
         Employe recharge = employeRepository.findById(employe.getId()).orElseThrow();
         assertThat(recharge.getSoldeCongesJours()).isEqualByComparingTo("5");
@@ -132,7 +135,7 @@ class IndisponibiliteControllerIT extends AbstractIntegrationTest {
                 "dateDebut", lundi.toString(), "dateFin", lundi.plusDays(4).toString(),
                 "avisManagerStatut", "FAVORABLE");
         ResponseEntity<Map> creation = creer(managerToken, body);
-        String reference = (String) creation.getBody().get("reference");
+        String reference = (String) dataDe(creation).get("reference");
 
         ResponseEntity<Map> validation = restTemplate.exchange(
                 baseUrl("/indisponibilites/" + reference + "/valider"), HttpMethod.PUT,
@@ -158,8 +161,8 @@ class IndisponibiliteControllerIT extends AbstractIntegrationTest {
                 "dateDebut", lundi.toString(), "dateFin", lundi.plusDays(4).toString(),
                 "avisManagerStatut", "FAVORABLE");
         ResponseEntity<Map> creation = creer(managerToken, body);
-        assertThat(creation.getBody().get("statut")).isEqualTo("EN_ATTENTE_RH");
-        String reference = (String) creation.getBody().get("reference");
+        assertThat(dataDe(creation).get("statut")).isEqualTo("EN_ATTENTE_RH");
+        String reference = (String) dataDe(creation).get("reference");
 
         ResponseEntity<Map> validation = restTemplate.exchange(
                 baseUrl("/indisponibilites/" + reference + "/valider"), HttpMethod.PUT,
@@ -191,7 +194,7 @@ class IndisponibiliteControllerIT extends AbstractIntegrationTest {
         ResponseEntity<Map> creation = creer(rhToken, body);
 
         assertThat(creation.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(creation.getBody().get("statut")).isEqualTo("VALIDE");
+        assertThat(dataDe(creation).get("statut")).isEqualTo("VALIDE");
         Employe recharge = employeRepository.findById(employe.getId()).orElseThrow();
         assertThat(recharge.getSoldeCongesJours()).isEqualByComparingTo("-3");
 
@@ -246,14 +249,14 @@ class IndisponibiliteControllerIT extends AbstractIntegrationTest {
                 "dateDebut", lundi.toString(), "dateFin", lundi.plusDays(1).toString(),
                 "avisManagerStatut", "DEFAVORABLE");
         ResponseEntity<Map> creation = creer(managerToken, body);
-        String reference = (String) creation.getBody().get("reference");
+        String reference = (String) dataDe(creation).get("reference");
 
         ResponseEntity<Map> refus = restTemplate.exchange(
                 baseUrl("/indisponibilites/" + reference + "/refuser"), HttpMethod.PUT,
                 new HttpEntity<>(null, authHeaders(rhToken)), Map.class);
 
         assertThat(refus.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(refus.getBody().get("statut")).isEqualTo("REFUSE");
+        assertThat(dataDe(refus).get("statut")).isEqualTo("REFUSE");
         Employe inchange = employeRepository.findById(employe.getId()).orElseThrow();
         assertThat(inchange.getSoldeCongesJours()).isEqualByComparingTo("10");
     }
@@ -268,7 +271,7 @@ class IndisponibiliteControllerIT extends AbstractIntegrationTest {
                 new HttpEntity<>(authHeaders(rhToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(new BigDecimal(reponse.getBody().get("soldeCongesJours").toString())).isEqualByComparingTo("7.5");
+        assertThat(new BigDecimal(dataDe(reponse).get("soldeCongesJours").toString())).isEqualByComparingTo("7.5");
     }
 
     @Test
@@ -280,10 +283,10 @@ class IndisponibiliteControllerIT extends AbstractIntegrationTest {
                 "employeId", employeAutreDepartement.getId(), "typeIndisponibilite", "MALADIE",
                 "dateDebut", LocalDate.now().toString(), "dateFin", LocalDate.now().plusDays(1).toString()));
 
-        ResponseEntity<List> reponse = restTemplate.exchange(baseUrl("/indisponibilites"), HttpMethod.GET,
-                new HttpEntity<>(authHeaders(managerToken)), List.class);
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/indisponibilites"), HttpMethod.GET,
+                new HttpEntity<>(authHeaders(managerToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody()).isEmpty();
+        assertThat((List<?>) reponse.getBody().get("content")).isEmpty();
     }
 }

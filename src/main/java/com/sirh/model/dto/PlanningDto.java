@@ -1,6 +1,5 @@
 package com.sirh.model.dto;
 
-import com.sirh.model.entity.Planning;
 import com.sirh.model.enums.PlanningStatut;
 
 import java.time.LocalDateTime;
@@ -19,10 +18,4 @@ public record PlanningDto(
         String commentaire,
         LocalDateTime createdAt
 ) {
-    public static PlanningDto from(Planning p, String employeNom, String employePrenom, String shiftNom) {
-        return new PlanningDto(
-                p.getReference(), p.getEmployeId(), employeNom, employePrenom,
-                p.getShiftId(), shiftNom, p.getDateDebut(), p.getDateFin(),
-                p.getStatut(), p.getCommentaire(), p.getCreatedAt());
-    }
 }

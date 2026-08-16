@@ -1,5 +1,7 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.ListingPageDto;
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.model.dto.ParametreGlobalDto;
 import com.sirh.model.dto.ParametreGlobalUpdateRequest;
@@ -9,8 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 // Paramétrage global RH (cahier-technique.md §3.24/§4.11) : valeurs modifiables
 // à chaud (ex. taux d'incrémentation mensuelle des congés, Lot 5), jamais
@@ -28,20 +28,20 @@ public class ParametreGlobalController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ParametreGlobalDto>> list() {
-        return ResponseEntity.ok(parametreGlobalService.findAll().stream().map(ParametreGlobalDto::from).toList());
+    public ResponseEntity<ListingPageDto<ParametreGlobalDto>> list() {
+        return ResponseEntity.ok(ListingPageDto.of(parametreGlobalService.findAll()));
     }
 
     @GetMapping("/{cle}")
-    public ResponseEntity<ParametreGlobalDto> get(@PathVariable String cle) {
-        return ResponseEntity.ok(ParametreGlobalDto.from(parametreGlobalService.findByCle(cle)));
+    public ResponseEntity<SingleObjectDto<ParametreGlobalDto>> get(@PathVariable String cle) {
+        return ResponseEntity.ok(SingleObjectDto.of(parametreGlobalService.getParametreGlobalDto(cle)));
     }
 
     @PutMapping("/{cle}")
-    public ResponseEntity<ParametreGlobalDto> update(@PathVariable String cle,
+    public ResponseEntity<SingleObjectDto<ParametreGlobalDto>> update(@PathVariable String cle,
                                                        @Valid @RequestBody ParametreGlobalUpdateRequest request,
                                                        @AuthenticationPrincipal SirhUserDetails principal) {
-        return ResponseEntity.ok(ParametreGlobalDto.from(
+        return ResponseEntity.ok(SingleObjectDto.of(
                 parametreGlobalService.modifierValeur(cle, request.valeur(), principal.getEmployeId())));
     }
 }

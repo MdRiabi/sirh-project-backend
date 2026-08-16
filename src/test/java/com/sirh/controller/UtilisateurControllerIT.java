@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -18,9 +19,7 @@ class UtilisateurControllerIT extends AbstractIntegrationTest {
 
     private String accessTokenFor(Role role) {
         String username = createFixtureUser(role);
-        TokenResponse login = restTemplate.postForEntity(
-                baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class).getBody();
-        return login.accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
     }
 
     private HttpHeaders authHeaders(String accessToken) {
@@ -46,11 +45,12 @@ class UtilisateurControllerIT extends AbstractIntegrationTest {
                 baseUrl("/utilisateurs"), HttpMethod.POST, new HttpEntity<>(body, authHeaders(rhToken)),
                 new ParameterizedTypeReference<>() {});
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(created.getBody()).doesNotContainKey("passwordHash");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) created.getBody().get("data");
+        assertThat(data).doesNotContainKey("passwordHash");
 
-        ResponseEntity<TokenResponse> login = restTemplate.postForEntity(
-                baseUrl("/auth/login"), new LoginRequest(username, "MonMotDePasse1!"), TokenResponse.class);
-        assertThat(login.getStatusCode()).isEqualTo(HttpStatus.OK);
+        TokenResponse login = login(username, "MonMotDePasse1!");
+        assertThat(login.accessToken()).isNotBlank();
     }
 
     @Test
@@ -84,9 +84,8 @@ class UtilisateurControllerIT extends AbstractIntegrationTest {
                 baseUrl("/auth/login"), new LoginRequest(fixture.username(), FIXTURE_PASSWORD), String.class);
         assertThat(oldPasswordLogin.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 
-        ResponseEntity<TokenResponse> newPasswordLogin = restTemplate.postForEntity(
-                baseUrl("/auth/login"), new LoginRequest(fixture.username(), "NouveauMotDePasse1!"), TokenResponse.class);
-        assertThat(newPasswordLogin.getStatusCode()).isEqualTo(HttpStatus.OK);
+        TokenResponse newPasswordLogin = login(fixture.username(), "NouveauMotDePasse1!");
+        assertThat(newPasswordLogin.accessToken()).isNotBlank();
     }
 
     @Test
@@ -106,10 +105,12 @@ class UtilisateurControllerIT extends AbstractIntegrationTest {
     }
 
     private UUID findUtilisateurReference(String rhToken, String username) {
-        ResponseEntity<java.util.List<Map<String, Object>>> list = restTemplate.exchange(
+        ResponseEntity<Map<String, Object>> list = restTemplate.exchange(
                 baseUrl("/utilisateurs"), HttpMethod.GET, new HttpEntity<>(authHeaders(rhToken)),
                 new ParameterizedTypeReference<>() {});
-        return list.getBody().stream()
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> content = (List<Map<String, Object>>) list.getBody().get("content");
+        return content.stream()
                 .filter(u -> username.equals(u.get("username")))
                 .findFirst()
                 .map(u -> UUID.fromString((String) u.get("reference")))

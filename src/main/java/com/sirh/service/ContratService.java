@@ -1,5 +1,6 @@
 package com.sirh.service;
 
+import com.sirh.model.dto.ContratDto;
 import com.sirh.model.dto.ContratRequest;
 import com.sirh.model.entity.Contrat;
 import com.sirh.model.entity.Employe;
@@ -41,13 +42,14 @@ public class ContratService {
     }
 
     @Transactional(readOnly = true)
-    public List<Contrat> findByEmploye(UUID employeId) {
+    public List<ContratDto> findByEmploye(UUID employeId) {
         employeService.findById(employeId);
-        return contratRepository.findByEmployeIdAndDeletedAtIsNullOrderByDateDebutDesc(employeId);
+        return contratRepository.findByEmployeIdAndDeletedAtIsNullOrderByDateDebutDesc(employeId)
+                .stream().map(this::toDto).toList();
     }
 
     @Transactional
-    public Contrat create(UUID employeId, ContratRequest request, Long saisiParId) {
+    public ContratDto create(UUID employeId, ContratRequest request, Long saisiParId) {
         Employe employe = employeService.findById(employeId);
 
         Contrat contrat = Contrat.builder()
@@ -63,7 +65,7 @@ public class ContratService {
         syncEmployeFromLatestContrat(employe, employeId);
         recordTimelineEntry(employeId, contrat, saisiParId);
 
-        return contrat;
+        return toDto(contrat);
     }
 
     private void syncEmployeFromLatestContrat(Employe employe, UUID employeId) {
@@ -86,5 +88,18 @@ public class ContratService {
                 .dateEvenement(contrat.getDateDebut().atStartOfDay())
                 .build();
         evenementRepository.save(evenement);
+    }
+
+    private ContratDto toDto(Contrat contrat) {
+        return new ContratDto(
+                contrat.getReference(),
+                contrat.getEmployeId(),
+                contrat.getType(),
+                contrat.getDateDebut(),
+                contrat.getDateFin(),
+                contrat.getStatut(),
+                contrat.getMotifFin(),
+                contrat.getCreatedAt()
+        );
     }
 }

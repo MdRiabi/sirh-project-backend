@@ -1,6 +1,5 @@
 package com.sirh.model.dto;
 
-import com.sirh.model.entity.TacheRenouvellement;
 import com.sirh.model.enums.TacheRenouvellementStatut;
 
 import java.time.LocalDate;
@@ -20,10 +19,4 @@ public record TacheRenouvellementDto(
         Long traiteParId,
         LocalDateTime createdAt
 ) {
-    public static TacheRenouvellementDto from(TacheRenouvellement tache, String employeNom, String employePrenom) {
-        return new TacheRenouvellementDto(
-                tache.getReference(), tache.getEmployeId(), employeNom, employePrenom, tache.getContratId(),
-                tache.getTypeEcheance(), tache.getDateEcheance(), tache.getStatut(),
-                tache.getDateTraitement(), tache.getTraiteParId(), tache.getCreatedAt());
-    }
 }

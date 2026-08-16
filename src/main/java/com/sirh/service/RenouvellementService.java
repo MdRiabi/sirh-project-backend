@@ -195,9 +195,16 @@ public class RenouvellementService {
         return taches.stream()
                 .map(t -> {
                     Employe employe = employesParId.get(t.getEmployeId());
-                    return TacheRenouvellementDto.from(t, employe != null ? employe.getNom() : null,
+                    return toDto(t, employe != null ? employe.getNom() : null,
                             employe != null ? employe.getPrenom() : null);
                 })
                 .toList();
+    }
+
+    private TacheRenouvellementDto toDto(TacheRenouvellement tache, String employeNom, String employePrenom) {
+        return new TacheRenouvellementDto(
+                tache.getReference(), tache.getEmployeId(), employeNom, employePrenom, tache.getContratId(),
+                tache.getTypeEcheance(), tache.getDateEcheance(), tache.getStatut(),
+                tache.getDateTraitement(), tache.getTraiteParId(), tache.getCreatedAt());
     }
 }

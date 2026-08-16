@@ -1,5 +1,7 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.ListingPageDto;
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.model.dto.ContratDto;
 import com.sirh.model.dto.ContratRequest;
@@ -10,7 +12,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -25,18 +26,15 @@ public class ContratController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ContratDto>> list(@PathVariable UUID employeId) {
-        List<ContratDto> dtos = contratService.findByEmploye(employeId).stream()
-                .map(ContratDto::from)
-                .toList();
-        return ResponseEntity.ok(dtos);
+    public ResponseEntity<ListingPageDto<ContratDto>> list(@PathVariable UUID employeId) {
+        return ResponseEntity.ok(ListingPageDto.of(contratService.findByEmploye(employeId)));
     }
 
     @PostMapping
-    public ResponseEntity<ContratDto> create(@PathVariable UUID employeId,
+    public ResponseEntity<SingleObjectDto<ContratDto>> create(@PathVariable UUID employeId,
                                               @Valid @RequestBody ContratRequest request,
                                               @AuthenticationPrincipal SirhUserDetails principal) {
         var contrat = contratService.create(employeId, request, principal.getUserId());
-        return ResponseEntity.status(201).body(ContratDto.from(contrat));
+        return ResponseEntity.status(201).body(SingleObjectDto.of(contrat));
     }
 }

@@ -78,12 +78,12 @@ class OutillageServiceTest {
         when(outillageRepository.findById(1L)).thenReturn(Optional.of(outil));
         when(employeRepository.findById(employe.getId())).thenReturn(Optional.of(employe));
 
-        OutillageMouvement mouvement = service.checkOut(1L, employe.getId(), 99L);
+        var mouvement = service.checkOut(1L, employe.getId(), 99L);
 
         assertThat(outil.getEtat()).isEqualTo(OutillageEtat.ATTRIBUE);
         assertThat(outil.getAttribueAEmployeId()).isEqualTo(employe.getId());
-        assertThat(mouvement.getTypeMouvement()).isEqualTo(TypeMouvement.CHECK_OUT);
-        assertThat(mouvement.getEffectueParId()).isEqualTo(99L);
+        assertThat(mouvement.typeMouvement()).isEqualTo(TypeMouvement.CHECK_OUT);
+        assertThat(mouvement.effectueParId()).isEqualTo(99L);
     }
 
     @Test
@@ -122,11 +122,11 @@ class OutillageServiceTest {
         outil.setAttribueAEmployeId(UUID.randomUUID());
         when(outillageRepository.findById(1L)).thenReturn(Optional.of(outil));
 
-        OutillageMouvement mouvement = service.checkIn(1L, EtatMouvement.BON, "RAS", 99L);
+        var mouvement = service.checkIn(1L, EtatMouvement.BON, "RAS", 99L);
 
         assertThat(outil.getEtat()).isEqualTo(OutillageEtat.BON_ETAT);
         assertThat(outil.getAttribueAEmployeId()).isNull();
-        assertThat(mouvement.getMontantImputation()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(mouvement.montantImputation()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
@@ -136,10 +136,10 @@ class OutillageServiceTest {
         when(outillageRepository.findById(1L)).thenReturn(Optional.of(outil));
         when(parametreGlobalService.valeurDecimale("TAUX_IMPUTATION_OUTIL_0_6_MOIS")).thenReturn(BigDecimal.valueOf(100));
 
-        OutillageMouvement mouvement = service.checkIn(1L, EtatMouvement.PERDU, null, 99L);
+        var mouvement = service.checkIn(1L, EtatMouvement.PERDU, null, 99L);
 
         assertThat(outil.getEtat()).isEqualTo(OutillageEtat.PERDU);
-        assertThat(mouvement.getMontantImputation()).isEqualByComparingTo("1000.00");
+        assertThat(mouvement.montantImputation()).isEqualByComparingTo("1000.00");
     }
 
     @Test
@@ -149,9 +149,9 @@ class OutillageServiceTest {
         when(outillageRepository.findById(1L)).thenReturn(Optional.of(outil));
         when(parametreGlobalService.valeurDecimale("TAUX_IMPUTATION_OUTIL_6_12_MOIS")).thenReturn(BigDecimal.valueOf(50));
 
-        OutillageMouvement mouvement = service.checkIn(1L, EtatMouvement.PERDU, null, 99L);
+        var mouvement = service.checkIn(1L, EtatMouvement.PERDU, null, 99L);
 
-        assertThat(mouvement.getMontantImputation()).isEqualByComparingTo("500.00");
+        assertThat(mouvement.montantImputation()).isEqualByComparingTo("500.00");
     }
 
     @Test
@@ -161,9 +161,9 @@ class OutillageServiceTest {
         when(outillageRepository.findById(1L)).thenReturn(Optional.of(outil));
         when(parametreGlobalService.valeurDecimale("TAUX_IMPUTATION_OUTIL_PLUS_12_MOIS")).thenReturn(BigDecimal.valueOf(25));
 
-        OutillageMouvement mouvement = service.checkIn(1L, EtatMouvement.PERDU, null, 99L);
+        var mouvement = service.checkIn(1L, EtatMouvement.PERDU, null, 99L);
 
-        assertThat(mouvement.getMontantImputation()).isEqualByComparingTo("250.00");
+        assertThat(mouvement.montantImputation()).isEqualByComparingTo("250.00");
     }
 
     @Test
@@ -172,9 +172,9 @@ class OutillageServiceTest {
         outil.setAttribueAEmployeId(UUID.randomUUID());
         when(outillageRepository.findById(1L)).thenReturn(Optional.of(outil));
 
-        OutillageMouvement mouvement = service.checkIn(1L, EtatMouvement.CASSE, "Chute", 99L);
+        var mouvement = service.checkIn(1L, EtatMouvement.CASSE, "Chute", 99L);
 
         assertThat(outil.getEtat()).isEqualTo(OutillageEtat.CASSE);
-        assertThat(mouvement.getMontantImputation()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(mouvement.montantImputation()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 }

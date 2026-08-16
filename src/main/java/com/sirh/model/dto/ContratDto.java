@@ -1,6 +1,5 @@
 package com.sirh.model.dto;
 
-import com.sirh.model.entity.Contrat;
 import com.sirh.model.enums.ContratStatut;
 import com.sirh.model.enums.ContratType;
 import com.sirh.model.enums.MotifFin;
@@ -19,16 +18,4 @@ public record ContratDto(
         MotifFin motifFin,
         LocalDateTime createdAt
 ) {
-    public static ContratDto from(Contrat contrat) {
-        return new ContratDto(
-                contrat.getReference(),
-                contrat.getEmployeId(),
-                contrat.getType(),
-                contrat.getDateDebut(),
-                contrat.getDateFin(),
-                contrat.getStatut(),
-                contrat.getMotifFin(),
-                contrat.getCreatedAt()
-        );
-    }
 }

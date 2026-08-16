@@ -1,5 +1,7 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.ListingPageDto;
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.model.dto.FichierDto;
 import com.sirh.model.enums.EntiteType;
@@ -16,7 +18,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -30,14 +31,14 @@ public class FichierController {
     }
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<FichierDto> upload(
+    public ResponseEntity<SingleObjectDto<FichierDto>> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam("categorie") FichierCategorie categorie,
             @RequestParam(value = "entiteType", required = false) EntiteType entiteType,
             @RequestParam(value = "entiteId", required = false) Long entiteId,
             @AuthenticationPrincipal SirhUserDetails principal) {
-        Fichier fichier = fichierService.upload(file, categorie, entiteType, entiteId, principal.getUserId());
-        return ResponseEntity.status(201).body(FichierDto.from(fichier));
+        FichierDto fichier = fichierService.upload(file, categorie, entiteType, entiteId, principal.getUserId());
+        return ResponseEntity.status(201).body(SingleObjectDto.of(fichier));
     }
 
     @GetMapping("/{reference}/download")
@@ -54,12 +55,9 @@ public class FichierController {
     }
 
     @GetMapping("/entite/{type}/{id}")
-    public ResponseEntity<List<FichierDto>> listByEntite(@PathVariable("type") EntiteType type,
+    public ResponseEntity<ListingPageDto<FichierDto>> listByEntite(@PathVariable("type") EntiteType type,
                                                            @PathVariable("id") Long id) {
-        List<FichierDto> dtos = fichierService.listByEntite(type, id).stream()
-                .map(FichierDto::from)
-                .toList();
-        return ResponseEntity.ok(dtos);
+        return ResponseEntity.ok(ListingPageDto.of(fichierService.listByEntite(type, id)));
     }
 
     @DeleteMapping("/{reference}")

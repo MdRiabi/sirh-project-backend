@@ -1,5 +1,7 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.ListingPageDto;
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.model.dto.EvenementDto;
 import com.sirh.model.dto.EvenementRequest;
@@ -13,7 +15,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -28,22 +29,21 @@ public class EvenementHistoriqueController {
     }
 
     @GetMapping("/timeline")
-    public ResponseEntity<List<EvenementDto>> timeline(
+    public ResponseEntity<ListingPageDto<EvenementDto>> timeline(
             @PathVariable UUID employeId,
             @RequestParam(required = false) EvenementCategorie categorie,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateDebut,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateFin) {
-        List<EvenementDto> dtos = evenementHistoriqueService.findTimeline(employeId, categorie, dateDebut, dateFin)
-                .stream().map(EvenementDto::from).toList();
-        return ResponseEntity.ok(dtos);
+        return ResponseEntity.ok(ListingPageDto.of(
+                evenementHistoriqueService.findTimeline(employeId, categorie, dateDebut, dateFin)));
     }
 
     @PostMapping("/evenements")
-    public ResponseEntity<EvenementDto> createEvenement(
+    public ResponseEntity<SingleObjectDto<EvenementDto>> createEvenement(
             @PathVariable UUID employeId,
             @Valid @RequestBody EvenementRequest request,
             @AuthenticationPrincipal SirhUserDetails principal) {
         var evenement = evenementHistoriqueService.createManualEntry(employeId, request, principal.getUserId());
-        return ResponseEntity.status(201).body(EvenementDto.from(evenement));
+        return ResponseEntity.status(201).body(SingleObjectDto.of(evenement));
     }
 }

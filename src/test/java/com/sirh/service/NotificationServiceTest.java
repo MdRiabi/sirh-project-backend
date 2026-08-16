@@ -50,9 +50,9 @@ class NotificationServiceTest {
         notif.setReference(reference);
         when(notificationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.of(notif));
 
-        Notification resultat = service.marquerNotificationLueByReference(reference, 42L);
+        var resultat = service.marquerNotificationLueByReference(reference, 42L);
 
-        assertThat(resultat.getLue()).isTrue();
+        assertThat(resultat.lue()).isTrue();
     }
 
     @Test

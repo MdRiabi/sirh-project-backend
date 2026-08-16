@@ -1,6 +1,5 @@
 package com.sirh.model.dto;
 
-import com.sirh.model.entity.Outillage;
 import com.sirh.model.enums.OutillageEtat;
 
 import java.math.BigDecimal;
@@ -20,11 +19,4 @@ public record OutillageDto(
         Long departementId,
         BigDecimal valeurAchat,
         LocalDate dateAchat) {
-
-    public static OutillageDto from(Outillage outillage, String employeNom, String employePrenom) {
-        return new OutillageDto(outillage.getReference(), outillage.getCodeBarres(), outillage.getNomOutil(),
-                outillage.getEtat(), outillage.getAttribueAEmployeId(), employeNom, employePrenom,
-                outillage.getDateAttribution(), outillage.getDepartementId(), outillage.getValeurAchat(),
-                outillage.getDateAchat());
-    }
 }

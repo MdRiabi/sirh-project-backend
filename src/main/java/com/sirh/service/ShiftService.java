@@ -1,5 +1,6 @@
 package com.sirh.service;
 
+import com.sirh.model.dto.ShiftDto;
 import com.sirh.model.dto.ShiftRequest;
 import com.sirh.model.entity.Shift;
 import com.sirh.exception.ShiftNotFoundException;
@@ -20,24 +21,32 @@ public class ShiftService {
     }
 
     @Transactional(readOnly = true)
-    public List<Shift> findAll() {
-        return shiftRepository.findAll();
+    public List<ShiftDto> findAll() {
+        return shiftRepository.findAll().stream().map(this::toDto).toList();
     }
 
     @Transactional(readOnly = true)
-    public Shift getShiftByReference(UUID reference) {
-        return shiftRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new ShiftNotFoundException(reference));
+    public ShiftDto getShiftByReference(UUID reference) {
+        return toDto(getShiftEntityByReference(reference));
     }
 
     @Transactional
-    public Shift create(ShiftRequest request) {
+    public ShiftDto create(ShiftRequest request) {
         Shift shift = Shift.builder()
                 .nom(request.nom())
                 .typeRotation(request.typeRotation())
                 .heureDebut(request.heureDebut())
                 .heureFin(request.heureFin())
                 .build();
-        return shiftRepository.save(shift);
+        return toDto(shiftRepository.save(shift));
+    }
+
+    private Shift getShiftEntityByReference(UUID reference) {
+        return shiftRepository.findByReferenceAndDeletedAtIsNull(reference)
+                .orElseThrow(() -> new ShiftNotFoundException(reference));
+    }
+
+    private ShiftDto toDto(Shift s) {
+        return new ShiftDto(s.getReference(), s.getNom(), s.getTypeRotation(), s.getHeureDebut(), s.getHeureFin(), s.getCreatedAt());
     }
 }

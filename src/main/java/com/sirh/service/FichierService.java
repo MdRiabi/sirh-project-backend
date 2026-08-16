@@ -1,6 +1,7 @@
 package com.sirh.service;
 
 import com.sirh.annotation.Audited;
+import com.sirh.model.dto.FichierDto;
 import com.sirh.model.enums.EntiteType;
 import com.sirh.model.entity.Fichier;
 import com.sirh.model.enums.FichierCategorie;
@@ -32,7 +33,7 @@ public class FichierService {
     }
 
     @Transactional
-    public Fichier upload(MultipartFile file, FichierCategorie categorie, EntiteType entiteType,
+    public FichierDto upload(MultipartFile file, FichierCategorie categorie, EntiteType entiteType,
                            Long entiteId, Long uploadeParId) {
         String extension = extractExtension(file.getOriginalFilename());
         String nomStockage = UUID.randomUUID() + extension;
@@ -58,7 +59,7 @@ public class FichierService {
                 .uploadeParId(uploadeParId)
                 .build();
 
-        return fichierRepository.save(fichier);
+        return toDto(fichierRepository.save(fichier));
     }
 
     @Transactional(readOnly = true)
@@ -77,8 +78,9 @@ public class FichierService {
     }
 
     @Transactional(readOnly = true)
-    public List<Fichier> listByEntite(EntiteType entiteType, Long entiteId) {
-        return fichierRepository.findByEntiteTypeAndEntiteIdAndDeletedAtIsNull(entiteType, entiteId);
+    public List<FichierDto> listByEntite(EntiteType entiteType, Long entiteId) {
+        return fichierRepository.findByEntiteTypeAndEntiteIdAndDeletedAtIsNull(entiteType, entiteId)
+                .stream().map(this::toDto).toList();
     }
 
     @Audited(action = "DELETE_FICHIER", tableCible = "fichiers")
@@ -93,6 +95,19 @@ public class FichierService {
         }
         fichier.onDelete();
         fichierRepository.save(fichier);
+    }
+
+    private FichierDto toDto(Fichier fichier) {
+        return new FichierDto(
+                fichier.getReference(),
+                fichier.getNomOriginal(),
+                fichier.getTypeMime(),
+                fichier.getTailleOctets(),
+                fichier.getCategorie(),
+                fichier.getEntiteType(),
+                fichier.getEntiteId(),
+                fichier.getCreatedAt()
+        );
     }
 
     private String extractExtension(String originalFilename) {

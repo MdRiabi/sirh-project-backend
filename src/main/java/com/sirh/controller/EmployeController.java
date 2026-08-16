@@ -1,5 +1,7 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.ListingPageDto;
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.dto.EmployeDto;
 import com.sirh.model.dto.EmployeRequest;
 import com.sirh.model.entity.Employe;
@@ -29,39 +31,39 @@ public class EmployeController {
     // pour la vue Planning en lecture seule de son équipe (Lot 3).
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER', 'ROLE_MANAGER')")
     @GetMapping
-    public ResponseEntity<Page<EmployeDto>> list(
+    public ResponseEntity<ListingPageDto<EmployeDto>> list(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Long departementId,
             @RequestParam(required = false) Boolean actif,
             Pageable pageable) {
-        Page<EmployeDto> page = employeService.search(search, departementId, actif, pageable).map(EmployeDto::from);
-        return ResponseEntity.ok(page);
+        Page<EmployeDto> page = employeService.search(search, departementId, actif, pageable);
+        return ResponseEntity.ok(ListingPageDto.of(page));
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER', 'ROLE_MANAGER')")
     @GetMapping("/{id}")
-    public ResponseEntity<EmployeDto> get(@PathVariable UUID id) {
-        return ResponseEntity.ok(EmployeDto.from(employeService.findById(id)));
+    public ResponseEntity<SingleObjectDto<EmployeDto>> get(@PathVariable UUID id) {
+        return ResponseEntity.ok(SingleObjectDto.of(employeService.getEmployeDto(id)));
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
     @PostMapping
-    public ResponseEntity<EmployeDto> create(@Valid @RequestBody EmployeRequest request) {
-        return ResponseEntity.status(201).body(EmployeDto.from(employeService.create(request)));
+    public ResponseEntity<SingleObjectDto<EmployeDto>> create(@Valid @RequestBody EmployeRequest request) {
+        return ResponseEntity.status(201).body(SingleObjectDto.of(employeService.create(request)));
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
     @PutMapping("/{id}")
-    public ResponseEntity<EmployeDto> update(@PathVariable UUID id, @Valid @RequestBody EmployeRequest request) {
-        return ResponseEntity.ok(EmployeDto.from(employeService.update(id, request)));
+    public ResponseEntity<SingleObjectDto<EmployeDto>> update(@PathVariable UUID id, @Valid @RequestBody EmployeRequest request) {
+        return ResponseEntity.ok(SingleObjectDto.of(employeService.update(id, request)));
     }
 
     // Affichage complet du matricule_cnss réservé à une action explicite RH/SuperUser
     // (ARCHITECTURE.md §10) — jamais renvoyé automatiquement dans la liste/fiche.
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
     @GetMapping("/{id}/matricule-cnss")
-    public ResponseEntity<Map<String, String>> revealMatriculeCnss(@PathVariable UUID id) {
+    public ResponseEntity<SingleObjectDto<Map<String, String>>> revealMatriculeCnss(@PathVariable UUID id) {
         Employe employe = employeService.findById(id);
-        return ResponseEntity.ok(Map.of("matriculeCnss", employe.getMatriculeCnss() != null ? employe.getMatriculeCnss() : ""));
+        return ResponseEntity.ok(SingleObjectDto.of(Map.of("matriculeCnss", employe.getMatriculeCnss() != null ? employe.getMatriculeCnss() : "")));
     }
 }

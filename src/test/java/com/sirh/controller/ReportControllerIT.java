@@ -23,8 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ReportControllerIT extends AbstractIntegrationTest {
 
     private String login(String username) {
-        return restTemplate.postForEntity(baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class)
-                .getBody().accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
     }
 
     private HttpHeaders authHeaders(String token) {

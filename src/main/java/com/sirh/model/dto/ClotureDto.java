@@ -1,7 +1,5 @@
 package com.sirh.model.dto;
 
-import com.sirh.model.entity.CloturePaie;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -14,9 +12,4 @@ public record ClotureDto(
         LocalDateTime dateCloture,
         UUID clotureParId,
         BigDecimal tauxAnomaliesJustifiees) {
-
-    public static ClotureDto from(CloturePaie cloture) {
-        return new ClotureDto(cloture.getReference(), cloture.getMois(), cloture.getStatut(), cloture.getDateCloture(),
-                cloture.getClotureParId(), cloture.getTauxAnomaliesJustifiees());
-    }
 }

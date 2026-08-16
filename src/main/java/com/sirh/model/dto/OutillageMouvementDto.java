@@ -1,7 +1,6 @@
 package com.sirh.model.dto;
 
 import com.sirh.model.enums.EtatMouvement;
-import com.sirh.model.entity.OutillageMouvement;
 import com.sirh.model.enums.TypeMouvement;
 
 import java.math.BigDecimal;
@@ -18,10 +17,4 @@ public record OutillageMouvementDto(
         String commentaire,
         Long effectueParId,
         LocalDateTime dateMouvement) {
-
-    public static OutillageMouvementDto from(OutillageMouvement mouvement) {
-        return new OutillageMouvementDto(mouvement.getReference(), mouvement.getOutillageId(), mouvement.getEmployeId(),
-                mouvement.getTypeMouvement(), mouvement.getEtat(), mouvement.getMontantImputation(),
-                mouvement.getCommentaire(), mouvement.getEffectueParId(), mouvement.getCreatedAt());
-    }
 }

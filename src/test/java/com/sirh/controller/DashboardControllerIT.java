@@ -63,8 +63,11 @@ class DashboardControllerIT extends AbstractIntegrationTest {
     }
 
     private String login(String username) {
-        return restTemplate.postForEntity(baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class)
-                .getBody().accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
+    }
+
+    private Map<?, ?> dataDe(ResponseEntity<Map> reponse) {
+        return (Map<?, ?>) reponse.getBody().get("data");
     }
 
     private HttpHeaders authHeaders(String token) {
@@ -96,7 +99,7 @@ class DashboardControllerIT extends AbstractIntegrationTest {
                 new HttpEntity<>(authHeaders(token)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(((Number) reponse.getBody().get("effectifTotal")).longValue()).isGreaterThanOrEqualTo(3);
+        assertThat(((Number) dataDe(reponse).get("effectifTotal")).longValue()).isGreaterThanOrEqualTo(3);
     }
 
     @Test
@@ -119,7 +122,7 @@ class DashboardControllerIT extends AbstractIntegrationTest {
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         // 3 employés dans le département du Manager (2 + lui-même), jamais les 4
         // de l'autre département malgré leur présence en base.
-        assertThat(((Number) reponse.getBody().get("effectifTotal")).longValue()).isEqualTo(3);
+        assertThat(((Number) dataDe(reponse).get("effectifTotal")).longValue()).isEqualTo(3);
     }
 
     @Test
@@ -130,8 +133,8 @@ class DashboardControllerIT extends AbstractIntegrationTest {
                 new HttpEntity<>(authHeaders(token)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat((java.util.List<?>) reponse.getBody().get("evolutionEffectifs")).hasSize(12);
-        assertThat((java.util.List<?>) reponse.getBody().get("turnoverMensuel")).hasSize(12);
-        assertThat((java.util.List<?>) reponse.getBody().get("anomaliesPointageHebdo")).hasSize(8);
+        assertThat((java.util.List<?>) dataDe(reponse).get("evolutionEffectifs")).hasSize(12);
+        assertThat((java.util.List<?>) dataDe(reponse).get("turnoverMensuel")).hasSize(12);
+        assertThat((java.util.List<?>) dataDe(reponse).get("anomaliesPointageHebdo")).hasSize(8);
     }
 }

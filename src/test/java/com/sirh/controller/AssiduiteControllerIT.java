@@ -74,8 +74,11 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
     }
 
     private String login(String username) {
-        return restTemplate.postForEntity(baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class)
-                .getBody().accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
+    }
+
+    private Map<?, ?> dataDe(ResponseEntity<Map> reponse) {
+        return (Map<?, ?>) reponse.getBody().get("data");
     }
 
     private HttpHeaders authHeaders(String accessToken) {
@@ -105,7 +108,7 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
         ResponseEntity<Map> reponse = cloturer(rhToken, mois);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody().get("statut")).isEqualTo("CLOTURE");
+        assertThat(dataDe(reponse).get("statut")).isEqualTo("CLOTURE");
     }
 
     @Test
@@ -146,7 +149,7 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
                 "dureeMinutes", 30, "avisManagerStatut", "FAVORABLE");
         ResponseEntity<Map> creation = restTemplate.exchange(baseUrl("/autorisations"), HttpMethod.POST,
                 new HttpEntity<>(demande, authHeaders(managerToken)), Map.class);
-        assertThat(creation.getBody().get("statut")).isEqualTo("EN_ATTENTE_RH");
+        assertThat(dataDe(creation).get("statut")).isEqualTo("EN_ATTENTE_RH");
 
         ResponseEntity<Map> reponse = cloturer(rhToken, YearMonth.from(aujourdHui));
 
@@ -210,8 +213,8 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
         ResponseEntity<Map> demande = restTemplate.exchange(baseUrl("/assiduite/demandes-deverrouillage"), HttpMethod.POST,
                 new HttpEntity<>(Map.of("mois", mois.toString(), "motif", "Oubli de badgeage à régulariser"), authHeaders(managerToken)), Map.class);
         assertThat(demande.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(demande.getBody().get("statut")).isEqualTo("EN_ATTENTE");
-        String demandeReference = (String) demande.getBody().get("reference");
+        assertThat(dataDe(demande).get("statut")).isEqualTo("EN_ATTENTE");
+        String demandeReference = (String) dataDe(demande).get("reference");
 
         Map<String, Object> autorisationBody = Map.of(
                 "employeId", employe.getId(), "type", "RETARD_JUSTIFIE",
@@ -225,7 +228,7 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
         ResponseEntity<Map> approbation = restTemplate.exchange(baseUrl("/assiduite/demandes-deverrouillage/" + demandeReference), HttpMethod.PUT,
                 new HttpEntity<>(Map.of("statut", "APPROUVEE"), authHeaders(rhToken)), Map.class);
         assertThat(approbation.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(approbation.getBody().get("statut")).isEqualTo("APPROUVEE");
+        assertThat(dataDe(approbation).get("statut")).isEqualTo("APPROUVEE");
 
         ResponseEntity<Map> ecritureApresApprobation = restTemplate.exchange(baseUrl("/autorisations"), HttpMethod.POST,
                 new HttpEntity<>(autorisationBody, authHeaders(rhToken)), Map.class);
@@ -249,12 +252,13 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
                 .employeId(employe.getId()).timestampPointage(mois.atDay(6).atTime(16, 0)).typeEvenement(TypeEvenement.SORTIE)
                 .methodeValidation(MethodeValidation.BADGE).sourceImport(SourceImport.HIKVISION_PUSH).statut(PointageStatut.OK).build());
 
-        ResponseEntity<List> reponse = restTemplate.exchange(
+        ResponseEntity<Map> reponse = restTemplate.exchange(
                 baseUrl("/assiduite/calcul-mensuel?mois=" + mois), HttpMethod.GET,
-                new HttpEntity<>(authHeaders(rhToken)), List.class);
+                new HttpEntity<>(authHeaders(rhToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody()).anySatisfy(ligne -> {
+        List<?> content = (List<?>) reponse.getBody().get("content");
+        assertThat(content).anySatisfy(ligne -> {
             Map<?, ?> dto = (Map<?, ?>) ligne;
             if (employe.getId().toString().equals(dto.get("employeId"))) {
                 assertThat(dto.get("heuresNormales")).isEqualTo(8.0);
@@ -272,8 +276,8 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
                 new HttpEntity<>(authHeaders(rhToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody().get("statut")).isEqualTo("OUVERT");
-        assertThat(reponse.getBody().get("reference")).isNull();
+        assertThat(dataDe(reponse).get("statut")).isEqualTo("OUVERT");
+        assertThat(dataDe(reponse).get("reference")).isNull();
     }
 
     @Test
@@ -287,7 +291,7 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
                 new HttpEntity<>(authHeaders(rhToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody().get("statut")).isEqualTo("CLOTURE");
+        assertThat(dataDe(reponse).get("statut")).isEqualTo("CLOTURE");
     }
 
     @Test
@@ -303,13 +307,14 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
         restTemplate.exchange(baseUrl("/assiduite/demandes-deverrouillage"), HttpMethod.POST,
                 new HttpEntity<>(Map.of("mois", mois.toString(), "motif", "Demande département B"), authHeaders(managerB.token())), Map.class);
 
-        ResponseEntity<List> reponse = restTemplate.exchange(
+        ResponseEntity<Map> reponse = restTemplate.exchange(
                 baseUrl("/assiduite/demandes-deverrouillage?mois=" + mois + "&departementId=" + managerA.departementId()),
-                HttpMethod.GET, new HttpEntity<>(authHeaders(rhToken)), List.class);
+                HttpMethod.GET, new HttpEntity<>(authHeaders(rhToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody()).hasSize(1);
-        Map<?, ?> demande = (Map<?, ?>) reponse.getBody().get(0);
+        List<?> content = (List<?>) reponse.getBody().get("content");
+        assertThat(content).hasSize(1);
+        Map<?, ?> demande = (Map<?, ?>) content.get(0);
         assertThat(demande.get("motif")).isEqualTo("Demande département A");
         assertThat(demande.get("departementId")).isEqualTo(managerA.departementId().intValue());
     }
@@ -328,14 +333,14 @@ class AssiduiteControllerIT extends AbstractIntegrationTest {
         restTemplate.exchange(baseUrl("/assiduite/demandes-deverrouillage"), HttpMethod.POST,
                 new HttpEntity<>(Map.of("mois", mois.toString(), "motif", "Demande de B"), authHeaders(managerB.token())), Map.class);
 
-        ResponseEntity<List> vuParA = restTemplate.exchange(
+        ResponseEntity<Map> vuParA = restTemplate.exchange(
                 baseUrl("/assiduite/demandes-deverrouillage?mois=" + mois + "&statut=EN_ATTENTE"),
-                HttpMethod.GET, new HttpEntity<>(authHeaders(managerA.token())), List.class);
-        assertThat(vuParA.getBody()).isEmpty();
+                HttpMethod.GET, new HttpEntity<>(authHeaders(managerA.token())), Map.class);
+        assertThat((List<?>) vuParA.getBody().get("content")).isEmpty();
 
-        ResponseEntity<List> vuParB = restTemplate.exchange(
+        ResponseEntity<Map> vuParB = restTemplate.exchange(
                 baseUrl("/assiduite/demandes-deverrouillage?mois=" + mois + "&statut=EN_ATTENTE"),
-                HttpMethod.GET, new HttpEntity<>(authHeaders(managerB.token())), List.class);
-        assertThat(vuParB.getBody()).hasSize(1);
+                HttpMethod.GET, new HttpEntity<>(authHeaders(managerB.token())), Map.class);
+        assertThat((List<?>) vuParB.getBody().get("content")).hasSize(1);
     }
 }

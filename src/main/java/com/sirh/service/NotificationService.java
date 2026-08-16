@@ -1,5 +1,6 @@
 package com.sirh.service;
 
+import com.sirh.model.dto.NotificationDto;
 import com.sirh.model.entity.Notification;
 import com.sirh.model.enums.NotificationType;
 import com.sirh.exception.NotificationNotFoundException;
@@ -38,18 +39,24 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
-    public List<Notification> mesNotifications(Long destinataireId) {
-        return notificationRepository.findByDestinataireIdAndDeletedAtIsNullOrderByCreatedAtDesc(destinataireId);
+    public List<NotificationDto> mesNotifications(Long destinataireId) {
+        return notificationRepository.findByDestinataireIdAndDeletedAtIsNullOrderByCreatedAtDesc(destinataireId)
+                .stream().map(this::toDto).toList();
     }
 
     @Transactional
-    public Notification marquerNotificationLueByReference(UUID reference, Long destinataireId) {
+    public NotificationDto marquerNotificationLueByReference(UUID reference, Long destinataireId) {
         Notification notification = notificationRepository.findByReferenceAndDeletedAtIsNull(reference)
                 .orElseThrow(() -> new NotificationNotFoundException(reference));
         if (!notification.getDestinataireId().equals(destinataireId)) {
             throw new AccessDeniedException("Cette notification n'appartient pas à l'utilisateur authentifié.");
         }
         notification.setLue(true);
-        return notificationRepository.save(notification);
+        return toDto(notificationRepository.save(notification));
+    }
+
+    private NotificationDto toDto(Notification n) {
+        return new NotificationDto(n.getReference(), n.getType(), n.getMessage(),
+                n.getEntiteType(), n.getEntiteId(), n.getLue(), n.getCreatedAt());
     }
 }

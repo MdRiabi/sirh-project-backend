@@ -82,8 +82,7 @@ class EvaluationControllerIT extends AbstractIntegrationTest {
     }
 
     private String login(String username) {
-        return restTemplate.postForEntity(baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class)
-                .getBody().accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
     }
 
     private HttpHeaders authHeaders(String token) {
@@ -129,7 +128,8 @@ class EvaluationControllerIT extends AbstractIntegrationTest {
                 new HttpEntity<>(body, authHeaders(manager.token())), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat((List<Object>) reponse.getBody().get("competencesManquantes")).containsExactly("Esprit d'équipe");
+        Map<?, ?> data = (Map<?, ?>) reponse.getBody().get("data");
+        assertThat((List<Object>) data.get("competencesManquantes")).containsExactly("Esprit d'équipe");
     }
 
     @Test
@@ -164,7 +164,8 @@ class EvaluationControllerIT extends AbstractIntegrationTest {
                 new HttpEntity<>(body, authHeaders(manager.token())), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat((List<?>) reponse.getBody().get("competencesManquantes")).isEmpty();
+        Map<?, ?> data = (Map<?, ?>) reponse.getBody().get("data");
+        assertThat((List<?>) data.get("competencesManquantes")).isEmpty();
     }
 
     @Test
@@ -183,8 +184,9 @@ class EvaluationControllerIT extends AbstractIntegrationTest {
                 HttpMethod.PUT, new HttpEntity<>(authHeaders(rhToken())), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody().get("statut")).isEqualTo("VALIDEE_RH");
-        List<?> pdi = (List<?>) reponse.getBody().get("plansDeveloppement");
+        Map<?, ?> data = (Map<?, ?>) reponse.getBody().get("data");
+        assertThat(data.get("statut")).isEqualTo("VALIDEE_RH");
+        List<?> pdi = (List<?>) data.get("plansDeveloppement");
         assertThat(pdi).hasSize(1);
         assertThat(((Map<?, ?>) pdi.get(0)).get("competence")).isEqualTo("Rigueur");
     }
@@ -226,11 +228,11 @@ class EvaluationControllerIT extends AbstractIntegrationTest {
         Employe employe = creerEmployeDuDepartement(departement);
         creerEvaluation(manager.token(), employe.getId(), List.of(competence("Rigueur", 15, 10)));
 
-        ResponseEntity<List> reponse = restTemplate.exchange(baseUrl("/evaluations?statut=EN_COURS"), HttpMethod.GET,
-                new HttpEntity<>(authHeaders(rhToken())), List.class);
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/evaluations?statut=EN_COURS"), HttpMethod.GET,
+                new HttpEntity<>(authHeaders(rhToken())), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody()).isNotEmpty();
+        assertThat((List<?>) reponse.getBody().get("content")).isNotEmpty();
     }
 
     @SuppressWarnings("unchecked")
@@ -238,6 +240,7 @@ class EvaluationControllerIT extends AbstractIntegrationTest {
         Map<String, Object> body = Map.of("employeId", employeId, "competences", competences);
         ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/evaluations"), HttpMethod.POST,
                 new HttpEntity<>(body, authHeaders(managerToken)), Map.class);
-        return (String) reponse.getBody().get("reference");
+        Map<?, ?> data = (Map<?, ?>) reponse.getBody().get("data");
+        return (String) data.get("reference");
     }
 }

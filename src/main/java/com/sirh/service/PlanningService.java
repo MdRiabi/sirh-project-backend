@@ -97,7 +97,7 @@ public class PlanningService {
     }
 
     @Transactional
-    public Planning affecter(UUID employeId, Long shiftId, LocalDateTime dateDebut, LocalDateTime dateFin,
+    public PlanningDto affecter(UUID employeId, Long shiftId, LocalDateTime dateDebut, LocalDateTime dateFin,
                               PlanningStatut statut, String commentaire) {
         if (!dateDebut.isBefore(dateFin)) {
             throw new IllegalArgumentException("dateDebut doit être strictement avant dateFin");
@@ -116,7 +116,7 @@ public class PlanningService {
                 .statut(statut != null ? statut : PlanningStatut.PROVISOIRE)
                 .commentaire(commentaire)
                 .build();
-        return planningRepository.save(planning);
+        return enrichir(List.of(planningRepository.save(planning))).get(0);
     }
 
     // Fenêtre élargie de 11h de part et d'autre : au-delà, aucun chevauchement
@@ -157,15 +157,14 @@ public class PlanningService {
     }
 
     @Transactional(readOnly = true)
-    public List<Planning> findByEmploye(UUID employeId, LocalDateTime dateDebut, LocalDateTime dateFin) {
-        return planningRepository.findByEmployeIdAndDateDebutBetweenAndDeletedAtIsNullOrderByDateDebut(employeId, dateDebut, dateFin);
+    public List<PlanningDto> findByEmploye(UUID employeId, LocalDateTime dateDebut, LocalDateTime dateFin) {
+        return enrichir(planningRepository.findByEmployeIdAndDateDebutBetweenAndDeletedAtIsNullOrderByDateDebut(employeId, dateDebut, dateFin));
     }
 
     // Partagé entre PlanningController (vue département) et
     // MonPlanningController (vue individuelle) pour ne pas dupliquer le
     // batch-fetch employé/shift des deux côtés.
-    @Transactional(readOnly = true)
-    public List<PlanningDto> enrichir(List<Planning> plannings) {
+    private List<PlanningDto> enrichir(List<Planning> plannings) {
         Map<UUID, Employe> employesParId = employeRepository
                 .findAllById(plannings.stream().map(Planning::getEmployeId).distinct().toList())
                 .stream().collect(Collectors.toMap(Employe::getId, e -> e));
@@ -177,23 +176,25 @@ public class PlanningService {
                 .map(p -> {
                     Employe employe = employesParId.get(p.getEmployeId());
                     Shift shift = shiftsParId.get(p.getShiftId());
-                    return PlanningDto.from(p,
+                    return new PlanningDto(
+                            p.getReference(), p.getEmployeId(),
                             employe != null ? employe.getNom() : null,
                             employe != null ? employe.getPrenom() : null,
-                            shift.getNom());
+                            p.getShiftId(), shift.getNom(), p.getDateDebut(), p.getDateFin(),
+                            p.getStatut(), p.getCommentaire(), p.getCreatedAt());
                 })
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<Planning> findByDepartement(Long departementId, LocalDateTime dateDebut, LocalDateTime dateFin) {
+    public List<PlanningDto> findByDepartement(Long departementId, LocalDateTime dateDebut, LocalDateTime dateFin) {
         List<UUID> employeIds = employeRepository.findByDepartement_IdAndDeletedAtIsNull(departementId).stream()
                 .map(Employe::getId)
                 .toList();
         if (employeIds.isEmpty()) {
             return List.of();
         }
-        return planningRepository.findByEmployeIdInAndDateDebutBetweenAndDeletedAtIsNullOrderByDateDebut(employeIds, dateDebut, dateFin);
+        return enrichir(planningRepository.findByEmployeIdInAndDateDebutBetweenAndDeletedAtIsNullOrderByDateDebut(employeIds, dateDebut, dateFin));
     }
 
     @Transactional(readOnly = true)

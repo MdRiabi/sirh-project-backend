@@ -109,7 +109,7 @@ public class ReportGenerationService {
                         asyncJobService.marquerEchecByReference(jobReference, null, ex.getMessage());
                         return null;
                     });
-            return new ReportGenerationResult.Lance(AsyncJobDto.from(job));
+            return new ReportGenerationResult.Lance(asyncJobService.toDto(job));
         } catch (Exception e) {
             throw new IllegalStateException("Échec de la génération du rapport.", e);
         }
@@ -122,7 +122,7 @@ public class ReportGenerationService {
         if (job.getType() != AsyncJobType.REPORT) {
             throw new AsyncJobNotFoundException(reference);
         }
-        return AsyncJobDto.from(job);
+        return asyncJobService.toDto(job);
     }
 
     public record FichierTelecharge(Resource resource, String nomFichier, MediaType contentType) {

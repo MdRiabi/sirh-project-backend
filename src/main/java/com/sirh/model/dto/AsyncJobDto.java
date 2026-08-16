@@ -1,6 +1,5 @@
 package com.sirh.model.dto;
 
-import com.sirh.model.entity.AsyncJob;
 import com.sirh.model.enums.AsyncJobStatut;
 import com.sirh.model.enums.AsyncJobType;
 
@@ -20,19 +19,4 @@ public record AsyncJobDto(
         LocalDateTime createdAt,
         LocalDateTime completedAt
 ) {
-    public static AsyncJobDto from(AsyncJob job) {
-        return new AsyncJobDto(
-                job.getReference(),
-                job.getType(),
-                job.getNomFichier(),
-                job.getStatut(),
-                job.getProgression(),
-                job.getResultatUrl(),
-                job.getNombreLignesTraitees(),
-                job.getLigneErreur(),
-                job.getMessageErreur(),
-                job.getCreatedAt(),
-                job.getCompletedAt()
-        );
-    }
 }

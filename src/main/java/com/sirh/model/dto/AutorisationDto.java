@@ -1,7 +1,5 @@
 package com.sirh.model.dto;
 
-import com.sirh.model.entity.Autorisation;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -27,11 +25,4 @@ public record AutorisationDto(
         Integer quotaDepasseMinutes,
         LocalDateTime createdAt
 ) {
-    public static AutorisationDto from(Autorisation a, String employeNom, String employePrenom, Integer quotaDepasseMinutes) {
-        return new AutorisationDto(
-                a.getReference(), a.getEmployeId(), employeNom, employePrenom, a.getType(), a.getDateAutorisation(),
-                a.getHeureDebut(), a.getHeureFin(), a.getDureeMinutes(), a.getMotif(), a.getStatut(),
-                a.getCreeParId(), a.getCreeParRole(), a.getAvisManagerStatut(), a.getAvisManagerCommentaire(),
-                a.getValideParRhId(), quotaDepasseMinutes, a.getCreatedAt());
-    }
 }

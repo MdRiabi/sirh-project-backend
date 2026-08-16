@@ -1,8 +1,10 @@
 package com.sirh.service;
 
 import com.sirh.annotation.Audited;
+import com.sirh.model.dto.EvaluationCompetenceDto;
 import com.sirh.model.dto.EvaluationCompetenceRequest;
 import com.sirh.model.dto.EvaluationDto;
+import com.sirh.model.dto.PlanDeveloppementDto;
 import com.sirh.model.entity.Evaluation;
 import com.sirh.model.entity.EvaluationCompetence;
 import com.sirh.model.enums.EvaluationStatut;
@@ -78,7 +80,7 @@ public class EvaluationService {
                 .build());
 
         List<EvaluationCompetence> lignes = enregistrerCompetences(evaluation.getId(), competences);
-        return EvaluationDto.from(evaluation, employe.getNom(), employe.getPrenom(), lignes, List.of());
+        return toDto(evaluation, employe.getNom(), employe.getPrenom(), lignes, List.of());
     }
 
     @Transactional
@@ -104,7 +106,7 @@ public class EvaluationService {
         }
 
         Employe employe = employeRepository.findById(evaluation.getEmployeId()).orElse(null);
-        return EvaluationDto.from(evaluation, employe != null ? employe.getNom() : null,
+        return toDto(evaluation, employe != null ? employe.getNom() : null,
                 employe != null ? employe.getPrenom() : null, lignes, List.of());
     }
 
@@ -160,7 +162,7 @@ public class EvaluationService {
         Employe employe = employeRepository.findById(evaluation.getEmployeId()).orElse(null);
         pousserEvenement360(evaluation, pdi.size());
 
-        return EvaluationDto.from(evaluation, employe != null ? employe.getNom() : null,
+        return toDto(evaluation, employe != null ? employe.getNom() : null,
                 employe != null ? employe.getPrenom() : null, lignes, pdi);
     }
 
@@ -234,11 +236,32 @@ public class EvaluationService {
         return evaluations.stream()
                 .map(e -> {
                     Employe employe = employesParId.get(e.getEmployeId());
-                    return EvaluationDto.from(e, employe != null ? employe.getNom() : null,
+                    return toDto(e, employe != null ? employe.getNom() : null,
                             employe != null ? employe.getPrenom() : null,
                             competencesParEvaluation.getOrDefault(e.getId(), List.of()),
                             pdiParEvaluation.getOrDefault(e.getId(), List.of()));
                 })
                 .toList();
+    }
+
+    private EvaluationDto toDto(Evaluation evaluation, String employeNom, String employePrenom,
+                                 List<EvaluationCompetence> competences, List<PlanDeveloppement> plansDeveloppement) {
+        List<EvaluationCompetenceDto> competenceDtos = competences.stream().map(this::toDto).toList();
+        List<String> manquantes = competences.stream()
+                .filter(c -> c.getNote() == null)
+                .map(EvaluationCompetence::getCompetence)
+                .toList();
+        return new EvaluationDto(evaluation.getReference(), evaluation.getEmployeId(), employeNom, employePrenom,
+                evaluation.getManagerId(), evaluation.getAnnee(), evaluation.getStatut(), evaluation.getDateEntretien(),
+                evaluation.getDateValidationRh(), evaluation.getCreatedAt(), competenceDtos, manquantes,
+                plansDeveloppement.stream().map(this::toDto).toList());
+    }
+
+    private EvaluationCompetenceDto toDto(EvaluationCompetence c) {
+        return new EvaluationCompetenceDto(c.getReference(), c.getCompetence(), c.getNote(), c.getSeuilExigence(), c.getCommentaire());
+    }
+
+    private PlanDeveloppementDto toDto(PlanDeveloppement p) {
+        return new PlanDeveloppementDto(p.getReference(), p.getCompetence(), p.getActions(), p.getCreatedAt(), p.getStatut());
     }
 }

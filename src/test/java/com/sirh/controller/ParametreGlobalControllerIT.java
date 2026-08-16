@@ -26,9 +26,7 @@ class ParametreGlobalControllerIT extends AbstractIntegrationTest {
 
     private String accessTokenFor(Role role) {
         String username = createFixtureUser(role);
-        TokenResponse login = restTemplate.postForEntity(
-                baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class).getBody();
-        return login.accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
     }
 
     private HttpHeaders authHeaders(String accessToken) {
@@ -36,6 +34,10 @@ class ParametreGlobalControllerIT extends AbstractIntegrationTest {
         headers.setBearerAuth(accessToken);
         headers.setContentType(MediaType.APPLICATION_JSON);
         return headers;
+    }
+
+    private Map<?, ?> dataDe(ResponseEntity<Map> reponse) {
+        return (Map<?, ?>) reponse.getBody().get("data");
     }
 
     @Test
@@ -46,7 +48,7 @@ class ParametreGlobalControllerIT extends AbstractIntegrationTest {
                 new HttpEntity<>(authHeaders(token)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody().get("valeur")).isEqualTo("1.5");
+        assertThat(dataDe(reponse).get("valeur")).isEqualTo("1.5");
     }
 
     @Test
@@ -57,12 +59,12 @@ class ParametreGlobalControllerIT extends AbstractIntegrationTest {
                 new HttpEntity<>(Map.of("valeur", "2.08"), authHeaders(token)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody().get("valeur")).isEqualTo("2.08");
+        assertThat(dataDe(reponse).get("valeur")).isEqualTo("2.08");
 
         ResponseEntity<Map> relu = restTemplate.exchange(
                 baseUrl("/parametres-globaux/TAUX_INCREMENTATION_CONGES_MENSUEL"), HttpMethod.GET,
                 new HttpEntity<>(authHeaders(token)), Map.class);
-        assertThat(relu.getBody().get("valeur")).isEqualTo("2.08");
+        assertThat(dataDe(relu).get("valeur")).isEqualTo("2.08");
     }
 
     @Test
@@ -88,11 +90,11 @@ class ParametreGlobalControllerIT extends AbstractIntegrationTest {
     @Test
     void list_retourneAuMoinsLeParametreSeed() {
         String token = accessTokenFor(Role.ROLE_SUPERUSER);
-        ResponseEntity<List> reponse = restTemplate.exchange(
+        ResponseEntity<Map> reponse = restTemplate.exchange(
                 baseUrl("/parametres-globaux"), HttpMethod.GET,
-                new HttpEntity<>(authHeaders(token)), List.class);
+                new HttpEntity<>(authHeaders(token)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody()).isNotEmpty();
+        assertThat((List<?>) reponse.getBody().get("content")).isNotEmpty();
     }
 }

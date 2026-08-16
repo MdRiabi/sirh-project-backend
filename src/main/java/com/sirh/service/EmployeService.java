@@ -1,5 +1,6 @@
 package com.sirh.service;
 
+import com.sirh.model.dto.EmployeDto;
 import com.sirh.model.dto.EmployeRequest;
 import com.sirh.model.entity.Departement;
 import com.sirh.model.entity.Employe;
@@ -37,7 +38,7 @@ public class EmployeService {
     // purement et simplement le prédicat quand le filtre est absent : aucun
     // paramètre nul ambigu n'est jamais envoyé à Postgres.
     @Transactional(readOnly = true)
-    public Page<Employe> search(String search, Long departementId, Boolean actif, Pageable pageable) {
+    public Page<EmployeDto> search(String search, Long departementId, Boolean actif, Pageable pageable) {
         Specification<Employe> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (search != null && !search.isBlank()) {
@@ -56,16 +57,24 @@ public class EmployeService {
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
-        return employeRepository.findAll(spec, pageable);
+        return employeRepository.findAll(spec, pageable).map(this::toDto);
     }
 
+    // Retourne l'entité (pas le DTO) : réutilisé en interne par ContratService,
+    // EvenementHistoriqueService, et par revealMatriculeCnss qui a besoin du
+    // matricule_cnss en clair, jamais exposé via EmployeDto.
     @Transactional(readOnly = true)
     public Employe findById(UUID id) {
         return employeRepository.findById(id).orElseThrow(() -> new EmployeNotFoundException(id));
     }
 
+    @Transactional(readOnly = true)
+    public EmployeDto getEmployeDto(UUID id) {
+        return toDto(findById(id));
+    }
+
     @Transactional
-    public Employe create(EmployeRequest request) {
+    public EmployeDto create(EmployeRequest request) {
         Employe employe = Employe.builder()
                 .matriculeInterne(request.matriculeInterne())
                 .matriculeCnss(request.matriculeCnss())
@@ -79,11 +88,11 @@ public class EmployeService {
                 .dateFinContrat(request.dateFinContrat())
                 .actif(request.actif() != null ? request.actif() : Boolean.TRUE)
                 .build();
-        return employeRepository.save(employe);
+        return toDto(employeRepository.save(employe));
     }
 
     @Transactional
-    public Employe update(UUID id, EmployeRequest request) {
+    public EmployeDto update(UUID id, EmployeRequest request) {
         Employe employe = findById(id);
         employe.setMatriculeInterne(request.matriculeInterne());
         // matriculeCnss n'est jamais renvoyé en clair par l'API (masquage
@@ -104,7 +113,7 @@ public class EmployeService {
         if (request.actif() != null) {
             employe.setActif(request.actif());
         }
-        return employeRepository.save(employe);
+        return toDto(employeRepository.save(employe));
     }
 
     private Departement resolveDepartement(Long departementId) {
@@ -113,5 +122,35 @@ public class EmployeService {
         }
         return departementRepository.findById(departementId)
                 .orElseThrow(() -> new DepartementNotFoundException(departementId));
+    }
+
+    private EmployeDto toDto(Employe employe) {
+        return new EmployeDto(
+                employe.getId(),
+                employe.getMatriculeInterne(),
+                maskCnss(employe.getMatriculeCnss()),
+                employe.getMatriculePaie(),
+                employe.getNom(),
+                employe.getPrenom(),
+                employe.getEmail(),
+                employe.getDepartementId(),
+                employe.getDepartement() != null ? employe.getDepartement().getNom() : null,
+                employe.getTypeContrat(),
+                employe.getDateEmbauche(),
+                employe.getDateFinContrat(),
+                employe.getSoldeCongesJours(),
+                employe.getActif(),
+                employe.getCreatedAt()
+        );
+    }
+
+    // Masquage partiel par défaut (ARCHITECTURE.md §10) : "***-**-1234".
+    // Affichage complet réservé à GET /employes/{id}/matricule-cnss.
+    private static String maskCnss(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String last4 = raw.length() <= 4 ? raw : raw.substring(raw.length() - 4);
+        return "***-**-" + last4;
     }
 }

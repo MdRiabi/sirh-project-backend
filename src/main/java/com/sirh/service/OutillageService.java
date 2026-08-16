@@ -2,6 +2,7 @@ package com.sirh.service;
 
 import com.sirh.annotation.Audited;
 import com.sirh.model.dto.OutillageDto;
+import com.sirh.model.dto.OutillageMouvementDto;
 import com.sirh.model.enums.EtatMouvement;
 import com.sirh.model.entity.Outillage;
 import com.sirh.model.enums.OutillageEtat;
@@ -57,7 +58,7 @@ public class OutillageService {
     }
 
     @Transactional
-    public Outillage creer(String codeBarres, String nomOutil, BigDecimal valeurAchat, LocalDate dateAchat,
+    public OutillageDto creer(String codeBarres, String nomOutil, BigDecimal valeurAchat, LocalDate dateAchat,
                             Long departementId) {
         Outillage outillage = Outillage.builder()
                 .codeBarres(codeBarres)
@@ -67,7 +68,7 @@ public class OutillageService {
                 .dateAchat(dateAchat)
                 .departementId(departementId)
                 .build();
-        return outillageRepository.save(outillage);
+        return enrichir(List.of(outillageRepository.save(outillage))).get(0);
     }
 
     @Transactional(readOnly = true)
@@ -81,18 +82,18 @@ public class OutillageService {
     }
 
     @Transactional(readOnly = true)
-    public List<Outillage> findByDepartement(Long departementId) {
-        return outillageRepository.findByDepartementIdAndDeletedAtIsNull(departementId);
+    public List<OutillageDto> findByDepartement(Long departementId) {
+        return enrichir(outillageRepository.findByDepartementIdAndDeletedAtIsNull(departementId));
     }
 
     @Transactional(readOnly = true)
-    public List<Outillage> findAll() {
-        return outillageRepository.findAll();
+    public List<OutillageDto> findAll() {
+        return enrichir(outillageRepository.findAll());
     }
 
     @Audited(action = "CHECK_OUT_OUTILLAGE", tableCible = "outillage_mouvements")
     @Transactional
-    public OutillageMouvement checkOut(Long outillageId, UUID employeId, Long effectueParId) {
+    public OutillageMouvementDto checkOut(Long outillageId, UUID employeId, Long effectueParId) {
         Outillage outillage = getOutillageById(outillageId);
         if (outillage.getAttribueAEmployeId() != null) {
             throw new OutillageMouvementInvalideException(
@@ -115,12 +116,12 @@ public class OutillageService {
                 .typeMouvement(TypeMouvement.CHECK_OUT)
                 .effectueParId(effectueParId)
                 .build();
-        return outillageMouvementRepository.save(mouvement);
+        return toDto(outillageMouvementRepository.save(mouvement));
     }
 
     @Audited(action = "CHECK_IN_OUTILLAGE", tableCible = "outillage_mouvements")
     @Transactional
-    public OutillageMouvement checkIn(Long outillageId, EtatMouvement etat, String commentaire, Long effectueParId) {
+    public OutillageMouvementDto checkIn(Long outillageId, EtatMouvement etat, String commentaire, Long effectueParId) {
         Outillage outillage = getOutillageById(outillageId);
         if (outillage.getAttribueAEmployeId() == null) {
             throw new OutillageMouvementInvalideException("Outil non attribué : aucune restitution à effectuer.");
@@ -145,7 +146,7 @@ public class OutillageService {
                 .commentaire(commentaire)
                 .effectueParId(effectueParId)
                 .build();
-        return outillageMouvementRepository.save(mouvement);
+        return toDto(outillageMouvementRepository.save(mouvement));
     }
 
     private static OutillageEtat etatOutillageApresCheckIn(EtatMouvement etat) {
@@ -171,13 +172,13 @@ public class OutillageService {
     }
 
     @Transactional(readOnly = true)
-    public List<OutillageMouvement> historique(Long outillageId) {
+    public List<OutillageMouvementDto> historique(Long outillageId) {
         getOutillageById(outillageId);
-        return outillageMouvementRepository.findByOutillageIdAndDeletedAtIsNullOrderByCreatedAtDesc(outillageId);
+        return outillageMouvementRepository.findByOutillageIdAndDeletedAtIsNullOrderByCreatedAtDesc(outillageId)
+                .stream().map(this::toDto).toList();
     }
 
-    @Transactional(readOnly = true)
-    public List<OutillageDto> enrichir(List<Outillage> outillages) {
+    private List<OutillageDto> enrichir(List<Outillage> outillages) {
         List<UUID> employeIds = outillages.stream()
                 .map(Outillage::getAttribueAEmployeId)
                 .filter(Objects::nonNull)
@@ -189,9 +190,18 @@ public class OutillageService {
         return outillages.stream()
                 .map(o -> {
                     Employe employe = employesParId.get(o.getAttribueAEmployeId());
-                    return OutillageDto.from(o, employe != null ? employe.getNom() : null,
-                            employe != null ? employe.getPrenom() : null);
+                    return new OutillageDto(o.getReference(), o.getCodeBarres(), o.getNomOutil(),
+                            o.getEtat(), o.getAttribueAEmployeId(),
+                            employe != null ? employe.getNom() : null,
+                            employe != null ? employe.getPrenom() : null,
+                            o.getDateAttribution(), o.getDepartementId(), o.getValeurAchat(), o.getDateAchat());
                 })
                 .toList();
+    }
+
+    private OutillageMouvementDto toDto(OutillageMouvement mouvement) {
+        return new OutillageMouvementDto(mouvement.getReference(), mouvement.getOutillageId(), mouvement.getEmployeId(),
+                mouvement.getTypeMouvement(), mouvement.getEtat(), mouvement.getMontantImputation(),
+                mouvement.getCommentaire(), mouvement.getEffectueParId(), mouvement.getCreatedAt());
     }
 }

@@ -1,5 +1,7 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.ListingPageDto;
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.dto.ResetPasswordRequest;
 import com.sirh.model.dto.UtilisateurCreateRequest;
 import com.sirh.model.dto.UtilisateurDto;
@@ -10,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -25,27 +26,26 @@ public class UtilisateurController {
     }
 
     @GetMapping
-    public ResponseEntity<List<UtilisateurDto>> list() {
-        List<UtilisateurDto> dtos = utilisateurService.findAll().stream().map(UtilisateurDto::from).toList();
-        return ResponseEntity.ok(dtos);
+    public ResponseEntity<ListingPageDto<UtilisateurDto>> list() {
+        return ResponseEntity.ok(ListingPageDto.of(utilisateurService.findAll()));
     }
 
     @GetMapping("/{reference}")
-    public ResponseEntity<UtilisateurDto> getUtilisateurByReference(@PathVariable UUID reference) {
-        return ResponseEntity.ok(UtilisateurDto.from(utilisateurService.getUtilisateurByReference(reference)));
+    public ResponseEntity<SingleObjectDto<UtilisateurDto>> getUtilisateurByReference(@PathVariable UUID reference) {
+        return ResponseEntity.ok(SingleObjectDto.of(utilisateurService.getUtilisateurByReference(reference)));
     }
 
     @PostMapping
-    public ResponseEntity<UtilisateurDto> create(@Valid @RequestBody UtilisateurCreateRequest request) {
+    public ResponseEntity<SingleObjectDto<UtilisateurDto>> create(@Valid @RequestBody UtilisateurCreateRequest request) {
         String passwordHash = utilisateurService.hashPassword(request.password());
         var utilisateur = utilisateurService.create(request.employeId(), request.username(), passwordHash, request.role());
-        return ResponseEntity.status(201).body(UtilisateurDto.from(utilisateur));
+        return ResponseEntity.status(201).body(SingleObjectDto.of(utilisateur));
     }
 
     @PutMapping("/{reference}")
-    public ResponseEntity<UtilisateurDto> updateUtilisateurByReference(@PathVariable UUID reference, @Valid @RequestBody UtilisateurUpdateRequest request) {
+    public ResponseEntity<SingleObjectDto<UtilisateurDto>> updateUtilisateurByReference(@PathVariable UUID reference, @Valid @RequestBody UtilisateurUpdateRequest request) {
         var utilisateur = utilisateurService.updateUtilisateurByReference(reference, request.role(), request.compteActif());
-        return ResponseEntity.ok(UtilisateurDto.from(utilisateur));
+        return ResponseEntity.ok(SingleObjectDto.of(utilisateur));
     }
 
     @PutMapping("/{reference}/reset-password")

@@ -33,8 +33,7 @@ class ReportControllerAsyncIT extends AbstractIntegrationTest {
     }
 
     private String login(String username) {
-        return restTemplate.postForEntity(baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class)
-                .getBody().accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
     }
 
     private HttpHeaders authHeaders(String token) {
@@ -53,8 +52,9 @@ class ReportControllerAsyncIT extends AbstractIntegrationTest {
                 new HttpEntity<>(body, authHeaders(token)), Map.class);
 
         assertThat(reponseGeneration.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
-        String taskReference = (String) reponseGeneration.getBody().get("reference");
-        assertThat(reponseGeneration.getBody().get("type")).isEqualTo("REPORT");
+        Map<?, ?> jobData = (Map<?, ?>) reponseGeneration.getBody().get("data");
+        String taskReference = (String) jobData.get("reference");
+        assertThat(jobData.get("type")).isEqualTo("REPORT");
 
         attendreSucces(taskReference, token);
 
@@ -69,7 +69,8 @@ class ReportControllerAsyncIT extends AbstractIntegrationTest {
         for (int tentative = 0; tentative < 50; tentative++) {
             ResponseEntity<Map> reponseTache = restTemplate.exchange(baseUrl("/reports/tasks/" + taskReference), HttpMethod.GET,
                     new HttpEntity<>(authHeaders(token)), Map.class);
-            if ("SUCCESS".equals(reponseTache.getBody().get("statut"))) {
+            Map<?, ?> tacheData = (Map<?, ?>) reponseTache.getBody().get("data");
+            if ("SUCCESS".equals(tacheData.get("statut"))) {
                 return;
             }
             try {

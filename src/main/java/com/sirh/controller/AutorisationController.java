@@ -1,11 +1,12 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.ListingPageDto;
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.enums.Role;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.model.dto.AutorisationCreateRequest;
 import com.sirh.model.dto.AutorisationDto;
 import com.sirh.model.dto.AutorisationValiderRequest;
-import com.sirh.model.entity.Autorisation;
 import com.sirh.service.AutorisationService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -30,31 +31,31 @@ public class AutorisationController {
 
     @PostMapping
     @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<AutorisationDto> creer(@Valid @RequestBody AutorisationCreateRequest request,
+    public ResponseEntity<SingleObjectDto<AutorisationDto>> creer(@Valid @RequestBody AutorisationCreateRequest request,
                                                   @AuthenticationPrincipal SirhUserDetails principal) {
         String creeParRole = roleDemande(principal);
-        Autorisation autorisation = autorisationService.creer(
+        AutorisationDto autorisation = autorisationService.creer(
                 request.employeId(), request.type(), request.dateAutorisation(), request.heureDebut(),
                 request.heureFin(), request.dureeMinutes(), request.motif(), principal.getEmployeId(), creeParRole,
                 request.avisManagerStatut(), request.avisManagerCommentaire());
-        return ResponseEntity.status(201).body(autorisationService.enrichirAvecQuota(autorisation));
+        return ResponseEntity.status(201).body(SingleObjectDto.of(autorisation));
     }
 
     @PutMapping("/{reference}/valider")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<AutorisationDto> validerAutorisationByReference(@PathVariable UUID reference,
+    public ResponseEntity<SingleObjectDto<AutorisationDto>> validerAutorisationByReference(@PathVariable UUID reference,
                                                      @RequestBody(required = false) AutorisationValiderRequest request,
                                                      @AuthenticationPrincipal SirhUserDetails principal) {
         String traitementDepassement = request != null ? request.traitementDepassement() : null;
-        Autorisation autorisation = autorisationService.validerAutorisationByReference(reference, traitementDepassement, principal.getEmployeId());
-        return ResponseEntity.ok(autorisationService.enrichirAvecQuota(autorisation));
+        AutorisationDto autorisation = autorisationService.validerAutorisationByReference(reference, traitementDepassement, principal.getEmployeId());
+        return ResponseEntity.ok(SingleObjectDto.of(autorisation));
     }
 
     @PutMapping("/{reference}/refuser")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<AutorisationDto> refuserAutorisationByReference(@PathVariable UUID reference) {
-        Autorisation autorisation = autorisationService.refuserAutorisationByReference(reference);
-        return ResponseEntity.ok(autorisationService.enrichirAvecQuota(autorisation));
+    public ResponseEntity<SingleObjectDto<AutorisationDto>> refuserAutorisationByReference(@PathVariable UUID reference) {
+        AutorisationDto autorisation = autorisationService.refuserAutorisationByReference(reference);
+        return ResponseEntity.ok(SingleObjectDto.of(autorisation));
     }
 
     // Gap comblé (cf. /plannings/delta au Lot 3, /calendrier/jours-feries au
@@ -62,17 +63,17 @@ public class AutorisationController {
     // pourtant requis par BACKLOG.md pour les écrans "liste à valider"/"historique".
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<List<AutorisationDto>> list(
+    public ResponseEntity<ListingPageDto<AutorisationDto>> list(
             @RequestParam(required = false) String statut,
             @RequestParam(required = false) UUID employeId,
             @RequestParam(required = false) Long departementId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateDebut,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFin,
             @AuthenticationPrincipal SirhUserDetails principal) {
-        List<Autorisation> resultats = principal.getRole() == Role.ROLE_MANAGER
+        List<AutorisationDto> resultats = principal.getRole() == Role.ROLE_MANAGER
                 ? autorisationService.searchPourManager(principal.getDepartementId(), statut, dateDebut, dateFin)
                 : autorisationService.search(statut, employeId, departementId, dateDebut, dateFin);
-        return ResponseEntity.ok(autorisationService.enrichir(resultats));
+        return ResponseEntity.ok(ListingPageDto.of(resultats));
     }
 
     // cree_par_role (schéma) n'accepte que MANAGER/RH — le SUPERUSER, qui a les

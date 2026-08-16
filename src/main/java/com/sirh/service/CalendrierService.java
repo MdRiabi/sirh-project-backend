@@ -1,5 +1,6 @@
 package com.sirh.service;
 
+import com.sirh.model.dto.JourFerieDto;
 import com.sirh.model.entity.JourFerie;
 import com.sirh.model.enums.TypeJourFerie;
 import com.sirh.exception.JourFerieNotFoundException;
@@ -43,31 +44,32 @@ public class CalendrierService {
     }
 
     @Transactional(readOnly = true)
-    public List<JourFerie> findByPeriode(LocalDate debut, LocalDate fin) {
-        return jourFerieRepository.findByDateBetweenAndDeletedAtIsNullOrderByDate(debut, fin);
+    public List<JourFerieDto> findByPeriode(LocalDate debut, LocalDate fin) {
+        return jourFerieRepository.findByDateBetweenAndDeletedAtIsNullOrderByDate(debut, fin)
+                .stream().map(this::toDto).toList();
     }
 
     @Transactional
-    public JourFerie creer(LocalDate date, String libelle, TypeJourFerie type, Boolean national, String region) {
+    public JourFerieDto creer(LocalDate date, String libelle, TypeJourFerie type, Boolean national, String region) {
         JourFerie jourFerie = jourFerieRepository.save(JourFerie.builder()
                 .date(date).libelle(libelle).type(type)
                 .national(national != null ? national : true)
                 .region(region)
                 .build());
         recrediterChevauchements(jourFerie);
-        return jourFerie;
+        return toDto(jourFerie);
     }
 
     // Rollback total au 1er échec (même principe que l'import Excel pointages,
     // cf. CLAUDE.md) : une seule date déjà présente ou invalide fait échouer tout
     // le lot, aucune insertion partielle.
     @Transactional
-    public List<JourFerie> importer(List<JourFerie> aImporter) {
+    public List<JourFerieDto> importer(List<JourFerie> aImporter) {
         return aImporter.stream()
                 .map(j -> {
                     JourFerie sauvegarde = jourFerieRepository.save(j);
                     recrediterChevauchements(sauvegarde);
-                    return sauvegarde;
+                    return toDto(sauvegarde);
                 })
                 .toList();
     }
@@ -77,14 +79,14 @@ public class CalendrierService {
     // correction ultérieure (libellé, région) ne doit pas recréditer une 2e fois
     // les employés déjà traités lors de la création initiale.
     @Transactional
-    public JourFerie modifierJourFerieByReference(UUID reference, LocalDate date, String libelle, TypeJourFerie type, Boolean national, String region) {
+    public JourFerieDto modifierJourFerieByReference(UUID reference, LocalDate date, String libelle, TypeJourFerie type, Boolean national, String region) {
         JourFerie jourFerie = getJourFerieByReference(reference);
         jourFerie.setDate(date);
         jourFerie.setLibelle(libelle);
         jourFerie.setType(type);
         jourFerie.setNational(national != null ? national : true);
         jourFerie.setRegion(region);
-        return jourFerieRepository.save(jourFerie);
+        return toDto(jourFerieRepository.save(jourFerie));
     }
 
     @Transactional
@@ -128,5 +130,9 @@ public class CalendrierService {
                     .sourceId(jourFerie.getId())
                     .build());
         }
+    }
+
+    private JourFerieDto toDto(JourFerie j) {
+        return new JourFerieDto(j.getReference(), j.getDate(), j.getLibelle(), j.getType(), j.getNational(), j.getRegion());
     }
 }

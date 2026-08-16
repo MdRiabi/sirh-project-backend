@@ -68,7 +68,7 @@ public class AutorisationService {
     }
 
     @Transactional
-    public Autorisation creer(UUID employeId, String type, LocalDate dateAutorisation, LocalTime heureDebut,
+    public AutorisationDto creer(UUID employeId, String type, LocalDate dateAutorisation, LocalTime heureDebut,
                                LocalTime heureFin, Integer dureeMinutes, String motif, UUID creeParId,
                                String creeParRole, String avisManagerStatut, String avisManagerCommentaire) {
         employeRepository.findById(employeId).orElseThrow(() -> new EmployeNotFoundException(employeId));
@@ -114,12 +114,12 @@ public class AutorisationService {
             eventPublisher.publishEvent(new DemandeCreeEvent("AUTORISATION", autorisation.getId(),
                     autorisation.getEmployeId(), autorisation.getType()));
         }
-        return autorisation;
+        return enrichirAvecQuota(autorisation);
     }
 
     @Audited(action = "VALIDER_AUTORISATION", tableCible = "autorisations")
     @Transactional
-    public Autorisation validerAutorisationByReference(UUID reference, String traitementDepassement, UUID valideParRhId) {
+    public AutorisationDto validerAutorisationByReference(UUID reference, String traitementDepassement, UUID valideParRhId) {
         Autorisation autorisation = getAutorisationByReference(reference);
         if (!STATUT_EN_ATTENTE_RH.equals(autorisation.getStatut())) {
             throw new DemandeStatutInvalideException(
@@ -137,7 +137,7 @@ public class AutorisationService {
 
         appliquerImpactValidation(autorisation);
 
-        return autorisation;
+        return enrichirAvecQuota(autorisation);
     }
 
     // Partagé entre creer() (workflow d'urgence RH, statut VALIDE dès la
@@ -156,14 +156,14 @@ public class AutorisationService {
 
     @Audited(action = "REFUSER_AUTORISATION", tableCible = "autorisations")
     @Transactional
-    public Autorisation refuserAutorisationByReference(UUID reference) {
+    public AutorisationDto refuserAutorisationByReference(UUID reference) {
         Autorisation autorisation = getAutorisationByReference(reference);
         if (!STATUT_EN_ATTENTE_RH.equals(autorisation.getStatut())) {
             throw new DemandeStatutInvalideException(
                     "Seule une autorisation EN_ATTENTE_RH peut être refusée (statut actuel : " + autorisation.getStatut() + ").");
         }
         autorisation.setStatut(STATUT_REFUSE);
-        return autorisationRepository.save(autorisation);
+        return enrichirAvecQuota(autorisationRepository.save(autorisation));
     }
 
     @Transactional(readOnly = true)
@@ -186,7 +186,11 @@ public class AutorisationService {
     }
 
     @Transactional(readOnly = true)
-    public List<Autorisation> search(String statut, UUID employeId, Long departementId, LocalDate dateDebut, LocalDate dateFin) {
+    public List<AutorisationDto> search(String statut, UUID employeId, Long departementId, LocalDate dateDebut, LocalDate dateFin) {
+        return enrichir(searchEntities(statut, employeId, departementId, dateDebut, dateFin));
+    }
+
+    private List<Autorisation> searchEntities(String statut, UUID employeId, Long departementId, LocalDate dateDebut, LocalDate dateFin) {
         List<UUID> employeIdsDepartement = departementId != null
                 ? employeRepository.findByDepartement_IdAndDeletedAtIsNull(departementId).stream().map(Employe::getId).toList()
                 : null;
@@ -222,33 +226,39 @@ public class AutorisationService {
     // au Lot 3 pour /plannings/departement) ne doit jamais retomber sur une
     // recherche non filtrée : liste vide plutôt qu'une fuite vers "tout voir".
     @Transactional(readOnly = true)
-    public List<Autorisation> searchPourManager(Long departementIdManager, String statut, LocalDate dateDebut, LocalDate dateFin) {
+    public List<AutorisationDto> searchPourManager(Long departementIdManager, String statut, LocalDate dateDebut, LocalDate dateFin) {
         if (departementIdManager == null) {
             return List.of();
         }
         return search(statut, null, departementIdManager, dateDebut, dateFin);
     }
 
-    @Transactional(readOnly = true)
-    public List<AutorisationDto> enrichir(List<Autorisation> autorisations) {
+    private List<AutorisationDto> enrichir(List<Autorisation> autorisations) {
         Map<UUID, Employe> employesParId = employeRepository
                 .findAllById(autorisations.stream().map(Autorisation::getEmployeId).distinct().toList())
                 .stream().collect(Collectors.toMap(Employe::getId, e -> e));
         return autorisations.stream()
                 .map(a -> {
                     Employe employe = employesParId.get(a.getEmployeId());
-                    return AutorisationDto.from(a, employe != null ? employe.getNom() : null,
+                    return toDto(a, employe != null ? employe.getNom() : null,
                             employe != null ? employe.getPrenom() : null, null);
                 })
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public AutorisationDto enrichirAvecQuota(Autorisation autorisation) {
+    private AutorisationDto enrichirAvecQuota(Autorisation autorisation) {
         Employe employe = employeRepository.findById(autorisation.getEmployeId()).orElse(null);
         int cumul = cumulMinutesMois(autorisation.getEmployeId(), autorisation.getDateAutorisation());
         Integer depassement = cumul > QUOTA_MENSUEL_MINUTES ? cumul - QUOTA_MENSUEL_MINUTES : null;
-        return AutorisationDto.from(autorisation, employe != null ? employe.getNom() : null,
+        return toDto(autorisation, employe != null ? employe.getNom() : null,
                 employe != null ? employe.getPrenom() : null, depassement);
+    }
+
+    private AutorisationDto toDto(Autorisation a, String employeNom, String employePrenom, Integer quotaDepasseMinutes) {
+        return new AutorisationDto(
+                a.getReference(), a.getEmployeId(), employeNom, employePrenom, a.getType(), a.getDateAutorisation(),
+                a.getHeureDebut(), a.getHeureFin(), a.getDureeMinutes(), a.getMotif(), a.getStatut(),
+                a.getCreeParId(), a.getCreeParRole(), a.getAvisManagerStatut(), a.getAvisManagerCommentaire(),
+                a.getValideParRhId(), quotaDepasseMinutes, a.getCreatedAt());
     }
 }

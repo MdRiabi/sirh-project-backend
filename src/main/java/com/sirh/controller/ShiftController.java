@@ -1,5 +1,7 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.ListingPageDto;
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.dto.ShiftDto;
 import com.sirh.model.dto.ShiftRequest;
 import com.sirh.service.ShiftService;
@@ -7,8 +9,6 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/shifts")
@@ -22,13 +22,13 @@ public class ShiftController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ShiftDto>> list() {
-        return ResponseEntity.ok(shiftService.findAll().stream().map(ShiftDto::from).toList());
+    public ResponseEntity<ListingPageDto<ShiftDto>> list() {
+        return ResponseEntity.ok(ListingPageDto.of(shiftService.findAll()));
     }
 
     @PostMapping
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<ShiftDto> create(@Valid @RequestBody ShiftRequest request) {
-        return ResponseEntity.status(201).body(ShiftDto.from(shiftService.create(request)));
+    public ResponseEntity<SingleObjectDto<ShiftDto>> create(@Valid @RequestBody ShiftRequest request) {
+        return ResponseEntity.status(201).body(SingleObjectDto.of(shiftService.create(request)));
     }
 }

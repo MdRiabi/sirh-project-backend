@@ -24,9 +24,7 @@ class PersonnelControllerIT extends AbstractIntegrationTest {
 
     private String accessTokenFor(Role role) {
         String username = createFixtureUser(role);
-        TokenResponse login = restTemplate.postForEntity(
-                baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class).getBody();
-        return login.accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
     }
 
     private HttpHeaders authHeaders(String accessToken) {
@@ -34,6 +32,11 @@ class PersonnelControllerIT extends AbstractIntegrationTest {
         headers.setBearerAuth(accessToken);
         headers.setContentType(MediaType.APPLICATION_JSON);
         return headers;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> dataDe(ResponseEntity<Map<String, Object>> reponse) {
+        return (Map<String, Object>) reponse.getBody().get("data");
     }
 
     @Test
@@ -45,13 +48,13 @@ class PersonnelControllerIT extends AbstractIntegrationTest {
                 baseUrl("/departements"), HttpMethod.POST, new HttpEntity<>(body, authHeaders(token)),
                 new ParameterizedTypeReference<>() {});
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        String reference = (String) created.getBody().get("reference");
+        String reference = (String) dataDe(created).get("reference");
 
         ResponseEntity<Map<String, Object>> fetched = restTemplate.exchange(
                 baseUrl("/departements/" + reference), HttpMethod.GET, new HttpEntity<>(authHeaders(token)),
                 new ParameterizedTypeReference<>() {});
         assertThat(fetched.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(fetched.getBody().get("nom")).isEqualTo(body.get("nom"));
+        assertThat(dataDe(fetched).get("nom")).isEqualTo(body.get("nom"));
     }
 
     @Test
@@ -78,14 +81,14 @@ class PersonnelControllerIT extends AbstractIntegrationTest {
                 baseUrl("/employes"), HttpMethod.POST, new HttpEntity<>(body, authHeaders(token)),
                 new ParameterizedTypeReference<>() {});
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(created.getBody().get("matriculeCnss")).isEqualTo("***-**-5678");
-        String id = (String) created.getBody().get("id");
+        assertThat(dataDe(created).get("matriculeCnss")).isEqualTo("***-**-5678");
+        String id = (String) dataDe(created).get("id");
 
         ResponseEntity<Map<String, Object>> reveal = restTemplate.exchange(
                 baseUrl("/employes/" + id + "/matricule-cnss"), HttpMethod.GET, new HttpEntity<>(authHeaders(token)),
                 new ParameterizedTypeReference<>() {});
         assertThat(reveal.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reveal.getBody().get("matriculeCnss")).isEqualTo("CNSS-1234-5678");
+        assertThat(dataDe(reveal).get("matriculeCnss")).isEqualTo("CNSS-1234-5678");
     }
 
     @Test
@@ -97,7 +100,9 @@ class PersonnelControllerIT extends AbstractIntegrationTest {
                 baseUrl("/departements"), HttpMethod.POST,
                 new HttpEntity<>(Map.of("nom", "Filtre Dept " + UUID.randomUUID()), headers),
                 new ParameterizedTypeReference<Map<String, Object>>() {}).getBody();
-        UUID departementReference = UUID.fromString((String) departement.get("reference"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> departementData = (Map<String, Object>) departement.get("data");
+        UUID departementReference = UUID.fromString((String) departementData.get("reference"));
         Long departementId = departementRepository.findByReferenceAndDeletedAtIsNull(departementReference).orElseThrow().getId();
 
         createEmploye(headers, "Actif " + UUID.randomUUID(), departementId, true);
@@ -141,7 +146,9 @@ class PersonnelControllerIT extends AbstractIntegrationTest {
         Map<String, Object> employe = restTemplate.exchange(
                 baseUrl("/employes"), HttpMethod.POST, new HttpEntity<>(employeBody, headers),
                 new ParameterizedTypeReference<Map<String, Object>>() {}).getBody();
-        String employeId = (String) employe.get("id");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> employeData = (Map<String, Object>) employe.get("data");
+        String employeId = (String) employeData.get("id");
 
         LocalDate nouvelleDateDebut = LocalDate.now();
         Map<String, Object> contratBody = Map.of(
@@ -156,13 +163,15 @@ class PersonnelControllerIT extends AbstractIntegrationTest {
         ResponseEntity<Map<String, Object>> employeAfter = restTemplate.exchange(
                 baseUrl("/employes/" + employeId), HttpMethod.GET, new HttpEntity<>(headers),
                 new ParameterizedTypeReference<>() {});
-        assertThat(employeAfter.getBody().get("typeContrat")).isEqualTo("CDI");
-        assertThat(employeAfter.getBody().get("dateFinContrat")).isNull();
+        assertThat(dataDe(employeAfter).get("typeContrat")).isEqualTo("CDI");
+        assertThat(dataDe(employeAfter).get("dateFinContrat")).isNull();
 
-        ResponseEntity<List<Map<String, Object>>> timeline = restTemplate.exchange(
+        ResponseEntity<Map<String, Object>> timeline = restTemplate.exchange(
                 baseUrl("/employes/" + employeId + "/timeline"), HttpMethod.GET, new HttpEntity<>(headers),
                 new ParameterizedTypeReference<>() {});
-        assertThat(timeline.getBody()).anySatisfy(evt -> assertThat(evt.get("categorie")).isEqualTo("CONTRAT"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> timelineContent = (List<Map<String, Object>>) timeline.getBody().get("content");
+        assertThat(timelineContent).anySatisfy(evt -> assertThat(evt.get("categorie")).isEqualTo("CONTRAT"));
     }
 
     @Test

@@ -51,8 +51,7 @@ class TacheRenouvellementControllerIT extends AbstractIntegrationTest {
     }
 
     private String login(String username) {
-        return restTemplate.postForEntity(baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class)
-                .getBody().accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
     }
 
     private HttpHeaders authHeaders(String accessToken) {
@@ -100,11 +99,12 @@ class TacheRenouvellementControllerIT extends AbstractIntegrationTest {
         Contrat autreContrat = contratCddEnCours(employe.getId(), LocalDate.now().plusMonths(3));
         tache(employe.getId(), autreContrat.getId(), TacheRenouvellementStatut.VALIDE);
 
-        ResponseEntity<List> reponse = restTemplate.exchange(baseUrl("/taches-renouvellement?statut=EN_COURS"), HttpMethod.GET,
-                new HttpEntity<>(authHeaders(rhToken)), List.class);
+        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/taches-renouvellement?statut=EN_COURS"), HttpMethod.GET,
+                new HttpEntity<>(authHeaders(rhToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody()).allSatisfy(item -> assertThat(((Map<?, ?>) item).get("statut")).isEqualTo("EN_COURS"));
+        List<?> content = (List<?>) reponse.getBody().get("content");
+        assertThat(content).allSatisfy(item -> assertThat(((Map<?, ?>) item).get("statut")).isEqualTo("EN_COURS"));
     }
 
     @Test
@@ -119,7 +119,7 @@ class TacheRenouvellementControllerIT extends AbstractIntegrationTest {
                 new HttpEntity<>(Map.of("statut", "VALIDE"), authHeaders(rhToken)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody().get("statut")).isEqualTo("VALIDE");
+        assertThat(((Map<?, ?>) reponse.getBody().get("data")).get("statut")).isEqualTo("VALIDE");
 
         Contrat ancienRecharge = contratRepository.findById(contrat.getId()).orElseThrow();
         assertThat(ancienRecharge.getStatut()).isEqualTo(ContratStatut.RENOUVELE);

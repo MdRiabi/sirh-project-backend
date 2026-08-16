@@ -7,6 +7,7 @@ import com.sirh.exception.DemandeDeverrouillageNotFoundException;
 import com.sirh.exception.DemandeDeverrouillageStatutInvalideException;
 import com.sirh.exception.MoisDejaClotureException;
 import com.sirh.exception.MoisNonClotureException;
+import com.sirh.model.dto.ClotureDto;
 import com.sirh.model.dto.DemandeDeverrouillageDto;
 import com.sirh.model.repository.CloturePaieRepository;
 import com.sirh.model.repository.DemandeDeverrouillageRepository;
@@ -78,9 +79,9 @@ public class CloturePaieService {
     // exiger qu'une ligne existe déjà (mois jamais clôturé -> OUVERT par
     // défaut, objet transitoire non persisté).
     @Transactional(readOnly = true)
-    public CloturePaie trouverOuDefaut(YearMonth moisParam) {
+    public ClotureDto trouverOuDefaut(YearMonth moisParam) {
         LocalDate mois = moisParam.atDay(1);
-        return cloturePaieRepository.findByMoisAndDeletedAtIsNull(mois).orElseGet(() -> CloturePaie.builder().mois(mois).build());
+        return toDto(cloturePaieRepository.findByMoisAndDeletedAtIsNull(mois).orElseGet(() -> CloturePaie.builder().mois(mois).build()));
     }
 
     // Appelée avant toute écriture manuelle sur pointages_bruts (correction),
@@ -98,7 +99,7 @@ public class CloturePaieService {
 
     @Audited(action = "CLOTURER_PAIE", tableCible = "cloture_paie")
     @Transactional
-    public CloturePaie cloturer(YearMonth moisParam, UUID clotureParId) {
+    public ClotureDto cloturer(YearMonth moisParam, UUID clotureParId) {
         LocalDate mois = moisParam.atDay(1);
         LocalDate finMois = moisParam.atEndOfMonth();
         CloturePaie cloture = cloturePaieRepository.findByMoisAndDeletedAtIsNull(mois).orElseGet(() -> CloturePaie.builder().mois(mois).build());
@@ -123,7 +124,7 @@ public class CloturePaieService {
         cloture.setDateCloture(LocalDateTime.now());
         cloture.setClotureParId(clotureParId);
         cloture.setTauxAnomaliesJustifiees(tauxAnomaliesJustifiees);
-        return cloturePaieRepository.save(cloture);
+        return toDto(cloturePaieRepository.save(cloture));
     }
 
     private BigDecimal tauxAnomaliesJustifiees(LocalDate mois, LocalDate finMois) {
@@ -138,7 +139,7 @@ public class CloturePaieService {
     }
 
     @Transactional
-    public DemandeDeverrouillage demanderDeverrouillage(YearMonth moisParam, String motif, UUID demandeParId) {
+    public DemandeDeverrouillageDto demanderDeverrouillage(YearMonth moisParam, String motif, UUID demandeParId) {
         LocalDate mois = moisParam.atDay(1);
         boolean moisCloture = cloturePaieRepository.findByMoisAndDeletedAtIsNull(mois)
                 .map(c -> STATUT_CLOTURE.equals(c.getStatut()))
@@ -146,13 +147,14 @@ public class CloturePaieService {
         if (!moisCloture) {
             throw new MoisNonClotureException();
         }
-        return demandeDeverrouillageRepository.save(DemandeDeverrouillage.builder()
+        DemandeDeverrouillage demande = demandeDeverrouillageRepository.save(DemandeDeverrouillage.builder()
                 .mois(mois).motif(motif).demandeParId(demandeParId).build());
+        return enrichir(List.of(demande)).get(0);
     }
 
     @Audited(action = "TRAITER_DEMANDE_DEVERROUILLAGE", tableCible = "demandes_deverrouillage")
     @Transactional
-    public DemandeDeverrouillage traiterDemandeByReference(UUID reference, String statut, UUID traiteParId) {
+    public DemandeDeverrouillageDto traiterDemandeByReference(UUID reference, String statut, UUID traiteParId) {
         DemandeDeverrouillage demande = getDemandeByReference(reference);
         if (!STATUT_EN_ATTENTE.equals(demande.getStatut())) {
             throw new DemandeDeverrouillageStatutInvalideException(demande.getStatut());
@@ -170,7 +172,7 @@ public class CloturePaieService {
             cloture.setStatut(STATUT_OUVERT);
             cloturePaieRepository.save(cloture);
         }
-        return sauvegardee;
+        return enrichir(List.of(sauvegardee)).get(0);
     }
 
     @Transactional(readOnly = true)
@@ -185,7 +187,11 @@ public class CloturePaieService {
     // globales par mois, aucune colonne département sur la table) — même
     // principe que AutorisationService.search (chaîne employeId -> departementId).
     @Transactional(readOnly = true)
-    public List<DemandeDeverrouillage> listerDemandes(YearMonth moisParam, Long departementId, String statut) {
+    public List<DemandeDeverrouillageDto> listerDemandes(YearMonth moisParam, Long departementId, String statut) {
+        return enrichir(listerDemandesEntities(moisParam, departementId, statut));
+    }
+
+    private List<DemandeDeverrouillage> listerDemandesEntities(YearMonth moisParam, Long departementId, String statut) {
         LocalDate mois = moisParam != null ? moisParam.atDay(1) : null;
         List<UUID> employeIdsDepartement = departementId != null
                 ? employeRepository.findByDepartement_IdAndDeletedAtIsNull(departementId).stream().map(Employe::getId).toList()
@@ -213,26 +219,31 @@ public class CloturePaieService {
     // garde-fou que AutorisationService.searchPourManager (liste vide plutôt
     // qu'une recherche non filtrée si le compte n'a pas de département).
     @Transactional(readOnly = true)
-    public List<DemandeDeverrouillage> listerDemandesPourManager(YearMonth mois, Long departementIdManager, String statut) {
+    public List<DemandeDeverrouillageDto> listerDemandesPourManager(YearMonth mois, Long departementIdManager, String statut) {
         if (departementIdManager == null) {
             return List.of();
         }
         return listerDemandes(mois, departementIdManager, statut);
     }
 
-    @Transactional(readOnly = true)
-    public List<DemandeDeverrouillageDto> enrichir(List<DemandeDeverrouillage> demandes) {
+    private List<DemandeDeverrouillageDto> enrichir(List<DemandeDeverrouillage> demandes) {
         Map<UUID, Employe> employesParId = employeRepository
                 .findAllById(demandes.stream().map(DemandeDeverrouillage::getDemandeParId).distinct().toList())
                 .stream().collect(Collectors.toMap(Employe::getId, e -> e));
         return demandes.stream()
                 .map(d -> {
                     Employe employe = employesParId.get(d.getDemandeParId());
-                    return DemandeDeverrouillageDto.from(d,
-                            employe != null ? employe.getNom() : null,
+                    return new DemandeDeverrouillageDto(d.getReference(), d.getMois(), d.getMotif(),
+                            d.getDemandeParId(), employe != null ? employe.getNom() : null,
                             employe != null ? employe.getPrenom() : null,
-                            employe != null ? employe.getDepartementId() : null);
+                            employe != null ? employe.getDepartementId() : null,
+                            d.getStatut(), d.getTraiteParId(), d.getDateTraitement());
                 })
                 .toList();
+    }
+
+    private ClotureDto toDto(CloturePaie cloture) {
+        return new ClotureDto(cloture.getReference(), cloture.getMois(), cloture.getStatut(), cloture.getDateCloture(),
+                cloture.getClotureParId(), cloture.getTauxAnomaliesJustifiees());
     }
 }

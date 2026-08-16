@@ -42,9 +42,7 @@ class CalendrierControllerIT extends AbstractIntegrationTest {
 
     private String accessTokenFor(Role role) {
         String username = createFixtureUser(role);
-        TokenResponse login = restTemplate.postForEntity(
-                baseUrl("/auth/login"), new LoginRequest(username, FIXTURE_PASSWORD), TokenResponse.class).getBody();
-        return login.accessToken();
+        return login(username, FIXTURE_PASSWORD).accessToken();
     }
 
     private HttpHeaders authHeaders(String accessToken) {
@@ -163,10 +161,10 @@ class CalendrierControllerIT extends AbstractIntegrationTest {
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 
-        ResponseEntity<List> liste = restTemplate.exchange(
+        ResponseEntity<Map> liste = restTemplate.exchange(
                 baseUrl("/calendrier/jours-feries?dateDebut=" + d2 + "&dateFin=" + d2), HttpMethod.GET,
-                new HttpEntity<>(authHeaders(token)), List.class);
-        assertThat(liste.getBody()).isEmpty();
+                new HttpEntity<>(authHeaders(token)), Map.class);
+        assertThat((List<?>) liste.getBody().get("content")).isEmpty();
     }
 
     // Régression /code-review --fix : @Valid ne cascade pas sur les éléments
@@ -199,11 +197,11 @@ class CalendrierControllerIT extends AbstractIntegrationTest {
         LocalDate jour = LocalDate.now().plusDays(80);
         creerJourFerie(token, jour, "Fête du Travail", "FERIE");
 
-        ResponseEntity<List> reponse = restTemplate.exchange(
+        ResponseEntity<Map> reponse = restTemplate.exchange(
                 baseUrl("/calendrier/jours-feries?dateDebut=" + jour.minusDays(1) + "&dateFin=" + jour.plusDays(1)),
-                HttpMethod.GET, new HttpEntity<>(authHeaders(token)), List.class);
+                HttpMethod.GET, new HttpEntity<>(authHeaders(token)), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(reponse.getBody()).hasSize(1);
+        assertThat((List<?>) reponse.getBody().get("content")).hasSize(1);
     }
 }

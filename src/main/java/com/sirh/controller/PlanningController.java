@@ -1,5 +1,7 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.ListingPageDto;
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.enums.Role;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.model.entity.Employe;
@@ -8,7 +10,6 @@ import com.sirh.model.repository.EmployeRepository;
 import com.sirh.model.dto.DeltaJourDto;
 import com.sirh.model.dto.PlanningAffecterRequest;
 import com.sirh.model.dto.PlanningDto;
-import com.sirh.model.entity.Planning;
 import com.sirh.service.PlanningService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -20,7 +21,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -38,27 +38,26 @@ public class PlanningController {
 
     @PostMapping("/affecter")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-    public ResponseEntity<PlanningDto> affecter(@Valid @RequestBody PlanningAffecterRequest request) {
-        Planning planning = planningService.affecter(request.employeId(), request.shiftId(), request.dateDebut(),
+    public ResponseEntity<SingleObjectDto<PlanningDto>> affecter(@Valid @RequestBody PlanningAffecterRequest request) {
+        PlanningDto planning = planningService.affecter(request.employeId(), request.shiftId(), request.dateDebut(),
                 request.dateFin(), request.statut(), request.commentaire());
-        return ResponseEntity.status(201).body(planningService.enrichir(List.of(planning)).get(0));
+        return ResponseEntity.status(201).body(SingleObjectDto.of(planning));
     }
 
     @GetMapping("/departement/{id}")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER', 'ROLE_MANAGER')")
-    public ResponseEntity<List<PlanningDto>> parDepartement(
+    public ResponseEntity<ListingPageDto<PlanningDto>> parDepartement(
             @PathVariable Long id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateDebut,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateFin,
             @AuthenticationPrincipal SirhUserDetails principal) {
         verifierScopeManager(principal, id);
-        List<Planning> plannings = planningService.findByDepartement(id, dateDebut, dateFin);
-        return ResponseEntity.ok(planningService.enrichir(plannings));
+        return ResponseEntity.ok(ListingPageDto.of(planningService.findByDepartement(id, dateDebut, dateFin)));
     }
 
     @GetMapping("/delta")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER', 'ROLE_MANAGER')")
-    public ResponseEntity<List<DeltaJourDto>> delta(
+    public ResponseEntity<ListingPageDto<DeltaJourDto>> delta(
             @RequestParam(required = false) UUID employeId,
             @RequestParam(required = false) Long departementId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateDebut,
@@ -69,12 +68,12 @@ public class PlanningController {
         }
         if (departementId != null) {
             verifierScopeManager(principal, departementId);
-            return ResponseEntity.ok(planningService.rapportDeltaDepartement(departementId, dateDebut, dateFin));
+            return ResponseEntity.ok(ListingPageDto.of(planningService.rapportDeltaDepartement(departementId, dateDebut, dateFin)));
         }
         Employe employe = employeRepository.findById(employeId)
                 .orElseThrow(() -> new EmployeNotFoundException(employeId));
         verifierScopeManager(principal, employe.getDepartementId());
-        return ResponseEntity.ok(planningService.rapportDeltaEmploye(employeId, dateDebut, dateFin));
+        return ResponseEntity.ok(ListingPageDto.of(planningService.rapportDeltaEmploye(employeId, dateDebut, dateFin)));
     }
 
     // Le Responsable Département ne consulte que le planning/delta de sa propre

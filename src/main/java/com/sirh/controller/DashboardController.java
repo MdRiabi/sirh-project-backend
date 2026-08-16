@@ -1,5 +1,6 @@
 package com.sirh.controller;
 
+import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.enums.Role;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.model.dto.ChartsDto;
@@ -28,16 +29,16 @@ public class DashboardController {
 
     @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_RH', 'ROLE_SUPERUSER', 'ROLE_DIRECTEUR')")
     @GetMapping("/kpi")
-    public ResponseEntity<KpiDto> kpi(@AuthenticationPrincipal SirhUserDetails principal) {
-        return ResponseEntity.ok(dashboardService.kpi(scopeDepartementId(principal)));
+    public ResponseEntity<SingleObjectDto<KpiDto>> kpi(@AuthenticationPrincipal SirhUserDetails principal) {
+        return ResponseEntity.ok(SingleObjectDto.of(dashboardService.kpi(scopeDepartementId(principal))));
     }
 
     // 🆕 non listé au §4.8 (seul /dashboard/kpi y figure) — ajouté pour les
     // visualisations du Tableau de Bord (CDF Module 10), cf. ChartsDto.
     @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_RH', 'ROLE_SUPERUSER', 'ROLE_DIRECTEUR')")
     @GetMapping("/charts")
-    public ResponseEntity<ChartsDto> charts(@AuthenticationPrincipal SirhUserDetails principal) {
-        return ResponseEntity.ok(dashboardService.charts(scopeDepartementId(principal)));
+    public ResponseEntity<SingleObjectDto<ChartsDto>> charts(@AuthenticationPrincipal SirhUserDetails principal) {
+        return ResponseEntity.ok(SingleObjectDto.of(dashboardService.charts(scopeDepartementId(principal))));
     }
 
     private Long scopeDepartementId(SirhUserDetails principal) {
