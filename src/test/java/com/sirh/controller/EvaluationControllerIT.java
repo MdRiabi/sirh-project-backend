@@ -147,7 +147,7 @@ class EvaluationControllerIT extends AbstractIntegrationTest {
                 new HttpEntity<>(body, authHeaders(manager.token())), Map.class);
 
         assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat((List<Object>) reponse.getBody().get("competencesManquantes")).containsExactly("Esprit d'équipe");
+        assertThat(reponse.getBody().get("message").toString()).contains("Esprit d'équipe");
     }
 
     @Test
