@@ -11,6 +11,7 @@ import com.sirh.service.PointageBrutService;
 import com.sirh.service.PointeuseService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,18 +24,12 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/hikvision")
+@RequiredArgsConstructor
 public class HikvisionController {
 
     private final PointeuseService pointeuseService;
     private final EmployeRepository employeRepository;
     private final PointageBrutService pointageBrutService;
-
-    public HikvisionController(PointeuseService pointeuseService, EmployeRepository employeRepository,
-                                PointageBrutService pointageBrutService) {
-        this.pointeuseService = pointeuseService;
-        this.employeRepository = employeRepository;
-        this.pointageBrutService = pointageBrutService;
-    }
 
     @PostMapping("/events")
     public ResponseEntity<Void> recevoirEvenement(@Valid @RequestBody HikvisionEventRequest request,
