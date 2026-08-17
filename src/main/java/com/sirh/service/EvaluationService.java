@@ -64,7 +64,7 @@ public class EvaluationService {
     @Transactional
     public EvaluationDto creer(UUID employeId, UUID managerId, Long managerDepartementId, List<EvaluationCompetenceRequest> competences) {
         Employe employe = employeRepository.findById(employeId)
-                .orElseThrow(() -> new IllegalArgumentException("Employé introuvable : " + employeId));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EMPLOYE_NOT_FOUND, new Object[]{employeId}));
         verifierMemeDepartement(employe, managerDepartementId);
 
         int annee = Year.now().getValue();
@@ -180,7 +180,7 @@ public class EvaluationService {
     @Transactional(readOnly = true)
     public List<EvaluationDto> parEmploye(UUID employeId, UUID principalEmployeId, Long principalDepartementId, boolean restreintAuDepartement) {
         Employe employe = employeRepository.findById(employeId)
-                .orElseThrow(() -> new IllegalArgumentException("Employé introuvable : " + employeId));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EMPLOYE_NOT_FOUND, new Object[]{employeId}));
         if (restreintAuDepartement) {
             verifierMemeDepartement(employe, principalDepartementId);
         }

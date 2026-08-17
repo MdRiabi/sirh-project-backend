@@ -1,6 +1,6 @@
 # SIRH Backend — Instructions
 
-API REST du SIRH (Système d'Information RH) : Spring Boot 3 / Java 21 / PostgreSQL / Redis. Ce repo est la moitié **backend** d'une architecture multi-repo — le frontend vit dans `sirh-project-frontend` (dépôt séparé, cloné en dossier frère sous le même parent). Aucun code frontend ici.
+API REST du SIRH (Système d'Information RH) : Spring Boot 3 / Java 21 / PostgreSQL / Redis. Ce repo est la moitié **backend** d'une architecture multi-repo — le frontend vit dans `sirh-project-frontend` (dépôt séparé), cloné localement en `C:\Users\MedRyaby\Desktop\workespace\sirh-project-frontend` (pas en dossier frère de ce repo). Aucun code frontend ici.
 
 ## Documents de référence (dans cet ordre de priorité)
 
@@ -62,7 +62,7 @@ Comme le reste de `docs/`, ce fichier existe en double dans les deux dépôts (c
 - `mvn clean test` — tests unitaires + intégration
 - `mvn spring-boot:run` — démarrage local (nécessite Postgres/Redis actifs, `docker compose up postgres redis` depuis ce repo)
 - `mvn package` — build du jar
-- `docker compose up --build` — pile complète (Postgres + Redis + backend + frontend, suppose `sirh-project-frontend` cloné en frère)
+- `docker compose up --build` — pile complète (Postgres + Redis + backend + frontend). ⚠️ `docker-compose.yml` référence `../sirh-project-frontend` (dossier frère) pour le build context du service frontend — chemin désormais faux puisque le clone réel est `C:\Users\MedRyaby\Desktop\workespace\sirh-project-frontend` ; adapter `docker-compose.yml` (ou recloner en frère) avant d'utiliser cette commande.
 
 ## Conventions
 
