@@ -1,12 +1,17 @@
 package com.sirh.service;
 
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.ErrorCode;
+
 import com.sirh.annotation.Audited;
+import com.sirh.exception.TechnicalException;
 import com.sirh.model.dto.FichierDto;
 import com.sirh.model.enums.EntiteType;
 import com.sirh.model.entity.Fichier;
 import com.sirh.model.enums.FichierCategorie;
-import com.sirh.exception.FichierNotFoundException;
 import com.sirh.model.repository.FichierRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -23,6 +28,8 @@ import java.util.UUID;
 
 @Service
 public class FichierService {
+
+    private static final Logger log = LoggerFactory.getLogger(FichierService.class);
 
     private final FichierRepository fichierRepository;
     private final Path storageRoot;
@@ -44,7 +51,8 @@ public class FichierService {
             Files.createDirectories(destination.getParent());
             file.transferTo(destination);
         } catch (IOException e) {
-            throw new UncheckedIOException("Échec de l'écriture du fichier sur le stockage.", e);
+            log.error("Échec de l'écriture du fichier sur le stockage.", e);
+            throw new TechnicalException(ErrorCode.SYSTEM_ERROR, e);
         }
 
         Fichier fichier = Fichier.builder()
@@ -65,14 +73,14 @@ public class FichierService {
     @Transactional(readOnly = true)
     public Fichier getFichierByReference(UUID reference) {
         return fichierRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new FichierNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.FICHIER_NOT_FOUND, new Object[]{reference}));
     }
 
     @Transactional(readOnly = true)
     public Resource loadAsResource(Fichier fichier) {
         Path path = storageRoot.resolve(fichier.getCheminRelatif()).normalize();
         if (!path.startsWith(storageRoot) || !Files.exists(path)) {
-            throw new FichierNotFoundException(fichier.getReference());
+            throw new ResourceNotFoundException(ErrorCode.FICHIER_NOT_FOUND, new Object[]{fichier.getReference()});
         }
         return new FileSystemResource(path);
     }
@@ -91,7 +99,8 @@ public class FichierService {
         try {
             Files.deleteIfExists(path);
         } catch (IOException e) {
-            throw new UncheckedIOException("Échec de la suppression du fichier sur le stockage.", e);
+            log.error("Échec de la suppression du fichier sur le stockage.", e);
+            throw new TechnicalException(ErrorCode.SYSTEM_ERROR, e);
         }
         fichier.onDelete();
         fichierRepository.save(fichier);

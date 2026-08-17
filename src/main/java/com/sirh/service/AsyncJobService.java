@@ -4,7 +4,8 @@ import com.sirh.model.dto.AsyncJobDto;
 import com.sirh.model.entity.AsyncJob;
 import com.sirh.model.enums.AsyncJobStatut;
 import com.sirh.model.enums.AsyncJobType;
-import com.sirh.exception.AsyncJobNotFoundException;
+import com.sirh.exception.ErrorCode;
+import com.sirh.exception.ResourceNotFoundException;
 import com.sirh.model.repository.AsyncJobRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,7 +43,7 @@ public class AsyncJobService {
     @Transactional(readOnly = true)
     public AsyncJob getAsyncJobByReference(UUID reference) {
         return asyncJobRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new AsyncJobNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ASYNC_JOB_NOT_FOUND, new Object[]{reference}));
     }
 
     @Transactional(readOnly = true)

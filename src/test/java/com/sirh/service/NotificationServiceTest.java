@@ -2,7 +2,7 @@ package com.sirh.service;
 
 import com.sirh.model.entity.Notification;
 import com.sirh.model.enums.NotificationType;
-import com.sirh.exception.NotificationNotFoundException;
+import com.sirh.exception.ResourceNotFoundException;
 import com.sirh.model.repository.NotificationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -72,6 +72,6 @@ class NotificationServiceTest {
         when(notificationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.marquerNotificationLueByReference(reference, 42L))
-                .isInstanceOf(NotificationNotFoundException.class);
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 }

@@ -1,11 +1,13 @@
 package com.sirh.controller;
 
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.ErrorCode;
+
 import com.sirh.common.dto.ListingPageDto;
 import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.enums.Role;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.model.entity.Employe;
-import com.sirh.exception.EmployeNotFoundException;
 import com.sirh.model.repository.EmployeRepository;
 import com.sirh.model.dto.DeltaJourDto;
 import com.sirh.model.dto.PlanningAffecterRequest;
@@ -71,7 +73,7 @@ public class PlanningController {
             return ResponseEntity.ok(ListingPageDto.of(planningService.rapportDeltaDepartement(departementId, dateDebut, dateFin)));
         }
         Employe employe = employeRepository.findById(employeId)
-                .orElseThrow(() -> new EmployeNotFoundException(employeId));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EMPLOYE_NOT_FOUND, new Object[]{employeId}));
         verifierScopeManager(principal, employe.getDepartementId());
         return ResponseEntity.ok(ListingPageDto.of(planningService.rapportDeltaEmploye(employeId, dateDebut, dateFin)));
     }

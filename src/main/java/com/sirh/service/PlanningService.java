@@ -3,20 +3,23 @@ package com.sirh.service;
 import com.sirh.model.entity.Indisponibilite;
 import com.sirh.model.repository.IndisponibiliteRepository;
 import com.sirh.model.entity.Employe;
-import com.sirh.exception.EmployeNotFoundException;
+import com.sirh.exception.ConflictException;
+import com.sirh.exception.ErrorCode;
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.TechnicalException;
 import com.sirh.model.repository.EmployeRepository;
 import com.sirh.model.dto.DeltaJourDto;
 import com.sirh.model.dto.PlanningDto;
 import com.sirh.model.entity.Planning;
 import com.sirh.model.enums.PlanningStatut;
 import com.sirh.model.entity.Shift;
-import com.sirh.exception.PlanningConflictException;
-import com.sirh.exception.ShiftNotFoundException;
 import com.sirh.model.repository.PlanningRepository;
 import com.sirh.model.repository.ShiftRepository;
 import com.sirh.model.entity.PointageBrut;
 import com.sirh.model.enums.PointageStatut;
 import com.sirh.model.repository.PointageBrutRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +43,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class PlanningService {
+
+    private static final Logger log = LoggerFactory.getLogger(PlanningService.class);
 
     private static final long REPOS_LEGAL_HEURES = 11;
 
@@ -91,8 +96,10 @@ public class PlanningService {
 
     private Long resolveShiftSysteme() {
         return shiftRepository.findFirstByTypeRotationAndDeletedAtIsNull(TYPE_ROTATION_SYSTEME)
-                .orElseThrow(() -> new IllegalStateException(
-                        "Shift système introuvable (attendu depuis la migration V5) — impossible de générer un créneau CONGE/ABSENCE."))
+                .orElseThrow(() -> {
+                    log.error("Shift système introuvable (attendu depuis la migration V5) — impossible de générer un créneau CONGE/ABSENCE.");
+                    return new TechnicalException(ErrorCode.SYSTEM_ERROR);
+                })
                 .getId();
     }
 
@@ -102,8 +109,8 @@ public class PlanningService {
         if (!dateDebut.isBefore(dateFin)) {
             throw new IllegalArgumentException("dateDebut doit être strictement avant dateFin");
         }
-        employeRepository.findById(employeId).orElseThrow(() -> new EmployeNotFoundException(employeId));
-        Shift shift = shiftRepository.findById(shiftId).orElseThrow(() -> new ShiftNotFoundException(shiftId));
+        employeRepository.findById(employeId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EMPLOYE_NOT_FOUND, new Object[]{employeId}));
+        Shift shift = shiftRepository.findById(shiftId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SHIFT_NOT_FOUND, new Object[]{shiftId}));
 
         verifierReposLegalEtChevauchement(employeId, dateDebut, dateFin);
         verifierIndisponibilite(employeId, dateDebut, dateFin);
@@ -130,8 +137,7 @@ public class PlanningService {
         for (Planning existant : voisins) {
             boolean chevauchementDirect = existant.getDateDebut().isBefore(dateFin) && dateDebut.isBefore(existant.getDateFin());
             if (chevauchementDirect) {
-                throw new PlanningConflictException(
-                        "Affectation refusée : l'employé a déjà une affectation sur cette période.");
+                throw new ConflictException(ErrorCode.PLANNING_CHEVAUCHEMENT_DIRECT);
             }
 
             Duration ecart = !existant.getDateFin().isAfter(dateDebut)
@@ -139,9 +145,8 @@ public class PlanningService {
                     : Duration.between(dateFin, existant.getDateDebut());
 
             if (ecart.compareTo(Duration.ofHours(REPOS_LEGAL_HEURES)) < 0) {
-                throw new PlanningConflictException(String.format(
-                        "[VIOLATION LÉGALE] Repos consécutif insuffisant (%dh au lieu de %dh minimum). Affectation refusée.",
-                        ecart.toHours(), REPOS_LEGAL_HEURES));
+                throw new ConflictException(ErrorCode.PLANNING_REPOS_LEGAL_INSUFFISANT,
+                        new Object[]{String.valueOf(ecart.toHours()), String.valueOf(REPOS_LEGAL_HEURES)});
             }
         }
     }
@@ -151,8 +156,7 @@ public class PlanningService {
                 .findByEmployeIdAndStatutAndDateDebutLessThanEqualAndDateFinGreaterThanEqualAndDeletedAtIsNull(
                         employeId, "VALIDE", dateFin.toLocalDate(), dateDebut.toLocalDate());
         if (!chevauchements.isEmpty()) {
-            throw new PlanningConflictException(
-                    "Affectation refusée : l'employé a un congé validé sur cette période. Veuillez sélectionner un remplaçant.");
+            throw new ConflictException(ErrorCode.PLANNING_CONGE_VALIDE_CHEVAUCHEMENT);
         }
     }
 
@@ -199,7 +203,7 @@ public class PlanningService {
 
     @Transactional(readOnly = true)
     public List<DeltaJourDto> rapportDeltaEmploye(UUID employeId, LocalDate dateDebut, LocalDate dateFin) {
-        Employe employe = employeRepository.findById(employeId).orElseThrow(() -> new EmployeNotFoundException(employeId));
+        Employe employe = employeRepository.findById(employeId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EMPLOYE_NOT_FOUND, new Object[]{employeId}));
         return calculerDelta(employe, dateDebut, dateFin);
     }
 

@@ -1,13 +1,14 @@
 package com.sirh.service;
 
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.ErrorCode;
+
 import com.sirh.annotation.Audited;
 import com.sirh.model.dto.UtilisateurDto;
 import com.sirh.model.enums.Role;
 import com.sirh.model.entity.Utilisateur;
-import com.sirh.exception.UtilisateurNotFoundException;
 import com.sirh.model.repository.UtilisateurRepository;
 import com.sirh.model.entity.Employe;
-import com.sirh.exception.EmployeNotFoundException;
 import com.sirh.model.repository.EmployeRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -53,7 +54,7 @@ public class UtilisateurService {
     @Transactional
     public UtilisateurDto create(UUID employeId, String username, String passwordHash, Role role) {
         Employe employe = employeRepository.findById(employeId)
-                .orElseThrow(() -> new EmployeNotFoundException(employeId));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EMPLOYE_NOT_FOUND, new Object[]{employeId}));
 
         Utilisateur utilisateur = Utilisateur.builder()
                 .employe(employe)
@@ -87,7 +88,7 @@ public class UtilisateurService {
 
     private Utilisateur getUtilisateurEntityByReference(UUID reference) {
         return utilisateurRepository.findByReferenceAndDeletedAtIsNull(reference).orElseThrow(() -> new
-                UtilisateurNotFoundException(reference));
+                ResourceNotFoundException(ErrorCode.UTILISATEUR_NOT_FOUND, new Object[]{reference}));
     }
 
     private UtilisateurDto toDto(Utilisateur utilisateur) {

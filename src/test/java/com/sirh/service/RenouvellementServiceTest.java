@@ -18,8 +18,8 @@ import com.sirh.service.ContratService;
 import com.sirh.model.dto.TacheRenouvellementDto;
 import com.sirh.model.entity.TacheRenouvellement;
 import com.sirh.model.enums.TacheRenouvellementStatut;
-import com.sirh.exception.TacheRenouvellementNotFoundException;
-import com.sirh.exception.TacheRenouvellementStatutInvalideException;
+import com.sirh.exception.ConflictException;
+import com.sirh.exception.ResourceNotFoundException;
 import com.sirh.model.repository.TacheRenouvellementRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -223,7 +223,7 @@ class RenouvellementServiceTest {
         when(tacheRenouvellementRepository.findByReferenceAndDeletedAtIsNull(tacheReference)).thenReturn(Optional.of(tache));
 
         assertThatThrownBy(() -> service.traiterTacheRenouvellementByReference(tacheReference, TacheRenouvellementStatut.NON_RENOUVELE, null, 42L))
-                .isInstanceOf(TacheRenouvellementStatutInvalideException.class);
+                .isInstanceOf(ConflictException.class);
     }
 
     @Test
@@ -232,7 +232,7 @@ class RenouvellementServiceTest {
         when(tacheRenouvellementRepository.findByReferenceAndDeletedAtIsNull(tacheReference)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.traiterTacheRenouvellementByReference(tacheReference, TacheRenouvellementStatut.VALIDE, null, 42L))
-                .isInstanceOf(TacheRenouvellementNotFoundException.class);
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test

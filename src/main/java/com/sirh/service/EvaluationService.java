@@ -1,5 +1,8 @@
 package com.sirh.service;
 
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.ErrorCode;
+
 import com.sirh.annotation.Audited;
 import com.sirh.model.dto.EvaluationCompetenceDto;
 import com.sirh.model.dto.EvaluationCompetenceRequest;
@@ -9,9 +12,7 @@ import com.sirh.model.entity.Evaluation;
 import com.sirh.model.entity.EvaluationCompetence;
 import com.sirh.model.enums.EvaluationStatut;
 import com.sirh.model.entity.PlanDeveloppement;
-import com.sirh.exception.EvaluationIncompleteException;
-import com.sirh.exception.EvaluationNotFoundException;
-import com.sirh.exception.EvaluationStatutInvalideException;
+import com.sirh.exception.ConflictException;
 import com.sirh.model.repository.EvaluationCompetenceRepository;
 import com.sirh.model.repository.EvaluationRepository;
 import com.sirh.model.repository.PlanDeveloppementRepository;
@@ -68,8 +69,7 @@ public class EvaluationService {
 
         int annee = Year.now().getValue();
         if (evaluationRepository.existsByEmployeIdAndAnneeAndDeletedAtIsNull(employeId, annee)) {
-            throw new EvaluationStatutInvalideException(
-                    "Une évaluation existe déjà pour cet employé sur l'année " + annee + ".");
+            throw new ConflictException(ErrorCode.EVALUATION_DEJA_EXISTANTE, new Object[]{String.valueOf(annee)});
         }
 
         Evaluation evaluation = evaluationRepository.save(Evaluation.builder()
@@ -86,13 +86,12 @@ public class EvaluationService {
     @Transactional
     public EvaluationDto mettreAJourEvaluationByReference(UUID reference, UUID managerId, List<EvaluationCompetenceRequest> competences) {
         Evaluation evaluation = evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new EvaluationNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EVALUATION_NOT_FOUND, new Object[]{reference}));
         if (!evaluation.getManagerId().equals(managerId)) {
             throw new AccessDeniedException("Seul le Manager ayant créé la grille peut la compléter/corriger.");
         }
         if (evaluation.getStatut() != EvaluationStatut.EN_COURS) {
-            throw new EvaluationStatutInvalideException(
-                    "Grille déjà validée par le RH, elle ne peut plus être modifiée (référence " + reference + ").");
+            throw new ConflictException(ErrorCode.EVALUATION_DEJA_VALIDEE, new Object[]{reference});
         }
 
         List<EvaluationCompetence> lignes = enregistrerCompetences(evaluation.getId(), competences);
@@ -102,7 +101,7 @@ public class EvaluationService {
                 .map(EvaluationCompetence::getCompetence)
                 .toList();
         if (!manquantes.isEmpty()) {
-            throw new EvaluationIncompleteException(manquantes);
+            throw new ConflictException(ErrorCode.EVALUATION_INCOMPLETE, new Object[]{String.join(", ", manquantes)});
         }
 
         Employe employe = employeRepository.findById(evaluation.getEmployeId()).orElse(null);
@@ -131,17 +130,16 @@ public class EvaluationService {
     @Transactional
     public EvaluationDto validerEvaluationByReference(UUID reference) {
         Evaluation evaluation = evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new EvaluationNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EVALUATION_NOT_FOUND, new Object[]{reference}));
         if (evaluation.getStatut() != EvaluationStatut.EN_COURS) {
-            throw new EvaluationStatutInvalideException(
-                    "Seule une évaluation EN_COURS peut être validée (référence " + reference + ").");
+            throw new ConflictException(ErrorCode.EVALUATION_VALIDATION_STATUT_INVALIDE, new Object[]{reference});
         }
 
         Long evaluationId = evaluation.getId();
         List<EvaluationCompetence> lignes = competenceRepository.findByEvaluationIdAndDeletedAtIsNull(evaluationId);
         List<String> manquantes = lignes.stream().filter(c -> c.getNote() == null).map(EvaluationCompetence::getCompetence).toList();
         if (!manquantes.isEmpty()) {
-            throw new EvaluationIncompleteException(manquantes);
+            throw new ConflictException(ErrorCode.EVALUATION_INCOMPLETE, new Object[]{String.join(", ", manquantes)});
         }
 
         List<PlanDeveloppement> pdi = lignes.stream()

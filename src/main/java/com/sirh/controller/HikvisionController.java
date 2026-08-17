@@ -1,12 +1,12 @@
 package com.sirh.controller;
 
 import com.sirh.model.entity.Employe;
-import com.sirh.exception.EmployeNotFoundException;
+import com.sirh.exception.ErrorCode;
+import com.sirh.exception.ResourceNotFoundException;
 import com.sirh.model.repository.EmployeRepository;
 import com.sirh.model.dto.HikvisionEventRequest;
 import com.sirh.model.entity.Pointeuse;
 import com.sirh.model.enums.SourceImport;
-import com.sirh.exception.PointeuseNotFoundException;
 import com.sirh.service.PointageBrutService;
 import com.sirh.service.PointeuseService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,11 +40,11 @@ public class HikvisionController {
     public ResponseEntity<Void> recevoirEvenement(@Valid @RequestBody HikvisionEventRequest request,
                                                     HttpServletRequest httpRequest) {
         Pointeuse pointeuse = pointeuseService.findByAdresseIp(httpRequest.getRemoteAddr())
-                .orElseThrow(() -> new PointeuseNotFoundException(
-                        "Pointeuse introuvable pour l'IP " + httpRequest.getRemoteAddr()));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.POINTEUSE_NOT_FOUND_BY_IP,
+                        new Object[]{httpRequest.getRemoteAddr()}));
         Employe employe = employeRepository.findByMatriculeInterneAndDeletedAtIsNull(request.badgeId())
-                .orElseThrow(() -> new EmployeNotFoundException(
-                        "Aucun employé pour le badgeId " + request.badgeId()));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EMPLOYE_NOT_FOUND_BY_BADGE,
+                        new Object[]{request.badgeId()}));
 
         pointageBrutService.enregistrer(employe.getId(), pointeuse.getId(), request.timestamp(),
                 request.typeEvenement(), request.methodeValidation(), SourceImport.HIKVISION_PUSH);

@@ -1,9 +1,11 @@
 package com.sirh.service;
 
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.ErrorCode;
+
 import com.sirh.model.dto.ShiftDto;
 import com.sirh.model.dto.ShiftRequest;
 import com.sirh.model.entity.Shift;
-import com.sirh.exception.ShiftNotFoundException;
 import com.sirh.model.repository.ShiftRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +45,7 @@ public class ShiftService {
 
     private Shift getShiftEntityByReference(UUID reference) {
         return shiftRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new ShiftNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SHIFT_NOT_FOUND, new Object[]{reference}));
     }
 
     private ShiftDto toDto(Shift s) {

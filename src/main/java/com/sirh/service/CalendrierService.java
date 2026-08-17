@@ -1,9 +1,11 @@
 package com.sirh.service;
 
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.ErrorCode;
+
 import com.sirh.model.dto.JourFerieDto;
 import com.sirh.model.entity.JourFerie;
 import com.sirh.model.enums.TypeJourFerie;
-import com.sirh.exception.JourFerieNotFoundException;
 import com.sirh.model.repository.JourFerieRepository;
 import com.sirh.model.entity.HistoriqueSolde;
 import com.sirh.model.entity.Indisponibilite;
@@ -96,7 +98,7 @@ public class CalendrierService {
 
     private JourFerie getJourFerieByReference(UUID reference) {
         return jourFerieRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new JourFerieNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.JOUR_FERIE_NOT_FOUND, new Object[]{reference}));
     }
 
     // Seul le type FERIE (férié, y compris mobile) déclenche le recrédit : une

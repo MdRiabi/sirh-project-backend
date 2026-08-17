@@ -5,7 +5,9 @@ import com.sirh.model.repository.EmployeRepository;
 import com.sirh.model.enums.MethodeValidation;
 import com.sirh.model.enums.SourceImport;
 import com.sirh.model.enums.TypeEvenement;
-import com.sirh.exception.ImportPointagesException;
+import com.sirh.exception.ConflictException;
+import com.sirh.exception.ErrorCode;
+import com.sirh.exception.TechnicalException;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DateUtil;
@@ -13,6 +15,8 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +38,8 @@ import java.util.UUID;
 @Service
 public class PointageImportWriter {
 
+    private static final Logger log = LoggerFactory.getLogger(PointageImportWriter.class);
+
     private static final String[] COLONNES_ATTENDUES = {"badgeid", "datetime", "typeevenement"};
     private static final DateTimeFormatter TEXTE_DATETIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm[:ss]");
 
@@ -47,7 +53,7 @@ public class PointageImportWriter {
 
     /**
      * Rollback total au 1er échec (cahier-fonctionnel.md Module 1) : toute
-     * la méthode est une seule transaction, une ImportPointagesException sur
+     * la méthode est une seule transaction, une ConflictException (IMPORT_*) sur
      * n'importe quelle ligne annule l'ensemble des insertions précédentes.
      */
     @Transactional
@@ -68,13 +74,14 @@ public class PointageImportWriter {
             }
             return lignesTraitees;
         } catch (IOException e) {
-            throw new UncheckedIOException("Fichier Excel illisible.", e);
+            log.error("Fichier Excel illisible.", e);
+            throw new TechnicalException(ErrorCode.SYSTEM_ERROR, e);
         }
     }
 
     private Map<String, Integer> lireEntetes(Row header) {
         if (header == null) {
-            throw new ImportPointagesException(1, "Le fichier ne contient pas de ligne d'en-tête.");
+            throw new ConflictException(ErrorCode.IMPORT_ENTETE_MANQUANTE, new Object[]{1});
         }
         Map<String, Integer> colonnes = new HashMap<>();
         for (Cell cell : header) {
@@ -83,8 +90,7 @@ public class PointageImportWriter {
         }
         for (String attendue : COLONNES_ATTENDUES) {
             if (!colonnes.containsKey(attendue)) {
-                throw new ImportPointagesException(1, "Colonne obligatoire manquante : " + attendue
-                        + " (colonnes attendues : badgeId, dateTime, typeEvenement, methodeValidation [optionnelle]).");
+                throw new ConflictException(ErrorCode.IMPORT_COLONNE_MANQUANTE, new Object[]{1, attendue});
             }
         }
         return colonnes;
@@ -93,12 +99,12 @@ public class PointageImportWriter {
     private void traiterLigne(Row row, Map<String, Integer> colonnes, int numeroLigne) {
         String badgeId = valeurTexte(row.getCell(colonnes.get("badgeid")));
         if (badgeId.isBlank()) {
-            throw new ImportPointagesException(numeroLigne, "badgeId manquant.");
+            throw new ConflictException(ErrorCode.IMPORT_BADGE_ID_MANQUANT, new Object[]{numeroLigne});
         }
 
         Employe employe = employeRepository.findByMatriculeInterneAndDeletedAtIsNull(badgeId)
-                .orElseThrow(() -> new ImportPointagesException(numeroLigne,
-                        "Matricule '" + badgeId + "' inexistant."));
+                .orElseThrow(() -> new ConflictException(ErrorCode.IMPORT_MATRICULE_INEXISTANT,
+                        new Object[]{numeroLigne, badgeId}));
 
         LocalDateTime timestamp = lireDateHeure(row.getCell(colonnes.get("datetime")), numeroLigne);
 
@@ -122,13 +128,13 @@ public class PointageImportWriter {
         try {
             return Enum.valueOf(type, valeur.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new ImportPointagesException(numeroLigne, "Valeur invalide pour " + champ + " : '" + valeur + "'.");
+            throw new ConflictException(ErrorCode.IMPORT_VALEUR_INVALIDE, new Object[]{numeroLigne, champ, valeur});
         }
     }
 
     private LocalDateTime lireDateHeure(Cell cell, int numeroLigne) {
         if (cell == null) {
-            throw new ImportPointagesException(numeroLigne, "Date/heure manquante.");
+            throw new ConflictException(ErrorCode.IMPORT_DATE_HEURE_MANQUANTE, new Object[]{numeroLigne});
         }
         try {
             if (cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
@@ -137,8 +143,7 @@ public class PointageImportWriter {
             String texte = valeurTexte(cell).trim();
             return LocalDateTime.parse(texte, TEXTE_DATETIME);
         } catch (Exception e) {
-            throw new ImportPointagesException(numeroLigne,
-                    "Date/heure invalide : '" + valeurTexte(cell) + "' (format attendu : yyyy-MM-dd HH:mm).");
+            throw new ConflictException(ErrorCode.IMPORT_DATE_HEURE_INVALIDE, new Object[]{numeroLigne, valeurTexte(cell)});
         }
     }
 

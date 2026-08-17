@@ -1,8 +1,10 @@
 package com.sirh.service;
 
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.ErrorCode;
+
 import com.sirh.model.dto.PointeuseDto;
 import com.sirh.model.entity.Pointeuse;
-import com.sirh.exception.PointeuseNotFoundException;
 import com.sirh.model.repository.PointeuseRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,7 +36,7 @@ public class PointeuseService {
     @Transactional
     public Pointeuse enregistrerSynchroByReference(UUID reference) {
         Pointeuse pointeuse = pointeuseRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new PointeuseNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.POINTEUSE_NOT_FOUND, new Object[]{reference}));
         pointeuse.setStatutEnLigne(true);
         pointeuse.setDerniereSynchro(LocalDateTime.now());
         return pointeuseRepository.save(pointeuse);

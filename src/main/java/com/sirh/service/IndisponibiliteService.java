@@ -7,14 +7,13 @@ import com.sirh.model.repository.JourFerieRepository;
 import com.sirh.model.dto.IndisponibiliteDto;
 import com.sirh.model.entity.HistoriqueSolde;
 import com.sirh.model.entity.Indisponibilite;
-import com.sirh.exception.DemandeStatutInvalideException;
-import com.sirh.exception.IndisponibiliteNotFoundException;
-import com.sirh.exception.SoldeInsuffisantException;
+import com.sirh.exception.ConflictException;
+import com.sirh.exception.ErrorCode;
+import com.sirh.exception.ResourceNotFoundException;
 import com.sirh.model.repository.HistoriqueSoldeRepository;
 import com.sirh.model.repository.IndisponibiliteRepository;
 import com.sirh.event.DemandeCreeEvent;
 import com.sirh.model.entity.Employe;
-import com.sirh.exception.EmployeNotFoundException;
 import com.sirh.model.repository.EmployeRepository;
 import com.sirh.model.enums.PlanningStatut;
 import com.sirh.service.PlanningService;
@@ -77,7 +76,7 @@ public class IndisponibiliteService {
     public IndisponibiliteDto creer(UUID employeId, String typeIndisponibilite, LocalDate dateDebut, LocalDate dateFin,
                                   String commentaire, Long pieceJointeId, UUID creeParId, String creeParRole,
                                   String avisManagerStatut, String avisManagerCommentaire, boolean forcer) {
-        employeRepository.findById(employeId).orElseThrow(() -> new EmployeNotFoundException(employeId));
+        employeRepository.findById(employeId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EMPLOYE_NOT_FOUND, new Object[]{employeId}));
         // Cas exceptionnel Module 3 : idem AutorisationService.creer — vérifie les
         // deux bornes, une indisponibilité peut chevaucher deux mois calendaires.
         cloturePaieService.verifierMoisOuvert(dateDebut);
@@ -118,8 +117,7 @@ public class IndisponibiliteService {
     public IndisponibiliteDto validerIndisponibiliteByReference(UUID reference, String bascule, boolean forcer, UUID valideParRhId) {
         Indisponibilite indisponibilite = getIndisponibiliteByReference(reference);
         if (!STATUT_EN_ATTENTE_RH.equals(indisponibilite.getStatut())) {
-            throw new DemandeStatutInvalideException(
-                    "Seule une indisponibilité EN_ATTENTE_RH peut être validée (statut actuel : " + indisponibilite.getStatut() + ").");
+            throw new ConflictException(ErrorCode.INDISPONIBILITE_VALIDATION_STATUT_INVALIDE, new Object[]{indisponibilite.getStatut()});
         }
         if (bascule != null && !bascule.isBlank()) {
             indisponibilite.setTypeIndisponibilite(bascule);
@@ -151,14 +149,14 @@ public class IndisponibiliteService {
 
     private void deduireSolde(Indisponibilite indisponibilite, boolean forcer) {
         Employe employe = employeRepository.findById(indisponibilite.getEmployeId())
-                .orElseThrow(() -> new EmployeNotFoundException(indisponibilite.getEmployeId()));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EMPLOYE_NOT_FOUND, new Object[]{indisponibilite.getEmployeId()}));
         BigDecimal soldeAvant = employe.getSoldeCongesJours() != null ? employe.getSoldeCongesJours() : BigDecimal.ZERO;
 
         int joursOuvres = joursOuvres(indisponibilite.getDateDebut(), indisponibilite.getDateFin());
         BigDecimal soldeApres = soldeAvant.subtract(BigDecimal.valueOf(joursOuvres));
 
         if (soldeApres.signum() < 0 && !forcer) {
-            throw new SoldeInsuffisantException(soldeAvant);
+            throw new ConflictException(ErrorCode.SOLDE_INSUFFISANT, new Object[]{soldeAvant.stripTrailingZeros().toPlainString()});
         }
 
         employe.setSoldeCongesJours(soldeApres);
@@ -199,8 +197,7 @@ public class IndisponibiliteService {
     public IndisponibiliteDto refuserIndisponibiliteByReference(UUID reference) {
         Indisponibilite indisponibilite = getIndisponibiliteByReference(reference);
         if (!STATUT_EN_ATTENTE_RH.equals(indisponibilite.getStatut())) {
-            throw new DemandeStatutInvalideException(
-                    "Seule une indisponibilité EN_ATTENTE_RH peut être refusée (statut actuel : " + indisponibilite.getStatut() + ").");
+            throw new ConflictException(ErrorCode.INDISPONIBILITE_REFUS_STATUT_INVALIDE, new Object[]{indisponibilite.getStatut()});
         }
         indisponibilite.setStatut(STATUT_REFUSE);
         return enrichirAvecDecompte(indisponibiliteRepository.save(indisponibilite));
@@ -209,12 +206,12 @@ public class IndisponibiliteService {
     @Transactional(readOnly = true)
     public Indisponibilite getIndisponibiliteByReference(UUID reference) {
         return indisponibiliteRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new IndisponibiliteNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.INDISPONIBILITE_NOT_FOUND, new Object[]{reference}));
     }
 
     @Transactional(readOnly = true)
     public BigDecimal solde(UUID employeId) {
-        Employe employe = employeRepository.findById(employeId).orElseThrow(() -> new EmployeNotFoundException(employeId));
+        Employe employe = employeRepository.findById(employeId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EMPLOYE_NOT_FOUND, new Object[]{employeId}));
         return employe.getSoldeCongesJours() != null ? employe.getSoldeCongesJours() : BigDecimal.ZERO;
     }
 

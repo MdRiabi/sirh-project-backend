@@ -13,9 +13,11 @@ import com.sirh.model.dto.AsyncJobDto;
 import com.sirh.model.entity.AsyncJob;
 import com.sirh.model.enums.AsyncJobStatut;
 import com.sirh.model.enums.AsyncJobType;
-import com.sirh.exception.AsyncJobNotFoundException;
+import com.sirh.exception.ConflictException;
+import com.sirh.exception.ErrorCode;
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.TechnicalException;
 import com.sirh.service.AsyncJobService;
-import com.sirh.exception.ReportNotReadyException;
 import com.sirh.model.entity.Indisponibilite;
 import com.sirh.model.repository.IndisponibiliteRepository;
 import com.sirh.model.entity.Departement;
@@ -32,6 +34,8 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -63,6 +67,8 @@ import java.util.stream.Collectors;
 // Excel du Lot 2) pendant que le calcul continue en arrière-plan.
 @Service
 public class ReportGenerationService {
+
+    private static final Logger log = LoggerFactory.getLogger(ReportGenerationService.class);
 
     private final long delaiSynchroneMs;
     private final EmployeRepository employeRepository;
@@ -111,7 +117,8 @@ public class ReportGenerationService {
                     });
             return new ReportGenerationResult.Lance(asyncJobService.toDto(job));
         } catch (Exception e) {
-            throw new IllegalStateException("Échec de la génération du rapport.", e);
+            log.error("Échec de la génération du rapport.", e);
+            throw new TechnicalException(ErrorCode.SYSTEM_ERROR, e);
         }
     }
 
@@ -120,7 +127,7 @@ public class ReportGenerationService {
     public AsyncJobDto obtenirTache(UUID reference) {
         AsyncJob job = asyncJobService.getAsyncJobByReference(reference);
         if (job.getType() != AsyncJobType.REPORT) {
-            throw new AsyncJobNotFoundException(reference);
+            throw new ResourceNotFoundException(ErrorCode.ASYNC_JOB_NOT_FOUND, new Object[]{reference});
         }
         return asyncJobService.toDto(job);
     }
@@ -131,15 +138,15 @@ public class ReportGenerationService {
     public FichierTelecharge chargerFichierResultat(UUID reference) {
         AsyncJob job = asyncJobService.getAsyncJobByReference(reference);
         if (job.getType() != AsyncJobType.REPORT) {
-            throw new AsyncJobNotFoundException(reference);
+            throw new ResourceNotFoundException(ErrorCode.ASYNC_JOB_NOT_FOUND, new Object[]{reference});
         }
         if (job.getStatut() != AsyncJobStatut.SUCCESS || job.getResultatUrl() == null) {
-            throw new ReportNotReadyException(reference);
+            throw new ConflictException(ErrorCode.REPORT_NOT_READY, new Object[]{reference});
         }
         String nomFichier = job.getResultatUrl();
         var chemin = reportStorage.resoudrePourTelechargement(nomFichier);
         if (chemin == null) {
-            throw new ReportNotReadyException(reference);
+            throw new ConflictException(ErrorCode.REPORT_NOT_READY, new Object[]{reference});
         }
         MediaType contentType = nomFichier.endsWith(".pdf")
                 ? MediaType.APPLICATION_PDF

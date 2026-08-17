@@ -1,6 +1,10 @@
 package com.sirh.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,37 +17,32 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(InvalidCredentialsException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException ex, HttpServletRequest request) {
-        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    private final MessageSource messageSource;
+
+    public GlobalExceptionHandler(MessageSource messageSource) {
+        this.messageSource = messageSource;
     }
 
-    @ExceptionHandler(AccountLockedException.class)
-    public ResponseEntity<ErrorResponse> handleAccountLocked(AccountLockedException ex, HttpServletRequest request) {
-        return build(HttpStatus.LOCKED, ex.getMessage(), request);
+    // Traitement générique de toute la hiérarchie SirhException : chaque
+    // exception métier porte son ErrorCode (statut HTTP + clé de traduction)
+    // et ses arguments positionnels, résolus ici via MessageSource — aucune
+    // exception concrète n'a plus besoin de son propre @ExceptionHandler.
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
+        return build(ex, request);
     }
 
-    @ExceptionHandler(InvalidTokenException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidToken(InvalidTokenException ex, HttpServletRequest request) {
-        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConflict(ConflictException ex, HttpServletRequest request) {
+        return build(ex, request);
     }
 
-    @ExceptionHandler(ImportPointagesException.class)
-    public ResponseEntity<ErrorResponse> handleImportPointages(ImportPointagesException ex, HttpServletRequest request) {
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
-    }
-
-    @ExceptionHandler(MoisNonClotureException.class)
-    public ResponseEntity<ErrorResponse> handleMoisNonCloture(MoisNonClotureException ex, HttpServletRequest request) {
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
-    }
-
-    // Le détail des compétences manquantes (Module 9) est intégré au message
-    // plutôt que porté par un champ séparé, pour respecter la structure
-    // ErrorResponse unique quel que soit le type d'erreur.
-    @ExceptionHandler(EvaluationIncompleteException.class)
-    public ResponseEntity<ErrorResponse> handleEvaluationIncomplete(EvaluationIncompleteException ex, HttpServletRequest request) {
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    @ExceptionHandler(TechnicalException.class)
+    public ResponseEntity<ErrorResponse> handleTechnical(TechnicalException ex, HttpServletRequest request) {
+        log.error("Erreur technique [{}] sur {} {}", ex.getErrorCode(), request.getMethod(), request.getRequestURI(), ex);
+        return build(ex, request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -51,41 +50,31 @@ public class GlobalExceptionHandler {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .collect(Collectors.joining(", "));
-        return build(HttpStatus.BAD_REQUEST, message, request);
+        return build(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", message, request);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+        return build(HttpStatus.BAD_REQUEST, "BAD_REQUEST", ex.getMessage(), request);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex, HttpServletRequest request) {
-        return build(HttpStatus.CONFLICT,
-                "Valeur en conflit avec une contrainte d'unicité existante (matricule, email, nom, date ou identifiant déjà utilisé).",
-                request);
+        return build(HttpStatus.CONFLICT, ErrorCode.DATA_INTEGRITY_VIOLATION.name(),
+                resolveMessage(ErrorCode.DATA_INTEGRITY_VIOLATION, new Object[0]), request);
     }
 
-    // Traitement générique de toute la hiérarchie SirhException : chaque
-    // exception métier (ex. UtilisateurNotFoundException, SoldeInsuffisantException)
-    // hérite du bon parent et n'a plus besoin de son propre @ExceptionHandler.
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
-        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    private ResponseEntity<ErrorResponse> build(SirhException ex, HttpServletRequest request) {
+        ErrorCode errorCode = ex.getErrorCode();
+        return build(errorCode.getHttpStatus(), errorCode.name(), resolveMessage(errorCode, ex.getArgs()), request);
     }
 
-    @ExceptionHandler(ConflictException.class)
-    public ResponseEntity<ErrorResponse> handleConflict(ConflictException ex, HttpServletRequest request) {
-        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
-    }
-
-    @ExceptionHandler(TechnicalException.class)
-    public ResponseEntity<ErrorResponse> handleTechnical(TechnicalException ex, HttpServletRequest request) {
-        return build(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage(), request);
-    }
-
-    private ResponseEntity<ErrorResponse> build(HttpStatus status, String message, HttpServletRequest request) {
+    private ResponseEntity<ErrorResponse> build(HttpStatus status, String code, String message, HttpServletRequest request) {
         return ResponseEntity.status(status)
-                .body(ErrorResponse.of(status.value(), status.getReasonPhrase(), message, request.getRequestURI()));
+                .body(ErrorResponse.of(status.value(), code, message, request.getRequestURI()));
+    }
+
+    private String resolveMessage(ErrorCode errorCode, Object[] args) {
+        return messageSource.getMessage(errorCode.name(), args, LocaleContextHolder.getLocale());
     }
 }

@@ -5,7 +5,7 @@ import com.sirh.model.entity.Outillage;
 import com.sirh.model.enums.OutillageEtat;
 import com.sirh.model.entity.OutillageMouvement;
 import com.sirh.model.enums.TypeMouvement;
-import com.sirh.exception.OutillageMouvementInvalideException;
+import com.sirh.exception.ConflictException;
 import com.sirh.model.repository.OutillageMouvementRepository;
 import com.sirh.model.repository.OutillageRepository;
 import com.sirh.service.ParametreGlobalService;
@@ -93,7 +93,7 @@ class OutillageServiceTest {
         when(outillageRepository.findById(1L)).thenReturn(Optional.of(outil));
 
         assertThatThrownBy(() -> service.checkOut(1L, UUID.randomUUID(), 99L))
-                .isInstanceOf(OutillageMouvementInvalideException.class);
+                .isInstanceOf(ConflictException.class);
     }
 
     @Test
@@ -113,7 +113,7 @@ class OutillageServiceTest {
         when(outillageRepository.findById(1L)).thenReturn(Optional.of(outil));
 
         assertThatThrownBy(() -> service.checkIn(1L, EtatMouvement.BON, null, 99L))
-                .isInstanceOf(OutillageMouvementInvalideException.class);
+                .isInstanceOf(ConflictException.class);
     }
 
     @Test

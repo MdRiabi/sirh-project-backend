@@ -1,11 +1,12 @@
 package com.sirh.service;
 
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.ErrorCode;
+
 import com.sirh.model.dto.EmployeDto;
 import com.sirh.model.dto.EmployeRequest;
 import com.sirh.model.entity.Departement;
 import com.sirh.model.entity.Employe;
-import com.sirh.exception.DepartementNotFoundException;
-import com.sirh.exception.EmployeNotFoundException;
 import com.sirh.model.repository.DepartementRepository;
 import com.sirh.model.repository.EmployeRepository;
 import jakarta.persistence.criteria.Predicate;
@@ -65,7 +66,7 @@ public class EmployeService {
     // matricule_cnss en clair, jamais exposé via EmployeDto.
     @Transactional(readOnly = true)
     public Employe findById(UUID id) {
-        return employeRepository.findById(id).orElseThrow(() -> new EmployeNotFoundException(id));
+        return employeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EMPLOYE_NOT_FOUND, new Object[]{id}));
     }
 
     @Transactional(readOnly = true)
@@ -121,7 +122,7 @@ public class EmployeService {
             return null;
         }
         return departementRepository.findById(departementId)
-                .orElseThrow(() -> new DepartementNotFoundException(departementId));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.DEPARTEMENT_NOT_FOUND, new Object[]{departementId}));
     }
 
     private EmployeDto toDto(Employe employe) {

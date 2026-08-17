@@ -1,9 +1,11 @@
 package com.sirh.service;
 
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.ErrorCode;
+
 import com.sirh.model.dto.NotificationDto;
 import com.sirh.model.entity.Notification;
 import com.sirh.model.enums.NotificationType;
-import com.sirh.exception.NotificationNotFoundException;
 import com.sirh.model.repository.NotificationRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -47,7 +49,7 @@ public class NotificationService {
     @Transactional
     public NotificationDto marquerNotificationLueByReference(UUID reference, Long destinataireId) {
         Notification notification = notificationRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new NotificationNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.NOTIFICATION_NOT_FOUND, new Object[]{reference}));
         if (!notification.getDestinataireId().equals(destinataireId)) {
             throw new AccessDeniedException("Cette notification n'appartient pas à l'utilisateur authentifié.");
         }

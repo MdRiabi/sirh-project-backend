@@ -1,5 +1,8 @@
 package com.sirh.service;
 
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.ErrorCode;
+
 import com.sirh.service.CloturePaieService;
 import com.sirh.model.dto.PointageBrutDto;
 import com.sirh.model.entity.AuditLog;
@@ -14,7 +17,6 @@ import com.sirh.model.entity.Pointeuse;
 import com.sirh.model.repository.PointeuseRepository;
 import com.sirh.model.enums.SourceImport;
 import com.sirh.model.enums.TypeEvenement;
-import com.sirh.exception.PointageNotFoundException;
 import com.sirh.model.repository.PointageBrutRepository;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Sort;
@@ -143,7 +145,7 @@ public class PointageBrutService {
     @Transactional(readOnly = true)
     public PointageBrut getPointageByReference(UUID reference) {
         return pointageBrutRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new PointageNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.POINTAGE_NOT_FOUND, new Object[]{reference}));
     }
 
     // Appelé par com.sirh.demandes.AutorisationService à la validation RH d'une

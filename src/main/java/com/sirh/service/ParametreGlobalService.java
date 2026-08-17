@@ -1,9 +1,11 @@
 package com.sirh.service;
 
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.ErrorCode;
+
 import com.sirh.annotation.Audited;
 import com.sirh.model.dto.ParametreGlobalDto;
 import com.sirh.model.entity.ParametreGlobal;
-import com.sirh.exception.ParametreNotFoundException;
 import com.sirh.model.repository.ParametreGlobalRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +38,7 @@ public class ParametreGlobalService {
     // besoin d'accéder directement à la valeur brute du paramètre.
     @Transactional(readOnly = true)
     public ParametreGlobal findByCle(String cle) {
-        return parametreGlobalRepository.findByCleAndDeletedAtIsNull(cle).orElseThrow(() -> new ParametreNotFoundException(cle));
+        return parametreGlobalRepository.findByCleAndDeletedAtIsNull(cle).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.PARAMETRE_NOT_FOUND, new Object[]{cle}));
     }
 
     // Relu à chaque appel (jamais mis en cache) : un changement de valeur par le

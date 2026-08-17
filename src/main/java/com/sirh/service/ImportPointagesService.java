@@ -3,10 +3,14 @@ package com.sirh.service;
 import com.sirh.model.entity.AsyncJob;
 import com.sirh.model.enums.AsyncJobType;
 import com.sirh.service.AsyncJobService;
-import com.sirh.exception.ImportPointagesException;
+import com.sirh.exception.ConflictException;
+import com.sirh.exception.ErrorCode;
+import com.sirh.exception.TechnicalException;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,6 +27,8 @@ import java.io.UncheckedIOException;
 @Service
 public class ImportPointagesService {
 
+    private static final Logger log = LoggerFactory.getLogger(ImportPointagesService.class);
+
     private static final int MAX_LIGNES = 1500;
 
     private final AsyncJobService asyncJobService;
@@ -38,7 +44,8 @@ public class ImportPointagesService {
         try {
             contenu = fichier.getBytes();
         } catch (IOException e) {
-            throw new UncheckedIOException("Fichier illisible.", e);
+            log.error("Fichier illisible.", e);
+            throw new TechnicalException(ErrorCode.SYSTEM_ERROR, e);
         }
         validerNombreDeLignes(contenu);
 
@@ -52,11 +59,12 @@ public class ImportPointagesService {
             Sheet sheet = workbook.getSheetAt(0);
             int nombreLignesDonnees = sheet.getLastRowNum() - sheet.getFirstRowNum(); // exclut l'en-tête
             if (nombreLignesDonnees > MAX_LIGNES) {
-                throw new ImportPointagesException(0,
-                        "Fichier trop volumineux : " + nombreLignesDonnees + " lignes (maximum " + MAX_LIGNES + ").");
+                throw new ConflictException(ErrorCode.IMPORT_FICHIER_TROP_VOLUMINEUX,
+                        new Object[]{String.valueOf(nombreLignesDonnees), String.valueOf(MAX_LIGNES)});
             }
         } catch (IOException e) {
-            throw new UncheckedIOException("Fichier Excel illisible.", e);
+            log.error("Fichier Excel illisible.", e);
+            throw new TechnicalException(ErrorCode.SYSTEM_ERROR, e);
         }
     }
 }

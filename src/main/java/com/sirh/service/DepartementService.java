@@ -1,9 +1,11 @@
 package com.sirh.service;
 
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.ErrorCode;
+
 import com.sirh.model.dto.DepartementDto;
 import com.sirh.model.dto.DepartementRequest;
 import com.sirh.model.entity.Departement;
-import com.sirh.exception.DepartementNotFoundException;
 import com.sirh.model.repository.DepartementRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,7 +51,7 @@ public class DepartementService {
 
     private Departement getDepartementEntityByReference(UUID reference) {
         return departementRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new DepartementNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.DEPARTEMENT_NOT_FOUND, new Object[]{reference}));
     }
 
     private DepartementDto toDto(Departement departement) {

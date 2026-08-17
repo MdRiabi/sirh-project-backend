@@ -1,10 +1,14 @@
 package com.sirh.exception;
 
-// Parent commun des exceptions "entité introuvable" -> HTTP 404 (cf.
-// GlobalExceptionHandler). Chaque *NotFoundException garde son propre nom/
-// message métier, seule la classification change.
+// Entité introuvable — statut HTTP porté par l'ErrorCode (404 dans tous les
+// cas actuels, mais ce n'est pas cette classe qui le décide).
 public class ResourceNotFoundException extends SirhException {
-    public ResourceNotFoundException(String message) {
-        super(message);
+
+    public ResourceNotFoundException(ErrorCode errorCode) {
+        super(errorCode);
+    }
+
+    public ResourceNotFoundException(ErrorCode errorCode, Object[] args) {
+        super(errorCode, args);
     }
 }

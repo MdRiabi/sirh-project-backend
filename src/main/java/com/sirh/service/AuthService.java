@@ -5,9 +5,8 @@ import com.sirh.model.dto.LoginRequest;
 import com.sirh.model.dto.TokenResponse;
 import com.sirh.model.dto.UserSummary;
 import com.sirh.model.entity.Utilisateur;
-import com.sirh.exception.AccountLockedException;
-import com.sirh.exception.InvalidCredentialsException;
-import com.sirh.exception.InvalidTokenException;
+import com.sirh.exception.ConflictException;
+import com.sirh.exception.ErrorCode;
 import com.sirh.model.repository.UtilisateurRepository;
 import com.sirh.security.JwtService;
 import com.sirh.security.SirhUserDetails;
@@ -43,24 +42,24 @@ public class AuthService {
     }
 
     // noRollbackFor : registerFailedAttempt() doit persister l'incrémentation du
-    // compteur d'échecs même quand la méthode se termine par
-    // InvalidCredentialsException -- le rollback par défaut de Spring sur toute
-    // RuntimeException annulait sinon systématiquement ce compteur, rendant le
-    // verrouillage après 5 échecs totalement inopérant.
-    @Transactional(noRollbackFor = InvalidCredentialsException.class)
+    // compteur d'échecs même quand la méthode se termine par une
+    // ConflictException (identifiants invalides) -- le rollback par défaut de
+    // Spring sur toute RuntimeException annulait sinon systématiquement ce
+    // compteur, rendant le verrouillage après 5 échecs totalement inopérant.
+    @Transactional(noRollbackFor = ConflictException.class)
     public TokenResponse login(LoginRequest request) {
         Utilisateur utilisateur = utilisateurRepository.findByUsernameAndDeletedAtIsNull(request.username())
-                .orElseThrow(() -> new InvalidCredentialsException("Identifiants invalides."));
+                .orElseThrow(() -> new ConflictException(ErrorCode.IDENTIFIANTS_INVALIDES));
 
         LocalDateTime verrouilleJusquA = utilisateur.getVerrouilleJusquA();
         if (verrouilleJusquA != null && verrouilleJusquA.isAfter(LocalDateTime.now())) {
-            throw new AccountLockedException(verrouilleJusquA);
+            throw new ConflictException(ErrorCode.COMPTE_VERROUILLE, new Object[]{verrouilleJusquA});
         }
 
         if (!Boolean.TRUE.equals(utilisateur.getCompteActif())
                 || !passwordEncoder.matches(request.password(), utilisateur.getPasswordHash())) {
             registerFailedAttempt(utilisateur);
-            throw new InvalidCredentialsException("Identifiants invalides.");
+            throw new ConflictException(ErrorCode.IDENTIFIANTS_INVALIDES);
         }
 
         utilisateur.setEchecsLoginConsecutifs(0);
@@ -86,18 +85,18 @@ public class AuthService {
         try {
             claims = jwtService.parseRefreshToken(refreshToken);
         } catch (JwtException | IllegalArgumentException e) {
-            throw new InvalidTokenException("Refresh token invalide ou expiré.");
+            throw new ConflictException(ErrorCode.REFRESH_TOKEN_INVALIDE);
         }
 
         if (blacklistService.isBlacklisted(claims.getId())) {
-            throw new InvalidTokenException("Refresh token révoqué.");
+            throw new ConflictException(ErrorCode.REFRESH_TOKEN_REVOQUE);
         }
 
         Utilisateur utilisateur = utilisateurRepository.findByUsernameAndDeletedAtIsNull(claims.getSubject())
-                .orElseThrow(() -> new InvalidTokenException("Utilisateur introuvable."));
+                .orElseThrow(() -> new ConflictException(ErrorCode.TOKEN_UTILISATEUR_INTROUVABLE));
 
         if (!Boolean.TRUE.equals(utilisateur.getCompteActif())) {
-            throw new InvalidTokenException("Compte désactivé.");
+            throw new ConflictException(ErrorCode.COMPTE_DESACTIVE);
         }
 
         blacklistRemainingLifetime(claims.getId(), claims.getExpiration());
@@ -128,10 +127,10 @@ public class AuthService {
     @Transactional
     public void changePassword(Long userId, ChangePasswordRequest request) {
         Utilisateur utilisateur = utilisateurRepository.findById(userId)
-                .orElseThrow(() -> new InvalidCredentialsException("Utilisateur introuvable."));
+                .orElseThrow(() -> new ConflictException(ErrorCode.CHANGEMENT_MDP_UTILISATEUR_INTROUVABLE));
 
         if (!passwordEncoder.matches(request.currentPassword(), utilisateur.getPasswordHash())) {
-            throw new InvalidCredentialsException("Mot de passe actuel incorrect.");
+            throw new ConflictException(ErrorCode.MOT_DE_PASSE_ACTUEL_INCORRECT);
         }
 
         utilisateur.setPasswordHash(passwordEncoder.encode(request.newPassword()));

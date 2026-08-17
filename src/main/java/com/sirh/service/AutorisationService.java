@@ -4,14 +4,12 @@ import com.sirh.service.CloturePaieService;
 import com.sirh.annotation.Audited;
 import com.sirh.model.dto.AutorisationDto;
 import com.sirh.model.entity.Autorisation;
-import com.sirh.exception.AutorisationNotFoundException;
-import com.sirh.exception.DelaiRegularisationDepasseException;
-import com.sirh.exception.DemandeStatutInvalideException;
-import com.sirh.exception.QuotaAutorisationDepasseException;
+import com.sirh.exception.ConflictException;
+import com.sirh.exception.ErrorCode;
+import com.sirh.exception.ResourceNotFoundException;
 import com.sirh.model.repository.AutorisationRepository;
 import com.sirh.event.DemandeCreeEvent;
 import com.sirh.model.entity.Employe;
-import com.sirh.exception.EmployeNotFoundException;
 import com.sirh.model.repository.EmployeRepository;
 import com.sirh.model.enums.PlanningStatut;
 import com.sirh.service.PlanningService;
@@ -71,7 +69,7 @@ public class AutorisationService {
     public AutorisationDto creer(UUID employeId, String type, LocalDate dateAutorisation, LocalTime heureDebut,
                                LocalTime heureFin, Integer dureeMinutes, String motif, UUID creeParId,
                                String creeParRole, String avisManagerStatut, String avisManagerCommentaire) {
-        employeRepository.findById(employeId).orElseThrow(() -> new EmployeNotFoundException(employeId));
+        employeRepository.findById(employeId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EMPLOYE_NOT_FOUND, new Object[]{employeId}));
         // Cas exceptionnel Module 3 : une nouvelle autorisation ne peut pas être
         // saisie sur un mois déjà clôturé, y compris via le workflow d'urgence RH.
         cloturePaieService.verifierMoisOuvert(dateAutorisation);
@@ -79,7 +77,7 @@ public class AutorisationService {
         if (ROLE_MANAGER.equals(creeParRole)) {
             LocalDateTime reference = LocalDateTime.of(dateAutorisation, heureDebut);
             if (Duration.between(reference, LocalDateTime.now()).toHours() > DELAI_REGULARISATION_HEURES) {
-                throw new DelaiRegularisationDepasseException();
+                throw new ConflictException(ErrorCode.DELAI_REGULARISATION_DEPASSE);
             }
         }
 
@@ -122,13 +120,12 @@ public class AutorisationService {
     public AutorisationDto validerAutorisationByReference(UUID reference, String traitementDepassement, UUID valideParRhId) {
         Autorisation autorisation = getAutorisationByReference(reference);
         if (!STATUT_EN_ATTENTE_RH.equals(autorisation.getStatut())) {
-            throw new DemandeStatutInvalideException(
-                    "Seule une autorisation EN_ATTENTE_RH peut être validée (statut actuel : " + autorisation.getStatut() + ").");
+            throw new ConflictException(ErrorCode.AUTORISATION_VALIDATION_STATUT_INVALIDE, new Object[]{autorisation.getStatut()});
         }
 
         int cumulMinutes = cumulMinutesMois(autorisation.getEmployeId(), autorisation.getDateAutorisation());
         if (cumulMinutes > QUOTA_MENSUEL_MINUTES && (traitementDepassement == null || traitementDepassement.isBlank())) {
-            throw new QuotaAutorisationDepasseException(cumulMinutes - QUOTA_MENSUEL_MINUTES);
+            throw new ConflictException(ErrorCode.QUOTA_AUTORISATION_DEPASSE, new Object[]{String.valueOf(cumulMinutes - QUOTA_MENSUEL_MINUTES)});
         }
 
         autorisation.setStatut(STATUT_VALIDE);
@@ -159,8 +156,7 @@ public class AutorisationService {
     public AutorisationDto refuserAutorisationByReference(UUID reference) {
         Autorisation autorisation = getAutorisationByReference(reference);
         if (!STATUT_EN_ATTENTE_RH.equals(autorisation.getStatut())) {
-            throw new DemandeStatutInvalideException(
-                    "Seule une autorisation EN_ATTENTE_RH peut être refusée (statut actuel : " + autorisation.getStatut() + ").");
+            throw new ConflictException(ErrorCode.AUTORISATION_REFUS_STATUT_INVALIDE, new Object[]{autorisation.getStatut()});
         }
         autorisation.setStatut(STATUT_REFUSE);
         return enrichirAvecQuota(autorisationRepository.save(autorisation));
@@ -169,7 +165,7 @@ public class AutorisationService {
     @Transactional(readOnly = true)
     public Autorisation getAutorisationByReference(UUID reference) {
         return autorisationRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new AutorisationNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.AUTORISATION_NOT_FOUND, new Object[]{reference}));
     }
 
     // Somme des durées EN_ATTENTE_RH + VALIDE sur le mois calendaire de

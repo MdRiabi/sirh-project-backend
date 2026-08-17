@@ -2,11 +2,10 @@ package com.sirh.service;
 
 import com.sirh.model.entity.CloturePaie;
 import com.sirh.model.entity.DemandeDeverrouillage;
-import com.sirh.exception.ClotureRefuseeException;
-import com.sirh.exception.DemandeDeverrouillageNotFoundException;
-import com.sirh.exception.DemandeDeverrouillageStatutInvalideException;
-import com.sirh.exception.MoisDejaClotureException;
-import com.sirh.exception.MoisNonClotureException;
+import com.sirh.exception.ConflictException;
+import com.sirh.exception.ErrorCode;
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.TechnicalException;
 import com.sirh.model.dto.ClotureDto;
 import com.sirh.model.dto.DemandeDeverrouillageDto;
 import com.sirh.model.repository.CloturePaieRepository;
@@ -21,6 +20,8 @@ import com.sirh.model.enums.PointageStatut;
 import com.sirh.model.repository.PointageBrutRepository;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +45,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class CloturePaieService {
+
+    private static final Logger log = LoggerFactory.getLogger(CloturePaieService.class);
 
     private static final String STATUT_OUVERT = "OUVERT";
     private static final String STATUT_CLOTURE = "CLOTURE";
@@ -93,8 +96,12 @@ public class CloturePaieService {
         cloturePaieRepository.findByMoisAndDeletedAtIsNull(mois)
                 .filter(c -> STATUT_CLOTURE.equals(c.getStatut()))
                 .ifPresent(c -> {
-                    throw new MoisDejaClotureException(mois);
+                    throw new ConflictException(ErrorCode.MOIS_DEJA_CLOTURE, new Object[]{formatMois(mois)});
                 });
+    }
+
+    private static String formatMois(LocalDate mois) {
+        return mois.getYear() + "-" + String.format("%02d", mois.getMonthValue());
     }
 
     @Audited(action = "CLOTURER_PAIE", tableCible = "cloture_paie")
@@ -104,20 +111,20 @@ public class CloturePaieService {
         LocalDate finMois = moisParam.atEndOfMonth();
         CloturePaie cloture = cloturePaieRepository.findByMoisAndDeletedAtIsNull(mois).orElseGet(() -> CloturePaie.builder().mois(mois).build());
         if (STATUT_CLOTURE.equals(cloture.getStatut())) {
-            throw new MoisDejaClotureException(mois);
+            throw new ConflictException(ErrorCode.MOIS_DEJA_CLOTURE, new Object[]{formatMois(mois)});
         }
 
         BigDecimal tauxAnomaliesJustifiees = tauxAnomaliesJustifiees(mois, finMois);
         BigDecimal seuil = parametreGlobalService.valeurDecimale("SEUIL_ANOMALIES_CLOTURE");
         if (tauxAnomaliesJustifiees.compareTo(seuil) < 0) {
-            throw new ClotureRefuseeException(String.format(
-                    "Taux d'anomalies justifiées insuffisant (%s%% < %s%% requis).", tauxAnomaliesJustifiees, seuil));
+            throw new ConflictException(ErrorCode.CLOTURE_TAUX_ANOMALIES_INSUFFISANT,
+                    new Object[]{tauxAnomaliesJustifiees.stripTrailingZeros().toPlainString(), seuil.stripTrailingZeros().toPlainString()});
         }
 
         boolean demandesEnAttente = !autorisationRepository.findByStatutAndDateAutorisationBetweenAndDeletedAtIsNull(STATUT_EN_ATTENTE_RH, mois, finMois).isEmpty()
                 || !indisponibiliteRepository.findByStatutAndDateDebutLessThanEqualAndDateFinGreaterThanEqualAndDeletedAtIsNull(STATUT_EN_ATTENTE_RH, finMois, mois).isEmpty();
         if (demandesEnAttente) {
-            throw new ClotureRefuseeException("Des demandes (autorisations/indisponibilités) sont encore EN_ATTENTE_RH sur ce mois.");
+            throw new ConflictException(ErrorCode.CLOTURE_DEMANDES_EN_ATTENTE);
         }
 
         cloture.setStatut(STATUT_CLOTURE);
@@ -145,7 +152,7 @@ public class CloturePaieService {
                 .map(c -> STATUT_CLOTURE.equals(c.getStatut()))
                 .orElse(false);
         if (!moisCloture) {
-            throw new MoisNonClotureException();
+            throw new ConflictException(ErrorCode.MOIS_NON_CLOTURE);
         }
         DemandeDeverrouillage demande = demandeDeverrouillageRepository.save(DemandeDeverrouillage.builder()
                 .mois(mois).motif(motif).demandeParId(demandeParId).build());
@@ -157,7 +164,7 @@ public class CloturePaieService {
     public DemandeDeverrouillageDto traiterDemandeByReference(UUID reference, String statut, UUID traiteParId) {
         DemandeDeverrouillage demande = getDemandeByReference(reference);
         if (!STATUT_EN_ATTENTE.equals(demande.getStatut())) {
-            throw new DemandeDeverrouillageStatutInvalideException(demande.getStatut());
+            throw new ConflictException(ErrorCode.DEMANDE_DEVERROUILLAGE_STATUT_INVALIDE, new Object[]{demande.getStatut()});
         }
 
         LocalDate mois = demande.getMois();
@@ -168,7 +175,10 @@ public class CloturePaieService {
 
         if (STATUT_APPROUVEE.equals(statut)) {
             CloturePaie cloture = cloturePaieRepository.findByMoisAndDeletedAtIsNull(mois)
-                    .orElseThrow(() -> new IllegalStateException("Clôture introuvable pour le mois " + mois));
+                    .orElseThrow(() -> {
+                        log.error("Clôture introuvable pour le mois {} lors de l'approbation d'une demande de déverrouillage — incohérence de données.", mois);
+                        return new TechnicalException(ErrorCode.SYSTEM_ERROR);
+                    });
             cloture.setStatut(STATUT_OUVERT);
             cloturePaieRepository.save(cloture);
         }
@@ -178,7 +188,7 @@ public class CloturePaieService {
     @Transactional(readOnly = true)
     public DemandeDeverrouillage getDemandeByReference(UUID reference) {
         return demandeDeverrouillageRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new DemandeDeverrouillageNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.DEMANDE_DEVERROUILLAGE_NOT_FOUND, new Object[]{reference}));
     }
 
     // Filtré par mois/statut et, indirectement, par département : le

@@ -6,9 +6,9 @@ import com.sirh.model.entity.Evaluation;
 import com.sirh.model.entity.EvaluationCompetence;
 import com.sirh.model.enums.EvaluationStatut;
 import com.sirh.model.entity.PlanDeveloppement;
-import com.sirh.exception.EvaluationIncompleteException;
-import com.sirh.exception.EvaluationNotFoundException;
-import com.sirh.exception.EvaluationStatutInvalideException;
+import com.sirh.exception.ConflictException;
+import com.sirh.exception.ErrorCode;
+import com.sirh.exception.ResourceNotFoundException;
 import com.sirh.model.repository.EvaluationCompetenceRepository;
 import com.sirh.model.repository.EvaluationRepository;
 import com.sirh.model.repository.PlanDeveloppementRepository;
@@ -98,7 +98,7 @@ class EvaluationServiceTest {
 
         assertThatThrownBy(() -> service.creer(employeId, UUID.randomUUID(), 1L, List.of(
                 new EvaluationCompetenceRequest("Rigueur", null, BigDecimal.TEN, null))))
-                .isInstanceOf(EvaluationStatutInvalideException.class);
+                .isInstanceOf(ConflictException.class);
     }
 
     @Test
@@ -146,7 +146,7 @@ class EvaluationServiceTest {
 
         assertThatThrownBy(() -> service.mettreAJourEvaluationByReference(reference, managerId, List.of(
                 new EvaluationCompetenceRequest("Rigueur", BigDecimal.TEN, BigDecimal.TEN, null))))
-                .isInstanceOf(EvaluationStatutInvalideException.class);
+                .isInstanceOf(ConflictException.class);
     }
 
     @Test
@@ -163,9 +163,10 @@ class EvaluationServiceTest {
         assertThatThrownBy(() -> service.mettreAJourEvaluationByReference(reference, managerId, List.of(
                 new EvaluationCompetenceRequest("Rigueur", BigDecimal.TEN, BigDecimal.TEN, null),
                 new EvaluationCompetenceRequest("Esprit d'équipe", null, BigDecimal.TEN, null))))
-                .isInstanceOf(EvaluationIncompleteException.class)
-                .satisfies(ex -> assertThat(((EvaluationIncompleteException) ex).getCompetencesManquantes())
-                        .containsExactly("Esprit d'équipe"));
+                .isInstanceOfSatisfying(ConflictException.class, ex -> {
+                    assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.EVALUATION_INCOMPLETE);
+                    assertThat((String) ex.getArgs()[0]).isEqualTo("Esprit d'équipe");
+                });
 
         // La saisie est tout de même persistée malgré le rejet, pour ne pas perdre le travail du Manager.
         verify(competenceRepository, times(1)).saveAll(any());
@@ -198,7 +199,7 @@ class EvaluationServiceTest {
         when(competenceRepository.findByEvaluationIdAndDeletedAtIsNull(1L)).thenReturn(List.of(
                 EvaluationCompetence.builder().competence("Rigueur").note(null).seuilExigence(BigDecimal.TEN).build()));
 
-        assertThatThrownBy(() -> service.validerEvaluationByReference(reference)).isInstanceOf(EvaluationIncompleteException.class);
+        assertThatThrownBy(() -> service.validerEvaluationByReference(reference)).isInstanceOf(ConflictException.class);
         verify(evaluationRepository, never()).save(any());
     }
 
@@ -209,7 +210,7 @@ class EvaluationServiceTest {
         evaluation.setReference(reference);
         when(evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.of(evaluation));
 
-        assertThatThrownBy(() -> service.validerEvaluationByReference(reference)).isInstanceOf(EvaluationStatutInvalideException.class);
+        assertThatThrownBy(() -> service.validerEvaluationByReference(reference)).isInstanceOf(ConflictException.class);
     }
 
     @Test
@@ -217,7 +218,7 @@ class EvaluationServiceTest {
         UUID reference = UUID.randomUUID();
         when(evaluationRepository.findByReferenceAndDeletedAtIsNull(reference)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.validerEvaluationByReference(reference)).isInstanceOf(EvaluationNotFoundException.class);
+        assertThatThrownBy(() -> service.validerEvaluationByReference(reference)).isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test

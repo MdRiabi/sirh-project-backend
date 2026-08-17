@@ -1,5 +1,8 @@
 package com.sirh.service;
 
+import com.sirh.exception.ResourceNotFoundException;
+import com.sirh.exception.ErrorCode;
+
 import com.sirh.annotation.Audited;
 import com.sirh.model.enums.Role;
 import com.sirh.model.entity.Utilisateur;
@@ -19,9 +22,11 @@ import com.sirh.service.ContratService;
 import com.sirh.model.dto.TacheRenouvellementDto;
 import com.sirh.model.entity.TacheRenouvellement;
 import com.sirh.model.enums.TacheRenouvellementStatut;
-import com.sirh.exception.TacheRenouvellementNotFoundException;
-import com.sirh.exception.TacheRenouvellementStatutInvalideException;
+import com.sirh.exception.ConflictException;
+import com.sirh.exception.TechnicalException;
 import com.sirh.model.repository.TacheRenouvellementRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +46,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class RenouvellementService {
+
+    private static final Logger log = LoggerFactory.getLogger(RenouvellementService.class);
 
     private static final String TYPE_M5 = "M+5";
     private static final String TYPE_M11 = "M+11";
@@ -135,13 +142,15 @@ public class RenouvellementService {
             throw new IllegalArgumentException("Seuls les statuts VALIDE ou NON_RENOUVELE sont acceptés en traitement.");
         }
         TacheRenouvellement tache = tacheRenouvellementRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new TacheRenouvellementNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.TACHE_RENOUVELLEMENT_NOT_FOUND, new Object[]{reference}));
         if (!STATUTS_ACTIONNABLES.contains(tache.getStatut())) {
-            throw new TacheRenouvellementStatutInvalideException(
-                    "Seule une tâche EN_COURS ou URGENT_EXPIRE peut être traitée (statut actuel : " + tache.getStatut() + ").");
+            throw new ConflictException(ErrorCode.TACHE_RENOUVELLEMENT_STATUT_INVALIDE, new Object[]{tache.getStatut()});
         }
         Contrat contrat = contratRepository.findById(tache.getContratId())
-                .orElseThrow(() -> new IllegalStateException("Contrat introuvable pour la tâche de renouvellement " + reference));
+                .orElseThrow(() -> {
+                    log.error("Contrat introuvable pour la tâche de renouvellement {} — incohérence de données.", reference);
+                    return new TechnicalException(ErrorCode.SYSTEM_ERROR);
+                });
 
         if (statutDemande == TacheRenouvellementStatut.VALIDE) {
             valider(tache, contrat, dateFin, traiteParId);
@@ -183,7 +192,10 @@ public class RenouvellementService {
         contratRepository.save(contrat);
 
         Employe employe = employeRepository.findById(contrat.getEmployeId())
-                .orElseThrow(() -> new IllegalStateException("Employé introuvable pour le contrat " + contrat.getId()));
+                .orElseThrow(() -> {
+                    log.error("Employé introuvable pour le contrat {} — incohérence de données.", contrat.getId());
+                    return new TechnicalException(ErrorCode.SYSTEM_ERROR);
+                });
         employe.setActif(false);
         employeRepository.save(employe);
     }

@@ -8,13 +8,13 @@ import com.sirh.model.entity.Outillage;
 import com.sirh.model.enums.OutillageEtat;
 import com.sirh.model.entity.OutillageMouvement;
 import com.sirh.model.enums.TypeMouvement;
-import com.sirh.exception.OutillageMouvementInvalideException;
-import com.sirh.exception.OutillageNotFoundException;
+import com.sirh.exception.ConflictException;
+import com.sirh.exception.ErrorCode;
+import com.sirh.exception.ResourceNotFoundException;
 import com.sirh.model.repository.OutillageMouvementRepository;
 import com.sirh.model.repository.OutillageRepository;
 import com.sirh.service.ParametreGlobalService;
 import com.sirh.model.entity.Employe;
-import com.sirh.exception.EmployeNotFoundException;
 import com.sirh.model.repository.EmployeRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -74,11 +74,11 @@ public class OutillageService {
     @Transactional(readOnly = true)
     public Outillage getOutillageByReference(UUID reference) {
         return outillageRepository.findByReferenceAndDeletedAtIsNull(reference)
-                .orElseThrow(() -> new OutillageNotFoundException(reference));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.OUTILLAGE_NOT_FOUND, new Object[]{reference}));
     }
 
     private Outillage getOutillageById(Long id) {
-        return outillageRepository.findById(id).orElseThrow(() -> new OutillageNotFoundException(id));
+        return outillageRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.OUTILLAGE_NOT_FOUND, new Object[]{id}));
     }
 
     @Transactional(readOnly = true)
@@ -96,10 +96,9 @@ public class OutillageService {
     public OutillageMouvementDto checkOut(Long outillageId, UUID employeId, Long effectueParId) {
         Outillage outillage = getOutillageById(outillageId);
         if (outillage.getAttribueAEmployeId() != null) {
-            throw new OutillageMouvementInvalideException(
-                    "Outil déjà attribué : une restitution (check-in) est requise avant tout nouveau rattachement.");
+            throw new ConflictException(ErrorCode.OUTILLAGE_DEJA_ATTRIBUE);
         }
-        Employe employe = employeRepository.findById(employeId).orElseThrow(() -> new EmployeNotFoundException(employeId));
+        Employe employe = employeRepository.findById(employeId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.EMPLOYE_NOT_FOUND, new Object[]{employeId}));
         if (!Objects.equals(employe.getDepartementId(), outillage.getDepartementId())) {
             throw new AccessDeniedException("L'employé doit appartenir au même département que l'outil.");
         }
@@ -124,7 +123,7 @@ public class OutillageService {
     public OutillageMouvementDto checkIn(Long outillageId, EtatMouvement etat, String commentaire, Long effectueParId) {
         Outillage outillage = getOutillageById(outillageId);
         if (outillage.getAttribueAEmployeId() == null) {
-            throw new OutillageMouvementInvalideException("Outil non attribué : aucune restitution à effectuer.");
+            throw new ConflictException(ErrorCode.OUTILLAGE_NON_ATTRIBUE);
         }
         UUID employeId = outillage.getAttribueAEmployeId();
 
