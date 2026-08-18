@@ -253,9 +253,12 @@
   <!-- Profil dédié au hook pre-push (.githooks/pre-push -Pspotless-apply) : le
        goal `apply` reste hors de la exécution normale des plugins (ne
        reformate jamais silencieusement pendant un simple mvn compile/test),
-       et une invocation par phase (process-sources) évite le conflit de
-       ClassRealm rencontré avec l'invocation ad-hoc `mvn groupId:artifactId:
-       version:goal`. -->
+       et une invocation par phase (plutôt que l'ad-hoc `mvn groupId:
+       artifactId:version:goal`) évite le conflit de ClassRealm déjà
+       rencontré par le passé. Bindée sur `validate` (avant `process-sources`
+       où tourne spotless-check) pour que apply corrige les fichiers avant que
+       check les évalue — sinon check échoue sur les violations qu'apply
+       aurait justement corrigées, et le hook n'a plus aucun effet. -->
   <profiles>
     <profile>
       <id>spotless-apply</id>
@@ -271,7 +274,7 @@
                 <goals>
                   <goal>apply</goal>
                 </goals>
-                <phase>process-sources</phase>
+                <phase>validate</phase>
               </execution>
             </executions>
           </plugin>
