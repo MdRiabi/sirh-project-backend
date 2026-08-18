@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Portage des seeds de données de l'ancien schéma Flyway (V4/V6/V7/V8/V9
+        __*.sql, supprimés lors du passage à Liquibase) : la conversion n'a
+        recréé que les tables, pas leurs lignes de paramétrage métier. Sans ces
+        lignes, ParametreGlobalService.findByCle(...) lève un
+        ResourceNotFoundException (404) pour tout seuil métier (clôture de
+        paie, calcul d'assiduité, alertes, renouvellement de contrats,
+        imputation outillage) — cf. cahier-technique.md §3.24/§3.26/§4.9.
+    -->
+    <changeSet id="004-01-seed-parametres-globaux" author="mohamed riaby">
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="TAUX_INCREMENTATION_CONGES_MENSUEL"/>
+            <column name="valeur" value="1.5"/>
+            <column name="type" value="DECIMAL"/>
+            <column name="description" value="Nombre de jours de congé crédités automatiquement à chaque employé actif, une fois par mois (Module 8)."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="HEURE_DEBUT_NUIT"/>
+            <column name="valeur" value="21:00"/>
+            <column name="type" value="TEXT"/>
+            <column name="description" value="Début de la plage horaire comptabilisée en heures de nuit (Module 3)."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="HEURE_FIN_NUIT"/>
+            <column name="valeur" value="06:00"/>
+            <column name="type" value="TEXT"/>
+            <column name="description" value="Fin de la plage horaire comptabilisée en heures de nuit (Module 3)."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="SEUIL_HEURES_MAJOREES_JOUR"/>
+            <column name="valeur" value="8"/>
+            <column name="type" value="INTEGER"/>
+            <column name="description" value="Nombre d'heures travaillées par jour au-delà duquel le surplus est comptabilisé en heures majorées (Module 3)."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="SEUIL_PRIME_100"/>
+            <column name="valeur" value="0"/>
+            <column name="type" value="INTEGER"/>
+            <column name="description" value="Nombre maximal d'anomalies de pointage non justifiées sur le mois pour conserver une prime d'assiduité à 100%."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="SEUIL_PRIME_50"/>
+            <column name="valeur" value="2"/>
+            <column name="type" value="INTEGER"/>
+            <column name="description" value="Au-delà de SEUIL_PRIME_100 et jusqu'à ce seuil d'anomalies inclus, la prime d'assiduité tombe à 50%."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="SEUIL_PRIME_33"/>
+            <column name="valeur" value="4"/>
+            <column name="type" value="INTEGER"/>
+            <column name="description" value="Au-delà de SEUIL_PRIME_50 et jusqu'à ce seuil d'anomalies inclus, la prime d'assiduité tombe à 33%. Au-delà, 25%."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="SEUIL_ANOMALIES_CLOTURE"/>
+            <column name="valeur" value="98"/>
+            <column name="type" value="DECIMAL"/>
+            <column name="description" value="Pourcentage minimal d'anomalies de pointage justifiées sur le mois requis pour autoriser la clôture de paie (POST /assiduite/cloturer-paie)."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="TAUX_IMPUTATION_OUTIL_0_6_MOIS"/>
+            <column name="valeur" value="100"/>
+            <column name="type" value="DECIMAL"/>
+            <column name="description" value="Pourcentage de la valeur d'achat imputé en cas de perte d'un outil de moins de 6 mois (Module 5)."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="TAUX_IMPUTATION_OUTIL_6_12_MOIS"/>
+            <column name="valeur" value="50"/>
+            <column name="type" value="DECIMAL"/>
+            <column name="description" value="Pourcentage de la valeur d'achat imputé en cas de perte d'un outil de 6 à 12 mois (Module 5)."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="TAUX_IMPUTATION_OUTIL_PLUS_12_MOIS"/>
+            <column name="valeur" value="25"/>
+            <column name="type" value="DECIMAL"/>
+            <column name="description" value="Pourcentage de la valeur d'achat imputé en cas de perte d'un outil de plus de 12 mois (Module 5)."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="SEUIL_OUBLIS_BADGEAGE_HEBDO"/>
+            <column name="valeur" value="3"/>
+            <column name="type" value="INTEGER"/>
+            <column name="description" value="Nombre d'oublis de badgeage (anomalies non justifiées) dans la semaine à partir duquel une alerte est envoyée au Manager direct (Module 11)."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="SEUIL_JOURS_TRAVAILLES_SOUS_ACTIVITE"/>
+            <column name="valeur" value="5"/>
+            <column name="type" value="INTEGER"/>
+            <column name="description" value="Nombre de jours travaillés sur les 30 derniers jours en dessous (ou égal) duquel une alerte de sous-activité est envoyée au RH pour un contrat actif (Module 11)."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="TYPES_SUSPENSION_LEGALE"/>
+            <column name="valeur" value="MALADIE,MATERNITE,PATERNITE,ACCIDENT_TRAVAIL"/>
+            <column name="type" value="LISTE"/>
+            <column name="description" value="Types d'indisponibilite (CSV) considérés comme suspension légale de contrat, exclus du calcul de l'alerte de sous-activité (Module 11)."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="MOIS_ECHEANCE_M5"/>
+            <column name="valeur" value="5"/>
+            <column name="type" value="INTEGER"/>
+            <column name="description" value="Nombre de mois après le début du contrat CDD à partir duquel la tâche RH « Préparer renouvellement » (échéance M+5) est générée (Module 12)."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="MOIS_ECHEANCE_M11"/>
+            <column name="valeur" value="11"/>
+            <column name="type" value="INTEGER"/>
+            <column name="description" value="Nombre de mois après le début du contrat CDD à partir duquel la tâche RH « Préparer renouvellement » (échéance M+11) est générée (Module 12)."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="parametres_globaux">
+            <column name="cle" value="DUREE_RENOUVELLEMENT_CDD_MOIS"/>
+            <column name="valeur" value="6"/>
+            <column name="type" value="INTEGER"/>
+            <column name="description" value="Durée par défaut (en mois) du nouveau contrat créé lors de la validation d'une tâche de renouvellement quand le RH ne précise pas de date de fin explicite (Module 12)."/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+    </changeSet>
+
+    <!--
+        Shift "système" : shifts.heure_debut/heure_fin sont NOT NULL mais
+        purement catégoriels pour ce shift — il sert uniquement de support
+        générique aux créneaux CONGE/ABSENCE générés automatiquement à la
+        validation d'une demande (PlanningService.resolveShiftSysteme, cf.
+        cahier-technique.md §3.26).
+    -->
+    <changeSet id="004-02-seed-shift-systeme" author="mohamed riaby">
+        <insert tableName="shifts">
+            <column name="nom" value="Congé / Absence (généré automatiquement)"/>
+            <column name="type_rotation" value="SYSTEME"/>
+            <column name="heure_debut" valueDate="00:00:00"/>
+            <column name="heure_fin" valueDate="23:59:59"/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+    </changeSet>
+
+    <!--
+        Pointeuses de test pour environnement de développement/intégration :
+        une pointeuse en loopback (127.0.0.1), seule adresse d'où
+        TestRestTemplate/`curl` locaux appellent le webhook Hikvision,
+        whitelistée par HikvisionIpAllowlistFilter (cf. cahier-technique.md
+        §1.1). Ne jamais dupliquer ce jeu de données en production.
+    -->
+    <changeSet id="004-03-seed-pointeuses-dev" author="mohamed riaby">
+        <insert tableName="pointeuses">
+            <column name="nom" value="Pointeuse Test (loopback)"/>
+            <column name="adresse_ip" value="127.0.0.1"/>
+            <column name="port" valueNumeric="80"/>
+            <column name="batiment" value="Batiment A"/>
+            <column name="statut_en_ligne" valueBoolean="true"/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+        <insert tableName="pointeuses">
+            <column name="nom" value="Entrée Bâtiment B"/>
+            <column name="adresse_ip" value="10.10.2.15"/>
+            <column name="port" valueNumeric="80"/>
+            <column name="batiment" value="Batiment B"/>
+            <column name="statut_en_ligne" valueBoolean="false"/>
+            <column name="reference" valueComputed="gen_random_uuid()"/>
+        </insert>
+    </changeSet>
+
+    <!--
+        Contraintes manquées lors de la consolidation du schéma (001-core.xml) :
+        garantit qu'un même contrat ne génère jamais deux tâches M+5 (ou deux
+        M+11), même si le scheduler quotidien tourne deux fois le même jour.
+    -->
+    <changeSet id="004-04-taches-renouvellement-contraintes" author="mohamed riaby">
+        <sql>ALTER TABLE taches_renouvellement ADD CONSTRAINT chk_taches_renouv_type_echeance CHECK (type_echeance IN ('M+5', 'M+11'));</sql>
+        <addUniqueConstraint tableName="taches_renouvellement" columnNames="contrat_id, type_echeance" constraintName="uq_taches_renouv_contrat_type"/>
+    </changeSet>
+
+    <!--
+        cahier-technique.md §3.19 : `date DATE NOT NULL UNIQUE` — perdue lors de
+        la consolidation du schéma (001-core.xml ne porte que la contrainte
+        unique sur `reference`). Sans elle, CalendrierService.importer insère
+        des doublons de date au lieu d'échouer en 409 (import atomique,
+        CLAUDE.md). Index partiel (pas une contrainte UNIQUE classique) pour
+        rester réutilisable après un soft delete, même convention que le reste
+        du projet.
+    -->
+    <changeSet id="004-05-jours-feries-unique-date" author="mohamed riaby">
+        <sql>CREATE UNIQUE INDEX idx_jours_feries_date ON jours_feries(date) WHERE deleted_at IS NULL;</sql>
+    </changeSet>
+
+</databaseChangeLog>

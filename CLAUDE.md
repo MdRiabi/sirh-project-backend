@@ -41,8 +41,8 @@ Comme le reste de `docs/`, ce fichier existe en double dans les deux dépôts (c
 
 ## Stack & structure
 
-- Spring Boot 3.3.x, Java 21, Maven, PostgreSQL 16, Redis 7 (cache dashboard + blacklist JWT uniquement — pas de file de jobs, cf. `ARCHITECTURE.md` §7), Flyway pour les migrations (`src/main/resources/db/migration/`, jamais de modification d'un script déjà appliqué — toujours un nouveau `Vn+1`).
-- `spring.jpa.hibernate.ddl-auto: validate` — Flyway possède le schéma, Hibernate ne fait que le valider. Ne jamais passer en `update`/`create`.
+- Spring Boot 3.3.x, Java 21, Maven, PostgreSQL 16, Redis 7 (cache dashboard + blacklist JWT uniquement — pas de file de jobs, cf. `ARCHITECTURE.md` §7), Liquibase pour les migrations (`src/main/resources/db/changelog/`, changelog maître `masterchangelog.xml` qui inclut par ordre les fichiers numérotés de `changes/` ; jamais de modification d'un changeset déjà appliqué — toujours un nouveau changeset dans un nouveau fichier `NNN-nom.xml`, cf. `004-seed-donnees-metier.xml` pour le dernier en date).
+- `spring.jpa.hibernate.ddl-auto: validate` — Liquibase possède le schéma, Hibernate ne fait que le valider. Ne jamais passer en `update`/`create`.
 - Packages organisés par couche technique (`controller`, `service`, `model` [`entity`, `dto`, `repository`, `enums`], `exception`, `security`, `scheduler`, `config`, `annotation`, `aspect`, `event`, `listener` — `ls src/main/java/com/sirh/`) ; les modules fonctionnels du CDF (§2.3) restent visibles dans `ARCHITECTURE.md` §3 comme découpage logique, sans correspondance 1:1 avec les packages physiques.
 - Aspect Spring AOP (`@Audited`) pour la journalisation des actions sensibles — voir `ARCHITECTURE.md` §9 pour la liste des actions à couvrir.
 
@@ -55,7 +55,7 @@ Comme le reste de `docs/`, ce fichier existe en double dans les deux dépôts (c
 
 ## Données de dev
 
-`V2__seed_dev.sql` (Flyway) crée un compte `SUPERUSER` de test : username `admin` / mot de passe `ChangeMe123!`. Ne jamais appliquer cette migration en production.
+`004-seed-donnees-metier.xml` (Liquibase) seed les paramètres métier (`parametres_globaux`), le shift système et les pointeuses de test — restauré depuis les anciennes migrations Flyway `V4`/`V5`/`V6`/`V7`/`V8`/`V9` lors de l'investigation d'une régression de tests (2026-08-18), perdues sans remplacement lors du passage à Liquibase. ⚠️ Le compte `SUPERUSER` de test (`admin` / `ChangeMe123!`, ex-`V2__seed_dev.sql`) n'a lui **pas** été restauré — gap encore ouvert, à traiter avant de compter dessus pour un premier login manuel (`mvn spring-boot:run`).
 
 ## Commandes
 
