@@ -65,6 +65,9 @@ public class AlertePointageService {
     }
 
     Map<UUID, Employe> employesParId =
+
+
+
         employeRepository.findAllById(employesEnAlerte).stream()
             .collect(Collectors.toMap(Employe::getId, e -> e));
 
