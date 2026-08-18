@@ -39,7 +39,7 @@ public class UtilisateurController {
       @Valid @RequestBody UtilisateurCreateRequest request) {
     String passwordHash = utilisateurService.hashPassword(request.password());
     var utilisateur =
-        utilisateurService.create(
+        utilisateurService.createUtilisateur(
             request.employeId(), request.username(), passwordHash, request.role());
     return ResponseEntity.status(201).body(SingleObjectDto.of(utilisateur));
   }

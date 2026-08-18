@@ -44,7 +44,7 @@ public class ContratService {
   }
 
   @Transactional
-  public ContratDto create(UUID employeId, ContratRequest request, Long saisiParId) {
+  public ContratDto createContrat(UUID employeId, ContratRequest request, Long saisiParId) {
     Employe employe = employeService.findById(employeId);
 
     Contrat contrat =

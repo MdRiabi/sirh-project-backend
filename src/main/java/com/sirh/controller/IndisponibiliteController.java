@@ -31,7 +31,7 @@ public class IndisponibiliteController {
       @Valid @RequestBody IndisponibiliteCreateRequest request,
       @AuthenticationPrincipal SirhUserDetails principal) {
     IndisponibiliteDto indisponibilite =
-        indisponibiliteService.creer(
+        indisponibiliteService.creerIndisponibilite(
             request.employeId(),
             request.typeIndisponibilite(),
             request.dateDebut(),

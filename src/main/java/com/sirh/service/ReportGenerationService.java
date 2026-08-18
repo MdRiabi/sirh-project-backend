@@ -109,7 +109,8 @@ public class ReportGenerationService {
       return new ReportGenerationResult.Pret(rapport);
     } catch (TimeoutException e) {
       AsyncJob job =
-          asyncJobService.creer(AsyncJobType.REPORT, nomFichierAttendu(request), executeParId);
+          asyncJobService.creerAsyncJob(
+              AsyncJobType.REPORT, nomFichierAttendu(request), executeParId);
       UUID jobReference = job.getReference();
       futur
           .thenAccept(rapport -> terminerJobAvecSucces(jobReference, rapport))

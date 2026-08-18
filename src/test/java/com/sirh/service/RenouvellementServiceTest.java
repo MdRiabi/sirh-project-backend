@@ -116,7 +116,8 @@ class RenouvellementServiceTest {
     assertThat(captor.getValue().getTypeEcheance()).isEqualTo("M+5");
     assertThat(captor.getValue().getStatut()).isEqualTo(TacheRenouvellementStatut.EN_COURS);
     verify(notificationService, times(1))
-        .creer(anyLong(), eq(NotificationType.RENOUVELLEMENT_CONTRAT), any(), any(), any());
+        .creerNotification(
+            anyLong(), eq(NotificationType.RENOUVELLEMENT_CONTRAT), any(), any(), any());
   }
 
   @Test
@@ -179,7 +180,8 @@ class RenouvellementServiceTest {
 
     assertThat(tache.getStatut()).isEqualTo(TacheRenouvellementStatut.URGENT_EXPIRE);
     verify(notificationService, times(1))
-        .creer(anyLong(), eq(NotificationType.RENOUVELLEMENT_CONTRAT), any(), any(), any());
+        .creerNotification(
+            anyLong(), eq(NotificationType.RENOUVELLEMENT_CONTRAT), any(), any(), any());
   }
 
   @Test
@@ -217,7 +219,7 @@ class RenouvellementServiceTest {
             tacheReference, TacheRenouvellementStatut.VALIDE, null, 42L);
 
     assertThat(ancien.getStatut()).isEqualTo(ContratStatut.RENOUVELE);
-    verify(contratService).create(eq(employeId), contratRequestCaptor.capture(), eq(42L));
+    verify(contratService).createContrat(eq(employeId), contratRequestCaptor.capture(), eq(42L));
     assertThat(contratRequestCaptor.getValue().dateDebut()).isEqualTo(ancienneFin);
     assertThat(contratRequestCaptor.getValue().dateFin()).isEqualTo(ancienneFin.plusMonths(6));
     assertThat(resultat.getStatut()).isEqualTo(TacheRenouvellementStatut.VALIDE);
@@ -255,7 +257,7 @@ class RenouvellementServiceTest {
     service.traiterTacheRenouvellementByReference(
         tacheReference, TacheRenouvellementStatut.VALIDE, dateFinChoisie, 42L);
 
-    verify(contratService).create(eq(employeId), contratRequestCaptor.capture(), eq(42L));
+    verify(contratService).createContrat(eq(employeId), contratRequestCaptor.capture(), eq(42L));
     assertThat(contratRequestCaptor.getValue().dateFin()).isEqualTo(dateFinChoisie);
     verify(parametreGlobalService, never()).valeurDecimale("DUREE_RENOUVELLEMENT_CDD_MOIS");
   }
@@ -293,7 +295,7 @@ class RenouvellementServiceTest {
     assertThat(contrat.getStatut()).isEqualTo(ContratStatut.TERMINE);
     assertThat(contrat.getMotifFin()).isEqualTo(MotifFin.FIN_CDD);
     assertThat(employe.getActif()).isFalse();
-    verify(contratService, never()).create(any(), any(), any());
+    verify(contratService, never()).createContrat(any(), any(), any());
   }
 
   @Test

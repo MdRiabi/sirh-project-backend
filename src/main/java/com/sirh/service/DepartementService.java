@@ -31,7 +31,7 @@ public class DepartementService {
   }
 
   @Transactional
-  public DepartementDto create(DepartementRequest request) {
+  public DepartementDto createDepartement(DepartementRequest request) {
     Departement departement =
         Departement.builder().nom(request.nom()).managerId(request.managerId()).build();
     return toDto(departementRepository.save(departement));

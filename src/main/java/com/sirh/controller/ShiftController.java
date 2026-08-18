@@ -28,6 +28,6 @@ public class ShiftController {
   @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
   public ResponseEntity<SingleObjectDto<ShiftDto>> create(
       @Valid @RequestBody ShiftRequest request) {
-    return ResponseEntity.status(201).body(SingleObjectDto.of(shiftService.create(request)));
+    return ResponseEntity.status(201).body(SingleObjectDto.of(shiftService.createShift(request)));
   }
 }

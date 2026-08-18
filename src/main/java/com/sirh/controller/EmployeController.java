@@ -46,14 +46,15 @@ public class EmployeController {
   @PostMapping
   public ResponseEntity<SingleObjectDto<EmployeDto>> create(
       @Valid @RequestBody EmployeRequest request) {
-    return ResponseEntity.status(201).body(SingleObjectDto.of(employeService.create(request)));
+    return ResponseEntity.status(201)
+        .body(SingleObjectDto.of(employeService.createEmploye(request)));
   }
 
   @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
   @PutMapping("/{id}")
   public ResponseEntity<SingleObjectDto<EmployeDto>> update(
       @PathVariable UUID id, @Valid @RequestBody EmployeRequest request) {
-    return ResponseEntity.ok(SingleObjectDto.of(employeService.update(id, request)));
+    return ResponseEntity.ok(SingleObjectDto.of(employeService.updateEmploye(id, request)));
   }
 
   // Affichage complet du matricule_cnss réservé à une action explicite RH/SuperUser

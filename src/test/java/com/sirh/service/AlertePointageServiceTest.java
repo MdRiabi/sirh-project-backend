@@ -80,7 +80,8 @@ class AlertePointageServiceTest {
     service.detecterOublisBadgeageSemaine(LocalDate.of(2026, 8, 9));
 
     verify(notificationService)
-        .creer(eq(77L), eq(NotificationType.ALERTE_POINTAGE), any(), eq(null), eq(null));
+        .creerNotification(
+            eq(77L), eq(NotificationType.ALERTE_POINTAGE), any(), eq(null), eq(null));
   }
 
   @Test
@@ -101,7 +102,7 @@ class AlertePointageServiceTest {
 
     service.detecterOublisBadgeageSemaine(LocalDate.of(2026, 8, 9));
 
-    verify(notificationService, never()).creer(anyLong(), any(), any(), any(), any());
+    verify(notificationService, never()).creerNotification(anyLong(), any(), any(), any(), any());
   }
 
   @Test
@@ -130,6 +131,6 @@ class AlertePointageServiceTest {
 
     service.detecterOublisBadgeageSemaine(LocalDate.of(2026, 8, 9));
 
-    verify(notificationService, never()).creer(anyLong(), any(), any(), any(), any());
+    verify(notificationService, never()).creerNotification(anyLong(), any(), any(), any(), any());
   }
 }

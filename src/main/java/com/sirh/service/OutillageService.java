@@ -52,7 +52,7 @@ public class OutillageService {
   private final ModelMapper modelMapper;
 
   @Transactional
-  public OutillageDto creer(
+  public OutillageDto creerOutillage(
       String codeBarres,
       String nomOutil,
       BigDecimal valeurAchat,

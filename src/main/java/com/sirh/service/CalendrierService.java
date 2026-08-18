@@ -49,7 +49,7 @@ public class CalendrierService {
   }
 
   @Transactional
-  public JourFerieDto creer(
+  public JourFerieDto creerJourFerie(
       LocalDate date, String libelle, TypeJourFerie type, Boolean national, String region) {
     JourFerie jourFerie =
         jourFerieRepository.save(

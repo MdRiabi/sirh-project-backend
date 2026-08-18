@@ -48,7 +48,8 @@ public class UtilisateurService {
 
   @Audited(action = "CREATE_UTILISATEUR", tableCible = "utilisateurs")
   @Transactional
-  public UtilisateurDto create(UUID employeId, String username, String passwordHash, Role role) {
+  public UtilisateurDto createUtilisateur(
+      UUID employeId, String username, String passwordHash, Role role) {
     Employe employe =
         employeRepository
             .findById(employeId)

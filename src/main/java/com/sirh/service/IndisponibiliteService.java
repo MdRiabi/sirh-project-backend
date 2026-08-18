@@ -61,7 +61,7 @@ public class IndisponibiliteService {
   private final ModelMapper modelMapper;
 
   @Transactional
-  public IndisponibiliteDto creer(
+  public IndisponibiliteDto creerIndisponibilite(
       UUID employeId,
       String typeIndisponibilite,
       LocalDate dateDebut,

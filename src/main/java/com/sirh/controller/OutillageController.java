@@ -35,7 +35,7 @@ public class OutillageController {
       @Valid @RequestBody OutillageCreateRequest request,
       @AuthenticationPrincipal SirhUserDetails principal) {
     OutillageDto outillage =
-        outillageService.creer(
+        outillageService.creerOutillage(
             request.codeBarres(),
             request.nomOutil(),
             request.valeurAchat(),

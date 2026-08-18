@@ -27,7 +27,7 @@ public class NotificationService {
   private final ModelMapper modelMapper;
 
   @Transactional
-  public Notification creer(
+  public Notification creerNotification(
       Long destinataireId,
       NotificationType type,
       String message,

@@ -108,7 +108,8 @@ class SousActiviteServiceTest {
     service.detecterSousActivite(dateReference);
 
     verify(notificationService, times(1))
-        .creer(eq(1L), eq(NotificationType.ALERTE_SOUS_ACTIVITE), any(), eq(null), eq(null));
+        .creerNotification(
+            eq(1L), eq(NotificationType.ALERTE_SOUS_ACTIVITE), any(), eq(null), eq(null));
   }
 
   @Test
@@ -127,7 +128,7 @@ class SousActiviteServiceTest {
 
     service.detecterSousActivite(dateReference);
 
-    verify(notificationService, never()).creer(anyLong(), any(), any(), any(), any());
+    verify(notificationService, never()).creerNotification(anyLong(), any(), any(), any(), any());
   }
 
   @Test
@@ -154,6 +155,6 @@ class SousActiviteServiceTest {
 
     service.detecterSousActivite(dateReference);
 
-    verify(notificationService, never()).creer(anyLong(), any(), any(), any(), any());
+    verify(notificationService, never()).creerNotification(anyLong(), any(), any(), any(), any());
   }
 }

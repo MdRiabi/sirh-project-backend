@@ -127,7 +127,7 @@ public class RenouvellementService {
     for (Utilisateur destinataire :
         utilisateurRepository.findByRoleInAndDeletedAtIsNull(
             List.of(Role.ROLE_RH, Role.ROLE_SUPERUSER))) {
-      notificationService.creer(
+      notificationService.creerNotification(
           destinataire.getId(),
           NotificationType.RENOUVELLEMENT_CONTRAT,
           message,
@@ -212,7 +212,7 @@ public class RenouvellementService {
             : dateDebutNouveau.plusMonths(
                 parametreGlobalService.valeurDecimale(CLE_DUREE_RENOUVELLEMENT).intValue());
 
-    contratService.create(
+    contratService.createContrat(
         tache.getEmployeId(),
         new ContratRequest(
             contrat.getType(), dateDebutNouveau, dateFinNouveau, ContratStatut.EN_COURS, null),

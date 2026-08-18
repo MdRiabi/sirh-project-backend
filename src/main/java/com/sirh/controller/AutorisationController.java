@@ -30,7 +30,7 @@ public class AutorisationController {
       @Valid @RequestBody AutorisationCreateRequest request,
       @AuthenticationPrincipal SirhUserDetails principal) {
     AutorisationDto autorisation =
-        autorisationService.creer(
+        autorisationService.creerAutorisation(
             request.employeId(),
             request.type(),
             request.dateAutorisation(),

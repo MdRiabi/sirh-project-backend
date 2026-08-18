@@ -32,7 +32,7 @@ public class ContratController {
       @PathVariable UUID employeId,
       @Valid @RequestBody ContratRequest request,
       @AuthenticationPrincipal SirhUserDetails principal) {
-    var contrat = contratService.create(employeId, request, principal.getUserId());
+    var contrat = contratService.createContrat(employeId, request, principal.getUserId());
     return ResponseEntity.status(201).body(SingleObjectDto.of(contrat));
   }
 }

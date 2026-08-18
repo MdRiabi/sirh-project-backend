@@ -36,7 +36,7 @@ public class CalendrierController {
   public ResponseEntity<SingleObjectDto<JourFerieDto>> create(
       @Valid @RequestBody JourFerieRequest request) {
     JourFerieDto jourFerie =
-        calendrierService.creer(
+        calendrierService.creerJourFerie(
             request.date(),
             request.libelle(),
             request.type(),

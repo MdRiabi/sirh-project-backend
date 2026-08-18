@@ -25,7 +25,7 @@ public class AsyncJobService {
   // Retourne l'entité (pas le DTO) : réutilisé en interne par ImportPointagesService/
   // ReportGenerationService qui ont besoin de la référence du job juste créé.
   @Transactional
-  public AsyncJob creer(AsyncJobType type, String nomFichier, Long executeParId) {
+  public AsyncJob creerAsyncJob(AsyncJobType type, String nomFichier, Long executeParId) {
     AsyncJob job =
         AsyncJob.builder()
             .type(type)

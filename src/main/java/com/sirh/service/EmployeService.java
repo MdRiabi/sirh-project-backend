@@ -85,7 +85,7 @@ public class EmployeService {
   }
 
   @Transactional
-  public EmployeDto create(EmployeRequest request) {
+  public EmployeDto createEmploye(EmployeRequest request) {
     Employe employe =
         Employe.builder()
             .matriculeInterne(request.matriculeInterne())
@@ -104,7 +104,7 @@ public class EmployeService {
   }
 
   @Transactional
-  public EmployeDto update(UUID id, EmployeRequest request) {
+  public EmployeDto updateEmploye(UUID id, EmployeRequest request) {
     Employe employe = findById(id);
     employe.setMatriculeInterne(request.matriculeInterne());
     // matriculeCnss n'est jamais renvoyé en clair par l'API (masquage

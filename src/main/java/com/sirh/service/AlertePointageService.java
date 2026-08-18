@@ -91,7 +91,7 @@ public class AlertePointageService {
       String message =
           "%s %s cumule %d oublis de badgeage cette semaine."
               .formatted(employe.getNom(), employe.getPrenom(), anomaliesParEmploye.get(employeId));
-      notificationService.creer(
+      notificationService.creerNotification(
           manager.getId(), NotificationType.ALERTE_POINTAGE, message, null, null);
     }
   }

@@ -106,7 +106,7 @@ public class SousActiviteService {
           "Risque de carence : %s n'a travaillé que %d jour(s) sur les 30 derniers jours."
               .formatted(nom, joursTravailles);
       for (Utilisateur destinataire : destinatairesRh) {
-        notificationService.creer(
+        notificationService.creerNotification(
             destinataire.getId(), NotificationType.ALERTE_SOUS_ACTIVITE, message, null, null);
       }
     }

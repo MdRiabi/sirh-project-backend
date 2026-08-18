@@ -41,7 +41,7 @@ public class NotificationEventListener {
         utilisateurRepository.findByRoleInAndDeletedAtIsNull(
             List.of(Role.ROLE_RH, Role.ROLE_SUPERUSER));
     for (Utilisateur destinataire : destinataires) {
-      notificationService.creer(
+      notificationService.creerNotification(
           destinataire.getId(),
           NotificationType.DEMANDE_A_VALIDER,
           message,

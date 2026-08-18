@@ -31,7 +31,7 @@ public class ShiftService {
   }
 
   @Transactional
-  public ShiftDto create(ShiftRequest request) {
+  public ShiftDto createShift(ShiftRequest request) {
     Shift shift =
         Shift.builder()
             .nom(request.nom())

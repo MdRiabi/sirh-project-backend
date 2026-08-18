@@ -85,7 +85,7 @@ class EvaluationServiceTest {
 
     assertThatThrownBy(
             () ->
-                service.creer(
+                service.creerEvaluation(
                     employeId,
                     UUID.randomUUID(),
                     1L,
@@ -107,7 +107,7 @@ class EvaluationServiceTest {
 
     assertThatThrownBy(
             () ->
-                service.creer(
+                service.creerEvaluation(
                     employeId,
                     UUID.randomUUID(),
                     1L,
@@ -134,7 +134,7 @@ class EvaluationServiceTest {
     when(competenceRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
     EvaluationDto dto =
-        service.creer(
+        service.creerEvaluation(
             employeId,
             managerId,
             1L,
