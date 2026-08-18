@@ -20,7 +20,19 @@
              sur Windows (réponse /info tronquée en 400, npipe et TCP) — reste
              sur la branche 1.x pour éviter la rupture d'API de 2.0. -->
     <testcontainers.version>1.21.4</testcontainers.version>
+    <awssdk.version>2.28.11</awssdk.version>
   </properties>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${awssdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
   <dependencies>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -105,6 +117,17 @@
       <version>3.2.6</version>
     </dependency>
 
+    <!-- Stockage objet (module fichiers) : port StoragePort / adapter S3StorageAdapter,
+         un seul adapter concret servant contre Floci (dev) et un vrai AWS (prod, non
+         exécuté) — seule la config d'endpoint change. -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+    </dependency>
+    <!-- S3Presigner vit dans le jar s3 lui-même (package
+         software.amazon.awssdk.services.s3.presigner) — pas de module Maven
+         "s3-presigner" séparé, contrairement à d'autres services AWS. -->
+
     <!-- Excel import (Module 1 - pointages) et export (Module 7 - reporting) -->
     <dependency>
       <groupId>org.apache.poi</groupId>
@@ -140,6 +163,10 @@
       <artifactId>postgresql</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Pas de module Testcontainers Java dédié publié pour Floci (vérifié sur
+         Maven Central, aucune coordonnée io.floci/org.floci/com.floci) :
+         GenericContainer("floci/floci:latest") suffit, même approche que
+         REDIS dans AbstractIntegrationTest (pas de module dédié non plus). -->
   </dependencies>
   <build>
     <plugins>

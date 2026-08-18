@@ -29,8 +29,11 @@ Mode Push (`POST /api/v1/hikvision/events`) + fallback horaire `@Scheduled` sur 
 
 **🔧 Précision liste blanche IP** (constat 13) : la table `pointeuses.adresse_ip` (déjà existante) est la source de vérité. Un filtre Spring Security (`HikvisionIpAllowlistFilter`, exécuté avant l'authentification) rejette en 403 toute requête sur `/api/v1/hikvision/events` dont l'IP source ne correspond à aucune ligne active de `pointeuses`.
 
-### 1.2 Stockage — 🔧 clarifié (constat 14)
-Un seul point de montage réseau `/mnt/company_storage/` (NFS/SMB) avec ses sous-dossiers `/contracts/`, `/reports/`, `/raw_imports/`, `/archives/`. **Il n'existe pas de second serveur physique dédié à l'archivage** : le scénario d'erreur du Module 7 est reformulé ainsi : *"Si le montage réseau devient inaccessible au moment de la tâche CRON mensuelle de purge/archivage, l'opération est annulée, retentée 3 fois, puis un rapport d'erreur d'infrastructure est émis — sachant qu'une telle panne affecte alors l'ensemble du stockage applicatif, pas seulement l'archivage."* Si un vrai isolement de l'archivage est requis à terme, cela nécessitera un second mount dédié — non retenu pour cette version.
+### 1.2 Stockage — 🔧 clarifié (constat 14), 🔧 pivot partiel vers stockage objet (2026-08-18)
+
+**Module `fichiers` (documents RH sensibles + uploads génériques)** : la contrainte on-premise ci-dessous ne s'applique plus à ce module — arbitrage utilisateur explicite du 2026-08-18. Stockage objet S3-compatible via un port métier (`StoragePort`) et un seul adapter concret (`S3StorageAdapter`, AWS SDK v2), servi en dev/CI par **Floci** (émulateur AWS local open-source, `floci/floci`, https://github.com/floci-io/floci) démarré comme service `docker-compose` supplémentaire, et pointant vers un vrai AWS en production (non exécuté à ce stade — seule la config d'endpoint change). Deux buckets : `sirh-documents-rh` (versionné, jamais d'accès public direct, rétention longue) et `sirh-uploads` (plus permissif, toujours servi en URL pré-signée). Aucun binaire ne transite par le backend : upload en 2 temps via URL pré-signée PUT, téléchargement via URL pré-signée GET à courte durée de vie — cf. §3.15 et §4.2.
+
+**Reste inchangé — Module 7 (rapports/archivage) et imports Excel bruts** : un seul point de montage réseau `/mnt/company_storage/` (NFS/SMB) avec ses sous-dossiers `/contracts/` *(historique, remplacé par les buckets S3 ci-dessus)*, `/reports/`, `/raw_imports/`, `/archives/`. **Il n'existe pas de second serveur physique dédié à l'archivage** : le scénario d'erreur du Module 7 est reformulé ainsi : *"Si le montage réseau devient inaccessible au moment de la tâche CRON mensuelle de purge/archivage, l'opération est annulée, retentée 3 fois, puis un rapport d'erreur d'infrastructure est émis — sachant qu'une telle panne affecte alors l'ensemble du stockage applicatif, pas seulement l'archivage."* Si un vrai isolement de l'archivage est requis à terme, cela nécessitera un second mount dédié — non retenu pour cette version. Un pivot de ce périmètre restant vers le stockage objet n'a pas été demandé et reste hors périmètre de la correction du 2026-08-18.
 
 ---
 
@@ -313,7 +316,9 @@ CREATE INDEX idx_outillage_mvt_outil ON outillage_mouvements(outillage_id, date_
 
 **Barème d'imputation dans `parametres_globaux`** (Module 5, "traitement financier") : même principe que les seuils du Lot 6 — aucun pourcentage chiffré dans le CDF/CDC-T, valeurs par défaut seedées, modifiables sans redéploiement via `PUT /parametres-globaux/{cle}` : `TAUX_IMPUTATION_OUTIL_0_6_MOIS` (`100`), `TAUX_IMPUTATION_OUTIL_6_12_MOIS` (`50`), `TAUX_IMPUTATION_OUTIL_PLUS_12_MOIS` (`25`), appliqués à `valeur_achat` selon l'ancienneté depuis `date_achat`. Le montant n'est calculé et persisté (`outillage_mouvements.montant_imputation`) que pour un check-in déclaré `PERDU` — le CDF ne décrit le "traitement financier" que pour la perte (Module 5, "Perte & endommagement"), pas pour un simple retour endommagé (`CASSE`/`USE`).
 
-### 3.15 `fichiers` — ✅ inchangé
+### 3.15 `fichiers` — 🔧 pivot stockage objet (2026-08-18, arbitrage utilisateur explicite qui lève la contrainte on-premise de §1.2)
+
+`chemin_relatif` renommé `objet_cle` (même sémantique, clé S3 au format `categorie/uuid.ext`) ; `bucket` et `statut` (`EN_ATTENTE`/`DISPONIBLE`/`ECHEC`) ajoutés — le flux d'upload passe en 2 temps (URL pré-signée PUT, puis confirmation qui vérifie l'objet côté stockage avant de passer `DISPONIBLE`). Catégories étendues : `CONTRAT, DIPLOME, CIN, JUSTIFICATIF, BULLETIN_PAIE` (bucket `sirh-documents-rh`, versionné, jamais d'accès public direct) et `AVATAR, PIECE_JOINTE` (bucket `sirh-uploads`, plus permissif mais toujours servi en URL pré-signée, aucun bucket public exposé). **🔴 Changement de contrat API non rétrocompatible** : `POST /fichiers/upload` (multipart) est remplacé par `POST /fichiers/demande-upload` + `POST /fichiers/{reference}/confirmer` ; `GET /fichiers/{reference}/download` ne renvoie plus le binaire mais `GET /fichiers/{reference}/download-url` renvoie une URL pré-signée de courte durée — cf. §4.2.
 
 ### 3.16 `async_jobs` — 🔧 généralisation de `import_jobs` (constat 18)
 ```sql
@@ -503,7 +508,13 @@ Base : `/api/v1`, JWT obligatoire sauf mention contraire. Les endpoints **✅ IN
 | `/utilisateurs` (liste/création) | GET/POST | RH, SUPERUSER | 🔧 |
 | `/utilisateurs/{id}` (détail/statut/reset-password) | GET/PUT | RH, SUPERUSER | 🔧 |
 
-### 4.2 Fichiers, Employés, Départements — ✅ INCHANGÉ (rôles v1 `MANAGER, RH` → lire implicitement `MANAGER, RH, SUPERUSER`, RH-only devient `RH, SUPERUSER`)
+### 4.2 Fichiers, Employés, Départements — Employés/Départements ✅ INCHANGÉ (rôles v1 `MANAGER, RH` → lire implicitement `MANAGER, RH, SUPERUSER`, RH-only devient `RH, SUPERUSER`) ; Fichiers 🔧 pivot stockage objet (2026-08-18, cf. §1.2/§3.15)
+
+- `POST /fichiers/demande-upload` **remplace** `POST /fichiers/upload` — tout rôle authentifié : `{nomOriginal, typeMime, tailleOctets, categorie, entiteType?, entiteId?}` → crée la ligne `fichiers` (`statut = EN_ATTENTE`) et retourne `{reference, uploadUrl, expiresAt}`. Le client PUT ensuite le binaire directement sur `uploadUrl` (Floci/S3, aucun binaire ne transite par le backend).
+- `POST /fichiers/{reference}/confirmer` 🆕 — tout rôle authentifié : vérifie l'existence/taille de l'objet côté stockage (`HeadObject`), passe `statut` à `DISPONIBLE` (ou `ECHEC`).
+- `GET /fichiers/{reference}/download-url` **remplace** `GET /fichiers/{reference}/download` — tout rôle authentifié : retourne `{url, expiresAt}` (URL GET pré-signée courte durée) au lieu de streamer le binaire ; 409 (`FICHIER_INDISPONIBLE`) si `statut != DISPONIBLE`.
+- `GET /fichiers/entite/{type}/{id}` — ✅ inchangé.
+- `DELETE /fichiers/{reference}` — ✅ inchangé (RH, SUPERUSER) : suppression logique uniquement, l'objet stocké n'est pas physiquement effacé (bucket documents RH versionné).
 
 ### 4.3 Ingestion & Pointages — ✅ INCHANGÉ, sauf :
 - `GET /pointages/import-jobs` **devient** `GET /async-jobs?type=IMPORT_POINTAGES` (même contrat de réponse, table source `async_jobs`).

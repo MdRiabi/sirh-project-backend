@@ -14,6 +14,9 @@
     <!-- Module Assiduité & Paie (Lot 6) : clôture mensuelle, déverrouillage exceptionnel -->
     <include file="db/changelog/changes/003-assiduite-paie.xml" relativeToChangelogFile="false"/>
 
+    <!-- Module Fichiers Cloud : pivot du module fichiers vers un stockage objet S3-compatible -->
+    <include file="db/changelog/changes/004-fichiers-cloud.xml" relativeToChangelogFile="false"/>
+
     <!-- Données de seed métier (paramètres globaux, shift système, pointeuses dev) -->
     <include file="db/changelog/changes/004-seed-donnees-metier.xml" relativeToChangelogFile="false"/>
 

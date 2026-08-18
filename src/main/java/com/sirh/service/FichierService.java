@@ -1,82 +1,104 @@
 package com.sirh.service;
 
 import com.sirh.annotation.Audited;
+import com.sirh.exception.ConflictException;
 import com.sirh.exception.ErrorCode;
 import com.sirh.exception.ResourceNotFoundException;
-import com.sirh.exception.TechnicalException;
+import com.sirh.model.dto.FichierDemandeUploadRequest;
+import com.sirh.model.dto.FichierDownloadUrlDto;
 import com.sirh.model.dto.FichierDto;
+import com.sirh.model.dto.FichierUploadUrlDto;
 import com.sirh.model.entity.Fichier;
 import com.sirh.model.enums.EntiteType;
 import com.sirh.model.enums.FichierCategorie;
+import com.sirh.model.enums.FichierStatut;
 import com.sirh.model.repository.FichierRepository;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.modelmapper.ModelMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class FichierService {
 
-  private static final Logger log = LoggerFactory.getLogger(FichierService.class);
-
   private final FichierRepository fichierRepository;
-  private final Path storageRoot;
+  private final StoragePort storagePort;
   private final ModelMapper modelMapper;
+  private final String bucketDocumentsRh;
+  private final String bucketUploads;
+  private final Duration dureeValiditeUpload;
+  private final Duration dureeValiditeDownload;
 
   public FichierService(
       FichierRepository fichierRepository,
-      @Value("${storage.path}") String storagePath,
-      ModelMapper modelMapper) {
+      StoragePort storagePort,
+      ModelMapper modelMapper,
+      @Value("${storage.s3.buckets.documents-rh}") String bucketDocumentsRh,
+      @Value("${storage.s3.buckets.uploads}") String bucketUploads,
+      @Value("${storage.s3.presigned-upload-ttl-minutes}") long uploadTtlMinutes,
+      @Value("${storage.s3.presigned-download-ttl-minutes}") long downloadTtlMinutes) {
     this.fichierRepository = fichierRepository;
-    this.storageRoot = Path.of(storagePath).toAbsolutePath().normalize();
+    this.storagePort = storagePort;
     this.modelMapper = modelMapper;
+    this.bucketDocumentsRh = bucketDocumentsRh;
+    this.bucketUploads = bucketUploads;
+    this.dureeValiditeUpload = Duration.ofMinutes(uploadTtlMinutes);
+    this.dureeValiditeDownload = Duration.ofMinutes(downloadTtlMinutes);
   }
 
   @Transactional
-  public FichierDto upload(
-      MultipartFile file,
-      FichierCategorie categorie,
-      EntiteType entiteType,
-      Long entiteId,
-      Long uploadeParId) {
-    String extension = extractExtension(file.getOriginalFilename());
-    String nomStockage = UUID.randomUUID() + extension;
-    String cheminRelatif = categorie.name().toLowerCase() + "/" + nomStockage;
-
-    Path destination = storageRoot.resolve(cheminRelatif).normalize();
-    try {
-      Files.createDirectories(destination.getParent());
-      file.transferTo(destination);
-    } catch (IOException e) {
-      log.error("Échec de l'écriture du fichier sur le stockage.", e);
-      throw new TechnicalException(ErrorCode.SYSTEM_ERROR, e);
-    }
+  public FichierUploadUrlDto demanderUpload(
+      FichierDemandeUploadRequest request, Long uploadeParId) {
+    String bucket = resoudreBucket(request.categorie());
+    String extension = extraireExtension(request.nomOriginal());
+    String cle = request.categorie().name().toLowerCase() + "/" + UUID.randomUUID() + extension;
 
     Fichier fichier =
         Fichier.builder()
-            .nomOriginal(file.getOriginalFilename())
-            .nomStockage(nomStockage)
-            .cheminRelatif(cheminRelatif)
-            .typeMime(
-                file.getContentType() != null ? file.getContentType() : "application/octet-stream")
-            .tailleOctets(file.getSize())
-            .categorie(categorie)
-            .entiteType(entiteType)
-            .entiteId(entiteId)
+            .nomOriginal(request.nomOriginal())
+            .nomStockage(cle.substring(cle.lastIndexOf('/') + 1))
+            .objetCle(cle)
+            .bucket(bucket)
+            .typeMime(request.typeMime())
+            .tailleOctets(request.tailleOctets())
+            .categorie(request.categorie())
+            .statut(FichierStatut.EN_ATTENTE)
+            .entiteType(request.entiteType())
+            .entiteId(request.entiteId())
             .uploadeParId(uploadeParId)
             .build();
+    fichier = fichierRepository.save(fichier);
 
-    return toDto(fichierRepository.save(fichier));
+    var uploadUrl =
+        storagePort.creerUrlUploadPresignee(bucket, cle, request.typeMime(), dureeValiditeUpload);
+
+    FichierUploadUrlDto dto = new FichierUploadUrlDto();
+    dto.setReference(fichier.getReference());
+    dto.setUploadUrl(uploadUrl.toString());
+    dto.setExpiresAt(LocalDateTime.now().plus(dureeValiditeUpload));
+    return dto;
+  }
+
+  @Transactional
+  public FichierDto confirmerUpload(UUID reference) {
+    Fichier fichier = getFichierByReference(reference);
+    if (fichier.getStatut() != FichierStatut.DISPONIBLE) {
+      Optional<Long> tailleReelle =
+          storagePort.tailleObjet(fichier.getBucket(), fichier.getObjetCle());
+      if (tailleReelle.isPresent()) {
+        fichier.setTailleOctets(tailleReelle.get());
+        fichier.setStatut(FichierStatut.DISPONIBLE);
+      } else {
+        fichier.setStatut(FichierStatut.ECHEC);
+      }
+      fichier = fichierRepository.save(fichier);
+    }
+    return toDto(fichier);
   }
 
   @Transactional(readOnly = true)
@@ -90,13 +112,20 @@ public class FichierService {
   }
 
   @Transactional(readOnly = true)
-  public Resource loadAsResource(Fichier fichier) {
-    Path path = storageRoot.resolve(fichier.getCheminRelatif()).normalize();
-    if (!path.startsWith(storageRoot) || !Files.exists(path)) {
-      throw new ResourceNotFoundException(
-          ErrorCode.FICHIER_NOT_FOUND, new Object[] {fichier.getReference()});
+  public FichierDownloadUrlDto genererUrlTelechargement(UUID reference) {
+    Fichier fichier = getFichierByReference(reference);
+    if (fichier.getStatut() != FichierStatut.DISPONIBLE) {
+      throw new ConflictException(
+          ErrorCode.FICHIER_INDISPONIBLE, new Object[] {fichier.getStatut()});
     }
-    return new FileSystemResource(path);
+    var url =
+        storagePort.creerUrlTelechargementPresignee(
+            fichier.getBucket(), fichier.getObjetCle(), dureeValiditeDownload);
+
+    FichierDownloadUrlDto dto = new FichierDownloadUrlDto();
+    dto.setUrl(url.toString());
+    dto.setExpiresAt(LocalDateTime.now().plus(dureeValiditeDownload));
+    return dto;
   }
 
   @Transactional(readOnly = true)
@@ -112,26 +141,26 @@ public class FichierService {
   @Transactional
   public void deleteFichierByReference(UUID reference) {
     Fichier fichier = getFichierByReference(reference);
-    Path path = storageRoot.resolve(fichier.getCheminRelatif()).normalize();
-    try {
-      Files.deleteIfExists(path);
-    } catch (IOException e) {
-      log.error("Échec de la suppression du fichier sur le stockage.", e);
-      throw new TechnicalException(ErrorCode.SYSTEM_ERROR, e);
-    }
     fichier.onDelete();
     fichierRepository.save(fichier);
+  }
+
+  private String resoudreBucket(FichierCategorie categorie) {
+    return switch (categorie) {
+      case CONTRAT, DIPLOME, CIN, JUSTIFICATIF, BULLETIN_PAIE -> bucketDocumentsRh;
+      case AVATAR, PIECE_JOINTE -> bucketUploads;
+    };
   }
 
   private FichierDto toDto(Fichier fichier) {
     return modelMapper.map(fichier, FichierDto.class);
   }
 
-  private String extractExtension(String originalFilename) {
-    if (originalFilename == null) {
+  private String extraireExtension(String nomOriginal) {
+    if (nomOriginal == null) {
       return "";
     }
-    int dotIndex = originalFilename.lastIndexOf('.');
-    return dotIndex >= 0 ? originalFilename.substring(dotIndex) : "";
+    int dotIndex = nomOriginal.lastIndexOf('.');
+    return dotIndex >= 0 ? nomOriginal.substring(dotIndex) : "";
   }
 }

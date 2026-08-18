@@ -2,6 +2,7 @@ package com.sirh.model.entity;
 
 import com.sirh.model.enums.EntiteType;
 import com.sirh.model.enums.FichierCategorie;
+import com.sirh.model.enums.FichierStatut;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -32,8 +33,11 @@ public class Fichier extends BaseEntity {
   @Column(name = "nom_stockage", nullable = false)
   private String nomStockage;
 
-  @Column(name = "chemin_relatif", nullable = false)
-  private String cheminRelatif;
+  @Column(name = "objet_cle", nullable = false)
+  private String objetCle;
+
+  @Column(name = "bucket", nullable = false)
+  private String bucket;
 
   @Column(name = "type_mime", nullable = false)
   private String typeMime;
@@ -44,6 +48,10 @@ public class Fichier extends BaseEntity {
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private FichierCategorie categorie;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private FichierStatut statut;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "entite_type")

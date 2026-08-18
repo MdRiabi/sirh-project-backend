@@ -26,6 +26,17 @@ jwt:
 
 storage:
   path: ${STORAGE_PATH:./storage}
+  s3:
+    endpoint: ${STORAGE_S3_ENDPOINT:http://localhost:4566}
+    public-endpoint: ${STORAGE_S3_PUBLIC_ENDPOINT:http://localhost:4566}
+    region: ${STORAGE_S3_REGION:us-east-1}
+    access-key: ${STORAGE_S3_ACCESS_KEY:test}
+    secret-key: ${STORAGE_S3_SECRET_KEY:test}
+    presigned-upload-ttl-minutes: 15
+    presigned-download-ttl-minutes: 5
+    buckets:
+      documents-rh: ${STORAGE_S3_BUCKET_DOCUMENTS_RH:sirh-documents-rh}
+      uploads: ${STORAGE_S3_BUCKET_UPLOADS:sirh-uploads}
 
 management:
   endpoints:

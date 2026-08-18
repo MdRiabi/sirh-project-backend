@@ -30,6 +30,26 @@ services:
       timeout: 5s
       retries: 10
 
+  floci:
+    image: floci/floci:latest
+    container_name: sirh-floci
+    environment:
+      # Nom résolu par les autres conteneurs pour parler à Floci ; les URLs
+      # pré-signées destinées au navigateur (hors réseau Docker) utilisent en
+      # revanche STORAGE_S3_PUBLIC_ENDPOINT côté backend (cf. ARCHITECTURE.md §8).
+      FLOCI_HOSTNAME: floci
+      FLOCI_STORAGE_MODE: hybrid
+      SERVICES: s3
+    ports:
+      - "4566:4566"
+    volumes:
+      - floci_data:/var/lib/floci
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4566/_localstack/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: .
@@ -44,6 +64,11 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-too-in-production}
       SERVER_PORT: 8080
       STORAGE_PATH: /app/storage
+      STORAGE_S3_ENDPOINT: http://floci:4566
+      STORAGE_S3_PUBLIC_ENDPOINT: http://localhost:4566
+      STORAGE_S3_REGION: us-east-1
+      STORAGE_S3_BUCKET_DOCUMENTS_RH: sirh-documents-rh
+      STORAGE_S3_BUCKET_UPLOADS: sirh-uploads
     volumes:
       - ./storage:/app/storage
     depends_on:
@@ -51,6 +76,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      floci:
+        condition: service_started
     ports:
       - "8080:8080"
     healthcheck:
@@ -71,3 +98,4 @@ services:
 
 volumes:
   postgres_data:
+  floci_data:
