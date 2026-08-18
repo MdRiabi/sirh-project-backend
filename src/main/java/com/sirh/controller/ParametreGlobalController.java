@@ -6,6 +6,8 @@ import com.sirh.model.dto.ParametreGlobalDto;
 import com.sirh.model.dto.ParametreGlobalUpdateRequest;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.service.ParametreGlobalService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +19,10 @@ import org.springframework.web.bind.annotation.*;
 // à chaud (ex. taux d'incrémentation mensuelle des congés, Lot 5), jamais
 // codées en dur. RH/SUPERUSER uniquement — une valeur mal ajustée impacte
 // tous les employés.
+@Tag(
+    name = "Paramètres globaux",
+    description =
+        "Paramétrage RH modifiable à chaud, jamais codé en dur (cahier-technique.md §4.11).")
 @RestController
 @RequestMapping("/parametres-globaux")
 @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
@@ -25,16 +31,19 @@ public class ParametreGlobalController {
 
   private final ParametreGlobalService parametreGlobalService;
 
+  @Operation(summary = "Lister tous les paramètres globaux")
   @GetMapping
   public ResponseEntity<ListingPageDto<ParametreGlobalDto>> list() {
     return ResponseEntity.ok(ListingPageDto.of(parametreGlobalService.findAll()));
   }
 
+  @Operation(summary = "Consulter un paramètre par clé")
   @GetMapping("/{cle}")
   public ResponseEntity<SingleObjectDto<ParametreGlobalDto>> get(@PathVariable String cle) {
     return ResponseEntity.ok(SingleObjectDto.of(parametreGlobalService.getParametreGlobalDto(cle)));
   }
 
+  @Operation(summary = "Modifier la valeur d'un paramètre")
   @PutMapping("/{cle}")
   public ResponseEntity<SingleObjectDto<ParametreGlobalDto>> update(
       @PathVariable String cle,

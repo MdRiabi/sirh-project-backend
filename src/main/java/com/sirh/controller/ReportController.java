@@ -6,6 +6,8 @@ import com.sirh.model.dto.ReportGenerationResult;
 import com.sirh.model.dto.ReportGenererRequest;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.service.ReportGenerationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 // Module 7 (CDF) : "Le RH sélectionne un type de rapport ... clique sur
 // EXPORTER." — RH/SUPERUSER seulement (même scope que la génération de tout
 // export sensible du projet, cf. import Excel pointages).
+@Tag(
+    name = "Rapports",
+    description =
+        "Génération et téléchargement de rapports (`TURNOVER_ANNUEL`, `ABSENTEISME_ANNUEL` —"
+            + " formats PDF/EXCEL), adossée aux `async_jobs` (cahier-technique.md §4.8)")
 @RestController
 @RequestMapping("/reports")
 @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
@@ -34,6 +41,12 @@ public class ReportController {
 
   private final ReportGenerationService reportGenerationService;
 
+  @Operation(
+      summary = "Générer un rapport",
+      description =
+          "Catalogue limité à `TURNOVER_ANNUEL`, `ABSENTEISME_ANNUEL` (formats `PDF`/`EXCEL`,"
+              + " `departementId` optionnel). Si le résultat n'est pas prêt sous 5s, la requête"
+              + " bascule en 202 avec suivi via `async_jobs` au lieu de bloquer.")
   @PostMapping("/generer")
   public ResponseEntity<?> generer(
       @Valid @RequestBody ReportGenererRequest request,
@@ -56,6 +69,7 @@ public class ReportController {
     };
   }
 
+  @Operation(summary = "Consulter l'état d'un job de génération de rapport")
   @GetMapping("/tasks/{reference}")
   public ResponseEntity<SingleObjectDto<AsyncJobDto>> tache(@PathVariable UUID reference) {
     return ResponseEntity.ok(SingleObjectDto.of(reportGenerationService.obtenirTache(reference)));
@@ -65,6 +79,9 @@ public class ReportController {
   // GET /reports/tasks/{reference} y figurent) — nécessaire pour récupérer le
   // fichier une fois le job async_jobs passé à SUCCESS, même principe que
   // GET /fichiers/{reference}/download.
+  @Operation(
+      summary = "Télécharger le fichier d'un rapport généré",
+      description = "409 si le job n'est pas encore au statut `SUCCESS`.")
   @GetMapping("/tasks/{reference}/download")
   public ResponseEntity<Resource> telecharger(@PathVariable UUID reference) {
     ReportGenerationService.FichierTelecharge fichier =

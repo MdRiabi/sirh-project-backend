@@ -8,6 +8,8 @@ import com.sirh.model.enums.PointageStatut;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.service.ImportPointagesService;
 import com.sirh.service.PointageBrutService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
@@ -21,6 +23,12 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+@Tag(
+    name = "Pointages",
+    description =
+        "Consultation, correction et import Excel des pointages bruts (cahier-technique.md §4.5)."
+            + " Doublon détecté sur une fenêtre de 5 minutes, même employé + même pointeuse — seul"
+            + " le 1er pointage compte pour les heures travaillées.")
 @RestController
 @RequestMapping("/pointages")
 @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
@@ -30,6 +38,7 @@ public class PointageController {
   private final PointageBrutService pointageBrutService;
   private final ImportPointagesService importPointagesService;
 
+  @Operation(summary = "Lister les pointages bruts")
   @GetMapping
   public ResponseEntity<ListingPageDto<PointageBrutDto>> list(
       @RequestParam(required = false) UUID employeId,
@@ -42,6 +51,12 @@ public class PointageController {
         ListingPageDto.of(pointageBrutService.search(employeId, dateDebut, dateFin, statut)));
   }
 
+  @Operation(
+      summary = "Importer des pointages depuis un fichier Excel",
+      description =
+          "Traitement asynchrone (job suivi dans `async_jobs`, cf. `GET"
+              + " /async-jobs?type=IMPORT_POINTAGES`). Rollback total au premier échec — jamais"
+              + " d'insertion partielle.")
   @PostMapping(value = "/import", consumes = "multipart/form-data")
   public ResponseEntity<SingleObjectDto<Map<String, UUID>>> importer(
       @RequestParam("file") MultipartFile file,
@@ -50,6 +65,7 @@ public class PointageController {
     return ResponseEntity.accepted().body(SingleObjectDto.of(Map.of("jobId", job.getReference())));
   }
 
+  @Operation(summary = "Corriger un pointage")
   @PutMapping("/{reference}/corriger")
   public ResponseEntity<SingleObjectDto<PointageBrutDto>> corrigerPointageByReference(
       @PathVariable UUID reference,

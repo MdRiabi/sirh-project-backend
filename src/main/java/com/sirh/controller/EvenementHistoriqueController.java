@@ -7,6 +7,8 @@ import com.sirh.model.dto.EvenementRequest;
 import com.sirh.model.enums.EvenementCategorie;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.service.EvenementHistoriqueService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -17,6 +19,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(
+    name = "Vue 360° — Historique",
+    description =
+        "Timeline d'évènements RH par employé (évaluations, notes RH, discipline, contrats —"
+            + " table `evenements_360`, cahier-technique.md §3.5), RH/SUPERUSER uniquement.")
 @RestController
 @RequestMapping("/employes/{employeId}")
 @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
@@ -25,6 +32,9 @@ public class EvenementHistoriqueController {
 
   private final EvenementHistoriqueService evenementHistoriqueService;
 
+  @Operation(
+      summary = "Consulter la timeline d'un employé",
+      description = "Filtrable par catégorie et fenêtre temporelle.")
   @GetMapping("/timeline")
   public ResponseEntity<ListingPageDto<EvenementDto>> timeline(
       @PathVariable UUID employeId,
@@ -38,6 +48,7 @@ public class EvenementHistoriqueController {
             evenementHistoriqueService.findTimeline(employeId, categorie, dateDebut, dateFin)));
   }
 
+  @Operation(summary = "Ajouter une entrée manuelle à la timeline")
   @PostMapping("/evenements")
   public ResponseEntity<SingleObjectDto<EvenementDto>> createEvenement(
       @PathVariable UUID employeId,

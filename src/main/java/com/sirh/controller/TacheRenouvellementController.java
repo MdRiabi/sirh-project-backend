@@ -7,6 +7,8 @@ import com.sirh.model.dto.TacheRenouvellementTraiterRequest;
 import com.sirh.model.enums.TacheRenouvellementStatut;
 import com.sirh.security.SirhUserDetails;
 import com.sirh.service.RenouvellementService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(
+    name = "Renouvellement de contrats",
+    description =
+        "File de tâches de fin de contrat (Module 12, cahier-technique.md §4.9) —"
+            + " RH/SUPERUSER uniquement.")
 @RestController
 @RequestMapping("/taches-renouvellement")
 @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
@@ -23,12 +30,18 @@ public class TacheRenouvellementController {
 
   private final RenouvellementService renouvellementService;
 
+  @Operation(summary = "Lister les tâches de renouvellement")
   @GetMapping
   public ResponseEntity<ListingPageDto<TacheRenouvellementDto>> list(
       @RequestParam(required = false) TacheRenouvellementStatut statut) {
     return ResponseEntity.ok(ListingPageDto.of(renouvellementService.search(statut)));
   }
 
+  @Operation(
+      summary = "Traiter une tâche de renouvellement",
+      description =
+          "`VALIDE` crée une nouvelle ligne `contrats`. `NON_RENOUVELE` déclenche"
+              + " l'offboarding (`employes.actif = false`).")
   @PutMapping("/{reference}")
   public ResponseEntity<SingleObjectDto<TacheRenouvellementDto>>
       traiterTacheRenouvellementByReference(
