@@ -2,11 +2,13 @@ package com.sirh.controller;
 
 import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.dto.AsyncJobDto;
-import com.sirh.security.SirhUserDetails;
-import com.sirh.model.dto.ReportGenererRequest;
 import com.sirh.model.dto.ReportGenerationResult;
+import com.sirh.model.dto.ReportGenererRequest;
+import com.sirh.security.SirhUserDetails;
 import com.sirh.service.ReportGenerationService;
 import jakarta.validation.Valid;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -21,52 +23,57 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
-
 // Module 7 (CDF) : "Le RH sélectionne un type de rapport ... clique sur
 // EXPORTER." — RH/SUPERUSER seulement (même scope que la génération de tout
 // export sensible du projet, cf. import Excel pointages).
 @RestController
 @RequestMapping("/reports")
 @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
+@RequiredArgsConstructor
 public class ReportController {
 
-    private final ReportGenerationService reportGenerationService;
+  private final ReportGenerationService reportGenerationService;
 
-    public ReportController(ReportGenerationService reportGenerationService) {
-        this.reportGenerationService = reportGenerationService;
-    }
+  @PostMapping("/generer")
+  public ResponseEntity<?> generer(
+      @Valid @RequestBody ReportGenererRequest request,
+      @AuthenticationPrincipal SirhUserDetails principal) {
+    ReportGenerationResult resultat =
+        reportGenerationService.genererRapport(request, principal.getUserId());
+    return switch (resultat) {
+      case ReportGenerationResult.Pret pret ->
+          ResponseEntity.ok()
+              .contentType(pret.rapport().getContentType())
+              .header(
+                  HttpHeaders.CONTENT_DISPOSITION,
+                  ContentDisposition.attachment()
+                      .filename(pret.rapport().getNomFichier())
+                      .build()
+                      .toString())
+              .body(pret.rapport().getContenu());
+      case ReportGenerationResult.Lance lance ->
+          ResponseEntity.status(HttpStatus.ACCEPTED).body(SingleObjectDto.of(lance.job()));
+    };
+  }
 
-    @PostMapping("/generer")
-    public ResponseEntity<?> generer(@Valid @RequestBody ReportGenererRequest request,
-                                      @AuthenticationPrincipal SirhUserDetails principal) {
-        ReportGenerationResult resultat = reportGenerationService.genererRapport(request, principal.getUserId());
-        return switch (resultat) {
-            case ReportGenerationResult.Pret pret -> ResponseEntity.ok()
-                    .contentType(pret.rapport().contentType())
-                    .header(HttpHeaders.CONTENT_DISPOSITION,
-                            ContentDisposition.attachment().filename(pret.rapport().nomFichier()).build().toString())
-                    .body(pret.rapport().contenu());
-            case ReportGenerationResult.Lance lance -> ResponseEntity.status(HttpStatus.ACCEPTED).body(SingleObjectDto.of(lance.job()));
-        };
-    }
+  @GetMapping("/tasks/{reference}")
+  public ResponseEntity<SingleObjectDto<AsyncJobDto>> tache(@PathVariable UUID reference) {
+    return ResponseEntity.ok(SingleObjectDto.of(reportGenerationService.obtenirTache(reference)));
+  }
 
-    @GetMapping("/tasks/{reference}")
-    public ResponseEntity<SingleObjectDto<AsyncJobDto>> tache(@PathVariable UUID reference) {
-        return ResponseEntity.ok(SingleObjectDto.of(reportGenerationService.obtenirTache(reference)));
-    }
-
-    // 🆕 non listé au cahier technique (seuls POST /reports/generer et
-    // GET /reports/tasks/{reference} y figurent) — nécessaire pour récupérer le
-    // fichier une fois le job async_jobs passé à SUCCESS, même principe que
-    // GET /fichiers/{reference}/download.
-    @GetMapping("/tasks/{reference}/download")
-    public ResponseEntity<Resource> telecharger(@PathVariable UUID reference) {
-        ReportGenerationService.FichierTelecharge fichier = reportGenerationService.chargerFichierResultat(reference);
-        return ResponseEntity.ok()
-                .contentType(fichier.contentType())
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition.attachment().filename(fichier.nomFichier()).build().toString())
-                .body(fichier.resource());
-    }
+  // 🆕 non listé au cahier technique (seuls POST /reports/generer et
+  // GET /reports/tasks/{reference} y figurent) — nécessaire pour récupérer le
+  // fichier une fois le job async_jobs passé à SUCCESS, même principe que
+  // GET /fichiers/{reference}/download.
+  @GetMapping("/tasks/{reference}/download")
+  public ResponseEntity<Resource> telecharger(@PathVariable UUID reference) {
+    ReportGenerationService.FichierTelecharge fichier =
+        reportGenerationService.chargerFichierResultat(reference);
+    return ResponseEntity.ok()
+        .contentType(fichier.contentType())
+        .header(
+            HttpHeaders.CONTENT_DISPOSITION,
+            ContentDisposition.attachment().filename(fichier.nomFichier()).build().toString())
+        .body(fichier.resource());
+  }
 }

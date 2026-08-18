@@ -2,23 +2,24 @@ package com.sirh.model.repository;
 
 import com.sirh.model.entity.Evaluation;
 import com.sirh.model.enums.EvaluationStatut;
-import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
 
-    Optional<Evaluation> findByReferenceAndDeletedAtIsNull(UUID reference);
+  Optional<Evaluation> findByReferenceAndDeletedAtIsNull(UUID reference);
 
-    List<Evaluation> findByEmployeIdAndDeletedAtIsNullOrderByAnneeDesc(UUID employeId);
+  List<Evaluation> findByEmployeIdAndDeletedAtIsNullOrderByAnneeDesc(UUID employeId);
 
-    List<Evaluation> findByStatutAndDeletedAtIsNullOrderByAnneeDescCreatedAtDesc(EvaluationStatut statut);
+  List<Evaluation> findByStatutAndDeletedAtIsNullOrderByAnneeDescCreatedAtDesc(
+      EvaluationStatut statut);
 
-    List<Evaluation> findByStatutAndAnneeAndDeletedAtIsNullOrderByCreatedAtDesc(EvaluationStatut statut, Integer annee);
+  List<Evaluation> findByStatutAndAnneeAndDeletedAtIsNullOrderByCreatedAtDesc(
+      EvaluationStatut statut, Integer annee);
 
-    List<Evaluation> findAllByDeletedAtIsNullOrderByAnneeDescCreatedAtDesc();
+  List<Evaluation> findAllByDeletedAtIsNullOrderByAnneeDescCreatedAtDesc();
 
-    boolean existsByEmployeIdAndAnneeAndDeletedAtIsNull(UUID employeId, Integer annee);
+  boolean existsByEmployeIdAndAnneeAndDeletedAtIsNull(UUID employeId, Integer annee);
 }

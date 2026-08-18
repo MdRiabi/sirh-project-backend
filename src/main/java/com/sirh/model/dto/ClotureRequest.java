@@ -9,5 +9,4 @@ import jakarta.validation.constraints.NotBlank;
 // casserait le contrat consommé par openapi-typescript. Parsé via
 // YearMonth.parse() dans le contrôleur, même convention que les query params
 // GET (calcul-mensuel, cloture-paie, demandes-deverrouillage).
-public record ClotureRequest(@NotBlank String mois) {
-}
+public record ClotureRequest(@NotBlank String mois) {}

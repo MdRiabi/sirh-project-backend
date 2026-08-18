@@ -1,15 +1,14 @@
 package com.sirh.model.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.SQLRestriction;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.util.UUID;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "departements")
@@ -22,13 +21,13 @@ import java.util.UUID;
 @Builder
 public class Departement extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Column(nullable = false)
-    private String nom;
+  @Column(nullable = false)
+  private String nom;
 
-    @Column(name = "manager_id")
-    private UUID managerId;
+  @Column(name = "manager_id")
+  private UUID runnmanagerId;
 }

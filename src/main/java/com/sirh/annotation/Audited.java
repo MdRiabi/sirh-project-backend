@@ -6,13 +6,13 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marque une méthode dont l'exécution doit être journalisée dans audit_logs
- * (immuable, lecture réservée SUPERUSER — cf. ARCHITECTURE.md §9).
- * Intercepté par AuditAspect.
+ * Marque une méthode dont l'exécution doit être journalisée dans audit_logs (immuable, lecture
+ * réservée SUPERUSER — cf. ARCHITECTURE.md §9). Intercepté par AuditAspect.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface Audited {
-    String action();
-    String tableCible();
+  String action();
+
+  String tableCible();
 }

@@ -1,17 +1,16 @@
 package com.sirh.model.entity;
 
+import com.sirh.model.enums.PlanningStatut;
 import jakarta.persistence.*;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.SQLRestriction;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
-import com.sirh.model.enums.PlanningStatut;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "plannings")
@@ -24,27 +23,27 @@ import com.sirh.model.enums.PlanningStatut;
 @Builder
 public class Planning extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Column(name = "employe_id", nullable = false)
-    private UUID employeId;
+  @Column(name = "employe_id", nullable = false)
+  private UUID employeId;
 
-    @Column(name = "shift_id", nullable = false)
-    private Long shiftId;
+  @Column(name = "shift_id", nullable = false)
+  private Long shiftId;
 
-    @Column(name = "date_debut", nullable = false)
-    private LocalDateTime dateDebut;
+  @Column(name = "date_debut", nullable = false)
+  private LocalDateTime dateDebut;
 
-    @Column(name = "date_fin", nullable = false)
-    private LocalDateTime dateFin;
+  @Column(name = "date_fin", nullable = false)
+  private LocalDateTime dateFin;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    @Builder.Default
-    private PlanningStatut statut = PlanningStatut.PROVISOIRE;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 20)
+  @Builder.Default
+  private PlanningStatut statut = PlanningStatut.PROVISOIRE;
 
-    @Column(columnDefinition = "TEXT")
-    private String commentaire;
+  @Column(columnDefinition = "TEXT")
+  private String commentaire;
 }

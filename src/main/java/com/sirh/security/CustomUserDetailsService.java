@@ -9,16 +9,17 @@ import org.springframework.stereotype.Service;
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UtilisateurRepository utilisateurRepository;
+  private final UtilisateurRepository utilisateurRepository;
 
-    public CustomUserDetailsService(UtilisateurRepository utilisateurRepository) {
-        this.utilisateurRepository = utilisateurRepository;
-    }
+  public CustomUserDetailsService(UtilisateurRepository utilisateurRepository) {
+    this.utilisateurRepository = utilisateurRepository;
+  }
 
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return utilisateurRepository.findByUsernameAndDeletedAtIsNull(username)
-                .map(SirhUserDetails::new)
-                .orElseThrow(() -> new UsernameNotFoundException("Utilisateur introuvable : " + username));
-    }
+  @Override
+  public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    return utilisateurRepository
+        .findByUsernameAndDeletedAtIsNull(username)
+        .map(SirhUserDetails::new)
+        .orElseThrow(() -> new UsernameNotFoundException("Utilisateur introuvable : " + username));
+  }
 }

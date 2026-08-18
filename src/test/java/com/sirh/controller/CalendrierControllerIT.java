@@ -1,15 +1,19 @@
 package com.sirh.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.sirh.AbstractIntegrationTest;
-import com.sirh.model.dto.LoginRequest;
-import com.sirh.model.dto.TokenResponse;
-import com.sirh.model.enums.Role;
+import com.sirh.model.entity.Employe;
 import com.sirh.model.entity.HistoriqueSolde;
 import com.sirh.model.entity.Indisponibilite;
+import com.sirh.model.enums.Role;
+import com.sirh.model.repository.EmployeRepository;
 import com.sirh.model.repository.HistoriqueSoldeRepository;
 import com.sirh.model.repository.IndisponibiliteRepository;
-import com.sirh.model.entity.Employe;
-import com.sirh.model.repository.EmployeRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -19,189 +23,231 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
- * Couvre le CRUD jours_feries + le recrédit automatique de solde
- * (RECREDIT_FERIE) en cas de chevauchement férié/congé validé
- * (cahier-fonctionnel.md Module 6).
+ * Couvre le CRUD jours_feries + le recrédit automatique de solde (RECREDIT_FERIE) en cas de
+ * chevauchement férié/congé validé (cahier-fonctionnel.md Module 6).
  */
 class CalendrierControllerIT extends AbstractIntegrationTest {
 
-    @Autowired
-    private IndisponibiliteRepository indisponibiliteRepository;
-    @Autowired
-    private HistoriqueSoldeRepository historiqueSoldeRepository;
-    @Autowired
-    private EmployeRepository employeRepository;
+  @Autowired private IndisponibiliteRepository indisponibiliteRepository;
+  @Autowired private HistoriqueSoldeRepository historiqueSoldeRepository;
+  @Autowired private EmployeRepository employeRepository;
 
-    private String accessTokenFor(Role role) {
-        String username = createFixtureUser(role);
-        return login(username, FIXTURE_PASSWORD).accessToken();
-    }
+  private String accessTokenFor(Role role) {
+    String username = createFixtureUser(role);
+    return login(username, FIXTURE_PASSWORD).getAccessToken();
+  }
 
-    private HttpHeaders authHeaders(String accessToken) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(accessToken);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        return headers;
-    }
+  private HttpHeaders authHeaders(String accessToken) {
+    HttpHeaders headers = new HttpHeaders();
+    headers.setBearerAuth(accessToken);
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    return headers;
+  }
 
-    private ResponseEntity<Map> creerJourFerie(String token, LocalDate date, String libelle, String type) {
-        Map<String, Object> body = Map.of("date", date.toString(), "libelle", libelle, "type", type);
-        return restTemplate.exchange(baseUrl("/calendrier/jours-feries"), HttpMethod.POST,
-                new HttpEntity<>(body, authHeaders(token)), Map.class);
-    }
+  private ResponseEntity<Map> creerJourFerie(
+      String token, LocalDate date, String libelle, String type) {
+    Map<String, Object> body = Map.of("date", date.toString(), "libelle", libelle, "type", type);
+    return restTemplate.exchange(
+        baseUrl("/calendrier/jours-feries"),
+        HttpMethod.POST,
+        new HttpEntity<>(body, authHeaders(token)),
+        Map.class);
+  }
 
-    @Test
-    void creerFerie_surUnCongeValide_recredit1JourAuSolde() {
-        String token = accessTokenFor(Role.ROLE_RH);
-        Employe employe = employeRepository.save(Employe.builder()
-                .matriculeInterne("IT-CAL-1").nom("Test").prenom("User").typeContrat("CDI")
-                .dateEmbauche(LocalDate.now()).actif(true).soldeCongesJours(BigDecimal.valueOf(10)).build());
-
-        LocalDate ferie = LocalDate.now().plusDays(15);
-        indisponibiliteRepository.save(Indisponibilite.builder()
-                .employeId(employe.getId())
-                .typeIndisponibilite("CONGE_PAYE")
-                .dateDebut(ferie.minusDays(2))
-                .dateFin(ferie.plusDays(2))
-                .statut("VALIDE")
-                .creeParId(employe.getId())
-                .creeParRole("RH")
+  @Test
+  void creerFerie_surUnCongeValide_recredit1JourAuSolde() {
+    String token = accessTokenFor(Role.ROLE_RH);
+    Employe employe =
+        employeRepository.save(
+            Employe.builder()
+                .matriculeInterne("IT-CAL-1")
+                .nom("Test")
+                .prenom("User")
+                .typeContrat("CDI")
+                .dateEmbauche(LocalDate.now())
+                .actif(true)
+                .soldeCongesJours(BigDecimal.valueOf(10))
                 .build());
 
-        ResponseEntity<Map> reponse = creerJourFerie(token, ferie, "Aïd Mobile", "FERIE");
-        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    LocalDate ferie = LocalDate.now().plusDays(15);
+    indisponibiliteRepository.save(
+        Indisponibilite.builder()
+            .employeId(employe.getId())
+            .typeIndisponibilite("CONGE_PAYE")
+            .dateDebut(ferie.minusDays(2))
+            .dateFin(ferie.plusDays(2))
+            .statut("VALIDE")
+            .creeParId(employe.getId())
+            .creeParRole("RH")
+            .build());
 
-        Employe rechargé = employeRepository.findById(employe.getId()).orElseThrow();
-        assertThat(rechargé.getSoldeCongesJours()).isEqualByComparingTo("11");
+    ResponseEntity<Map> reponse = creerJourFerie(token, ferie, "Aïd Mobile", "FERIE");
+    assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
-        List<HistoriqueSolde> mouvements = historiqueSoldeRepository.findAll().stream()
-                .filter(h -> h.getEmployeId().equals(employe.getId())).toList();
-        assertThat(mouvements).hasSize(1);
-        assertThat(mouvements.get(0).getMotif()).isEqualTo("RECREDIT_FERIE");
-        assertThat(mouvements.get(0).getDeltaJours()).isEqualByComparingTo("1");
-        assertThat(mouvements.get(0).getSoldeApres()).isEqualByComparingTo("11");
-    }
+    Employe rechargé = employeRepository.findById(employe.getId()).orElseThrow();
+    assertThat(rechargé.getSoldeCongesJours()).isEqualByComparingTo("11");
 
-    // Régression /code-review --fix : le recrédit ne doit s'appliquer qu'au congé
-    // payé (CONGE_PAYE), pas à n'importe quel type d'indisponibilité validé —
-    // un arrêt maladie ne doit jamais créditer un jour de congé payé.
-    @Test
-    void creerFerie_surUneMaladieValidee_neRecreditePas() {
-        String token = accessTokenFor(Role.ROLE_RH);
-        Employe employe = employeRepository.save(Employe.builder()
-                .matriculeInterne("IT-CAL-3").nom("Test").prenom("User").typeContrat("CDI")
-                .dateEmbauche(LocalDate.now()).actif(true).soldeCongesJours(BigDecimal.valueOf(10)).build());
+    List<HistoriqueSolde> mouvements =
+        historiqueSoldeRepository.findAll().stream()
+            .filter(h -> h.getEmployeId().equals(employe.getId()))
+            .toList();
+    assertThat(mouvements).hasSize(1);
+    assertThat(mouvements.get(0).getMotif()).isEqualTo("RECREDIT_FERIE");
+    assertThat(mouvements.get(0).getDeltaJours()).isEqualByComparingTo("1");
+    assertThat(mouvements.get(0).getSoldeApres()).isEqualByComparingTo("11");
+  }
 
-        LocalDate ferie = LocalDate.now().plusDays(17);
-        indisponibiliteRepository.save(Indisponibilite.builder()
-                .employeId(employe.getId())
-                .typeIndisponibilite("MALADIE")
-                .dateDebut(ferie.minusDays(1))
-                .dateFin(ferie.plusDays(1))
-                .statut("VALIDE")
-                .creeParId(employe.getId())
-                .creeParRole("RH")
+  // Régression /code-review --fix : le recrédit ne doit s'appliquer qu'au congé
+  // payé (CONGE_PAYE), pas à n'importe quel type d'indisponibilité validé —
+  // un arrêt maladie ne doit jamais créditer un jour de congé payé.
+  @Test
+  void creerFerie_surUneMaladieValidee_neRecreditePas() {
+    String token = accessTokenFor(Role.ROLE_RH);
+    Employe employe =
+        employeRepository.save(
+            Employe.builder()
+                .matriculeInterne("IT-CAL-3")
+                .nom("Test")
+                .prenom("User")
+                .typeContrat("CDI")
+                .dateEmbauche(LocalDate.now())
+                .actif(true)
+                .soldeCongesJours(BigDecimal.valueOf(10))
                 .build());
 
-        ResponseEntity<Map> reponse = creerJourFerie(token, ferie, "Férié sur maladie", "FERIE");
-        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    LocalDate ferie = LocalDate.now().plusDays(17);
+    indisponibiliteRepository.save(
+        Indisponibilite.builder()
+            .employeId(employe.getId())
+            .typeIndisponibilite("MALADIE")
+            .dateDebut(ferie.minusDays(1))
+            .dateFin(ferie.plusDays(1))
+            .statut("VALIDE")
+            .creeParId(employe.getId())
+            .creeParRole("RH")
+            .build());
 
-        Employe rechargé = employeRepository.findById(employe.getId()).orElseThrow();
-        assertThat(rechargé.getSoldeCongesJours()).isEqualByComparingTo("10");
-    }
+    ResponseEntity<Map> reponse = creerJourFerie(token, ferie, "Férié sur maladie", "FERIE");
+    assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
-    @Test
-    void creerFermetureCollective_surUnCongeValide_neRecreditePas() {
-        String token = accessTokenFor(Role.ROLE_RH);
-        Employe employe = employeRepository.save(Employe.builder()
-                .matriculeInterne("IT-CAL-2").nom("Test").prenom("User").typeContrat("CDI")
-                .dateEmbauche(LocalDate.now()).actif(true).soldeCongesJours(BigDecimal.valueOf(10)).build());
+    Employe rechargé = employeRepository.findById(employe.getId()).orElseThrow();
+    assertThat(rechargé.getSoldeCongesJours()).isEqualByComparingTo("10");
+  }
 
-        LocalDate fermeture = LocalDate.now().plusDays(16);
-        indisponibiliteRepository.save(Indisponibilite.builder()
-                .employeId(employe.getId())
-                .typeIndisponibilite("CONGE_PAYE")
-                .dateDebut(fermeture.minusDays(1))
-                .dateFin(fermeture.plusDays(1))
-                .statut("VALIDE")
-                .creeParId(employe.getId())
-                .creeParRole("RH")
+  @Test
+  void creerFermetureCollective_surUnCongeValide_neRecreditePas() {
+    String token = accessTokenFor(Role.ROLE_RH);
+    Employe employe =
+        employeRepository.save(
+            Employe.builder()
+                .matriculeInterne("IT-CAL-2")
+                .nom("Test")
+                .prenom("User")
+                .typeContrat("CDI")
+                .dateEmbauche(LocalDate.now())
+                .actif(true)
+                .soldeCongesJours(BigDecimal.valueOf(10))
                 .build());
 
-        ResponseEntity<Map> reponse = creerJourFerie(token, fermeture, "Fermeture usine", "FERMETURE_COLLECTIVE");
-        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    LocalDate fermeture = LocalDate.now().plusDays(16);
+    indisponibiliteRepository.save(
+        Indisponibilite.builder()
+            .employeId(employe.getId())
+            .typeIndisponibilite("CONGE_PAYE")
+            .dateDebut(fermeture.minusDays(1))
+            .dateFin(fermeture.plusDays(1))
+            .statut("VALIDE")
+            .creeParId(employe.getId())
+            .creeParRole("RH")
+            .build());
 
-        Employe rechargé = employeRepository.findById(employe.getId()).orElseThrow();
-        assertThat(rechargé.getSoldeCongesJours()).isEqualByComparingTo("10");
-    }
+    ResponseEntity<Map> reponse =
+        creerJourFerie(token, fermeture, "Fermeture usine", "FERMETURE_COLLECTIVE");
+    assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
-    @Test
-    void importer_avecDateEnDoublon_rollbackTotalAucuneInsertion() {
-        String token = accessTokenFor(Role.ROLE_RH);
-        LocalDate d1 = LocalDate.now().plusDays(60);
-        LocalDate d2 = LocalDate.now().plusDays(61);
+    Employe rechargé = employeRepository.findById(employe.getId()).orElseThrow();
+    assertThat(rechargé.getSoldeCongesJours()).isEqualByComparingTo("10");
+  }
 
-        // d1 existe déjà en base -> l'import complet doit échouer sans rien insérer,
-        // y compris d2 qui elle est valide.
-        creerJourFerie(token, d1, "Existant", "FERIE");
+  @Test
+  void importer_avecDateEnDoublon_rollbackTotalAucuneInsertion() {
+    String token = accessTokenFor(Role.ROLE_RH);
+    LocalDate d1 = LocalDate.now().plusDays(60);
+    LocalDate d2 = LocalDate.now().plusDays(61);
 
-        List<Map<String, Object>> lignes = List.of(
-                Map.of("date", d2.toString(), "libelle", "Nouveau", "type", "FERIE"),
-                Map.of("date", d1.toString(), "libelle", "Doublon", "type", "FERIE"));
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/calendrier/jours-feries/import"), HttpMethod.POST,
-                new HttpEntity<>(lignes, authHeaders(token)), Map.class);
+    // d1 existe déjà en base -> l'import complet doit échouer sans rien insérer,
+    // y compris d2 qui elle est valide.
+    creerJourFerie(token, d1, "Existant", "FERIE");
 
-        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    List<Map<String, Object>> lignes =
+        List.of(
+            Map.of("date", d2.toString(), "libelle", "Nouveau", "type", "FERIE"),
+            Map.of("date", d1.toString(), "libelle", "Doublon", "type", "FERIE"));
+    ResponseEntity<Map> reponse =
+        restTemplate.exchange(
+            baseUrl("/calendrier/jours-feries/import"),
+            HttpMethod.POST,
+            new HttpEntity<>(lignes, authHeaders(token)),
+            Map.class);
 
-        ResponseEntity<Map> liste = restTemplate.exchange(
-                baseUrl("/calendrier/jours-feries?dateDebut=" + d2 + "&dateFin=" + d2), HttpMethod.GET,
-                new HttpEntity<>(authHeaders(token)), Map.class);
-        assertThat((List<?>) liste.getBody().get("content")).isEmpty();
-    }
+    assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 
-    // Régression /code-review --fix : @Valid ne cascade pas sur les éléments
-    // d'un List<T> en @RequestBody — sans la validation manuelle ajoutée dans
-    // le contrôleur, une ligne sans libellé aurait échoué en 409 (contrainte
-    // NOT NULL) au lieu d'un 400 explicite, incohérent avec le POST unitaire.
-    @Test
-    void importer_avecLigneInvalide_estRefuseAvec400() {
-        String token = accessTokenFor(Role.ROLE_RH);
-        LocalDate jour = LocalDate.now().plusDays(90);
+    ResponseEntity<Map> liste =
+        restTemplate.exchange(
+            baseUrl("/calendrier/jours-feries?dateDebut=" + d2 + "&dateFin=" + d2),
+            HttpMethod.GET,
+            new HttpEntity<>(authHeaders(token)),
+            Map.class);
+    assertThat((List<?>) liste.getBody().get("content")).isEmpty();
+  }
 
-        List<Map<String, Object>> lignes = List.of(
-                Map.of("date", jour.toString(), "type", "FERIE"));
-        ResponseEntity<Map> reponse = restTemplate.exchange(baseUrl("/calendrier/jours-feries/import"), HttpMethod.POST,
-                new HttpEntity<>(lignes, authHeaders(token)), Map.class);
+  // Régression /code-review --fix : @Valid ne cascade pas sur les éléments
+  // d'un List<T> en @RequestBody — sans la validation manuelle ajoutée dans
+  // le contrôleur, une ligne sans libellé aurait échoué en 409 (contrainte
+  // NOT NULL) au lieu d'un 400 explicite, incohérent avec le POST unitaire.
+  @Test
+  void importer_avecLigneInvalide_estRefuseAvec400() {
+    String token = accessTokenFor(Role.ROLE_RH);
+    LocalDate jour = LocalDate.now().plusDays(90);
 
-        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    }
+    List<Map<String, Object>> lignes = List.of(Map.of("date", jour.toString(), "type", "FERIE"));
+    ResponseEntity<Map> reponse =
+        restTemplate.exchange(
+            baseUrl("/calendrier/jours-feries/import"),
+            HttpMethod.POST,
+            new HttpEntity<>(lignes, authHeaders(token)),
+            Map.class);
 
-    @Test
-    void create_parManager_estRefuseAvec403() {
-        String token = accessTokenFor(Role.ROLE_MANAGER);
-        ResponseEntity<Map> reponse = creerJourFerie(token, LocalDate.now().plusDays(70), "Test", "FERIE");
-        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-    }
+    assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
 
-    @Test
-    void list_retourneLesFeriesDeLaPeriode() {
-        String token = accessTokenFor(Role.ROLE_RH);
-        LocalDate jour = LocalDate.now().plusDays(80);
-        creerJourFerie(token, jour, "Fête du Travail", "FERIE");
+  @Test
+  void create_parManager_estRefuseAvec403() {
+    String token = accessTokenFor(Role.ROLE_MANAGER);
+    ResponseEntity<Map> reponse =
+        creerJourFerie(token, LocalDate.now().plusDays(70), "Test", "FERIE");
+    assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+  }
 
-        ResponseEntity<Map> reponse = restTemplate.exchange(
-                baseUrl("/calendrier/jours-feries?dateDebut=" + jour.minusDays(1) + "&dateFin=" + jour.plusDays(1)),
-                HttpMethod.GET, new HttpEntity<>(authHeaders(token)), Map.class);
+  @Test
+  void list_retourneLesFeriesDeLaPeriode() {
+    String token = accessTokenFor(Role.ROLE_RH);
+    LocalDate jour = LocalDate.now().plusDays(80);
+    creerJourFerie(token, jour, "Fête du Travail", "FERIE");
 
-        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat((List<?>) reponse.getBody().get("content")).hasSize(1);
-    }
+    ResponseEntity<Map> reponse =
+        restTemplate.exchange(
+            baseUrl(
+                "/calendrier/jours-feries?dateDebut="
+                    + jour.minusDays(1)
+                    + "&dateFin="
+                    + jour.plusDays(1)),
+            HttpMethod.GET,
+            new HttpEntity<>(authHeaders(token)),
+            Map.class);
+
+    assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat((List<?>) reponse.getBody().get("content")).hasSize(1);
+  }
 }

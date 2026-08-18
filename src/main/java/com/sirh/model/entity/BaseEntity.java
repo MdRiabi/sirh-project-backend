@@ -6,14 +6,13 @@ import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreRemove;
 import jakarta.persistence.PreUpdate;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
 
 // Socle commun de toutes les entités JPA (sauf AuditLog, qui doit rester
 // strictement immuable/append-only — cf. CLAUDE.md). `reference` est généré
@@ -27,35 +26,35 @@ import java.util.UUID;
 @Setter
 public abstract class BaseEntity {
 
-    @Column(updatable = false, nullable = false, unique = true)
-    private UUID reference;
+  @Column(updatable = false, nullable = false, unique = true)
+  private UUID reference;
 
-    @CreatedDate
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+  @CreatedDate
+  @Column(name = "created_at", updatable = false)
+  private LocalDateTime createdAt;
 
-    @LastModifiedDate
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+  @LastModifiedDate
+  @Column(name = "updated_at")
+  private LocalDateTime updatedAt;
 
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
+  @Column(name = "deleted_at")
+  private LocalDateTime deletedAt;
 
-    @PrePersist
-    public void onCreate() {
-        if (this.reference == null) {
-            this.reference = UUID.randomUUID();
-        }
-        // createdAt est géré par Spring Auditing (@CreatedDate)
+  @PrePersist
+  public void onCreate() {
+    if (this.reference == null) {
+      this.reference = UUID.randomUUID();
     }
+    // createdAt est géré par Spring Auditing (@CreatedDate)
+  }
 
-    @PreUpdate
-    public void onUpdate() {
-        // Hook préparé pour de futurs traitements (updatedAt est géré par @LastModifiedDate)
-    }
+  @PreUpdate
+  public void onUpdate() {
+    // Hook préparé pour de futurs traitements (updatedAt est géré par @LastModifiedDate)
+  }
 
-    @PreRemove
-    public void onDelete() {
-        this.deletedAt = LocalDateTime.now();
-    }
+  @PreRemove
+  public void onDelete() {
+    this.deletedAt = LocalDateTime.now();
+  }
 }

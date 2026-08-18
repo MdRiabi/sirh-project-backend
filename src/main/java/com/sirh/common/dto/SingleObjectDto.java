@@ -4,7 +4,7 @@ package com.sirh.common.dto;
 // n'a qu'une seule forme à parser (`{ "data": ... }`) quel que soit l'endpoint.
 public record SingleObjectDto<T>(T data) {
 
-    public static <T> SingleObjectDto<T> of(T data) {
-        return new SingleObjectDto<>(data);
-    }
+  public static <T> SingleObjectDto<T> of(T data) {
+    return new SingleObjectDto<>(data);
+  }
 }

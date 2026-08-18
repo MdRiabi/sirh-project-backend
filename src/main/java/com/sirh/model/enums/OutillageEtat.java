@@ -6,9 +6,9 @@ package com.sirh.model.enums;
 // marque en cours de check-out ; USE/CASSE/PERDU reflètent le dernier état
 // déclaré au check-in (cf. OutillageService.appliquerEtatApresCheckIn).
 public enum OutillageEtat {
-    BON_ETAT,
-    ATTRIBUE,
-    USE,
-    CASSE,
-    PERDU
+  BON_ETAT,
+  ATTRIBUE,
+  USE,
+  CASSE,
+  PERDU
 }

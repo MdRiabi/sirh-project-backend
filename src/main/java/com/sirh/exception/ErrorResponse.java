@@ -7,13 +7,8 @@ import java.time.LocalDateTime;
 // client, routage vers un message dédié...), "message" reste la traduction
 // serveur déjà résolue (fallback d'affichage direct).
 public record ErrorResponse(
-        LocalDateTime timestamp,
-        int status,
-        String code,
-        String message,
-        String path
-) {
-    public static ErrorResponse of(int status, String code, String message, String path) {
-        return new ErrorResponse(LocalDateTime.now(), status, code, message, path);
-    }
+    LocalDateTime timestamp, int status, String code, String message, String path) {
+  public static ErrorResponse of(int status, String code, String message, String path) {
+    return new ErrorResponse(LocalDateTime.now(), status, code, message, path);
+  }
 }

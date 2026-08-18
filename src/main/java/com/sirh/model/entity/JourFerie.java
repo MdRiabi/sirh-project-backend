@@ -1,16 +1,15 @@
 package com.sirh.model.entity;
 
+import com.sirh.model.enums.TypeJourFerie;
 import jakarta.persistence.*;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.SQLRestriction;
+import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.time.LocalDate;
-import com.sirh.model.enums.TypeJourFerie;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "jours_feries")
@@ -23,23 +22,22 @@ import com.sirh.model.enums.TypeJourFerie;
 @Builder
 public class JourFerie extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Column(nullable = false)
-    private LocalDate date;
+  @Column(nullable = false)
+  private LocalDate date;
 
-    @Column(nullable = false, length = 100)
-    private String libelle;
+  @Column(nullable = false, length = 100)
+  private String libelle;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private TypeJourFerie type;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 30)
+  private TypeJourFerie type;
 
-    @Builder.Default
-    private Boolean national = true;
+  @Builder.Default private Boolean national = true;
 
-    @Column(length = 50)
-    private String region;
+  @Column(length = 50)
+  private String region;
 }

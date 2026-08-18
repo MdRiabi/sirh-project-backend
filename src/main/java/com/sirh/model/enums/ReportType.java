@@ -4,6 +4,6 @@ package com.sirh.model.enums;
 // annuel)". Catalogue volontairement limité aux deux exemples cités par le
 // CDF (Turnover, absentéisme) — un catalogue plus large serait spéculatif.
 public enum ReportType {
-    TURNOVER_ANNUEL,
-    ABSENTEISME_ANNUEL
+  TURNOVER_ANNUEL,
+  ABSENTEISME_ANNUEL
 }

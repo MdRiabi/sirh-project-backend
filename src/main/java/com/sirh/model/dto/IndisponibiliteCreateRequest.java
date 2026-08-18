@@ -2,7 +2,6 @@ package com.sirh.model.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -11,14 +10,12 @@ import java.util.UUID;
 // rôle que IndisponibiliteValiderRequest.forcer pour le workflow normal en
 // deux temps.
 public record IndisponibiliteCreateRequest(
-        @NotNull UUID employeId,
-        @NotBlank String typeIndisponibilite,
-        @NotNull LocalDate dateDebut,
-        @NotNull LocalDate dateFin,
-        String commentaire,
-        Long pieceJointeId,
-        String avisManagerStatut,
-        String avisManagerCommentaire,
-        Boolean forcer
-) {
-}
+    @NotNull UUID employeId,
+    @NotBlank String typeIndisponibilite,
+    @NotNull LocalDate dateDebut,
+    @NotNull LocalDate dateFin,
+    String commentaire,
+    Long pieceJointeId,
+    String avisManagerStatut,
+    String avisManagerCommentaire,
+    Boolean forcer) {}

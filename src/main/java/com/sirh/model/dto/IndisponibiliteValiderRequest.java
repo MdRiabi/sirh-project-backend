@@ -5,8 +5,4 @@ package com.sirh.model.dto;
 // congé sans solde en cas de refus d'avance (cahier-fonctionnel.md Module 8).
 // forcer : outrepasse un solde insuffisant (déduction quand même, motif
 // FORCAGE_RH tracé dans historique_soldes).
-public record IndisponibiliteValiderRequest(
-        String bascule,
-        Boolean forcer
-) {
-}
+public record IndisponibiliteValiderRequest(String bascule, Boolean forcer) {}

@@ -7,28 +7,28 @@ package com.sirh.exception;
 // point qui a besoin du texte final) via MessageSource, pas ici.
 public abstract class SirhException extends RuntimeException {
 
-    private final ErrorCode errorCode;
-    private final Object[] args;
+  private final ErrorCode errorCode;
+  private final Object[] args;
 
-    protected SirhException(ErrorCode errorCode) {
-        this(errorCode, new Object[0], null);
-    }
+  protected SirhException(ErrorCode errorCode) {
+    this(errorCode, new Object[0], null);
+  }
 
-    protected SirhException(ErrorCode errorCode, Object[] args) {
-        this(errorCode, args, null);
-    }
+  protected SirhException(ErrorCode errorCode, Object[] args) {
+    this(errorCode, args, null);
+  }
 
-    protected SirhException(ErrorCode errorCode, Object[] args, Throwable cause) {
-        super(errorCode.name(), cause);
-        this.errorCode = errorCode;
-        this.args = args != null ? args : new Object[0];
-    }
+  protected SirhException(ErrorCode errorCode, Object[] args, Throwable cause) {
+    super(errorCode.name(), cause);
+    this.errorCode = errorCode;
+    this.args = args != null ? args : new Object[0];
+  }
 
-    public ErrorCode getErrorCode() {
-        return errorCode;
-    }
+  public ErrorCode getErrorCode() {
+    return errorCode;
+  }
 
-    public Object[] getArgs() {
-        return args;
-    }
+  public Object[] getArgs() {
+    return args;
+  }
 }

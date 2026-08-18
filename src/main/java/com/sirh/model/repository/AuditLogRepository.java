@@ -8,5 +8,5 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 // pagination vient gratuitement de JpaRepository/PagingAndSortingRepository,
 // JpaSpecificationExecutor porte les filtres optionnels (action/tableCible/
 // utilisateurId/plage de dates), même pattern que demandes/pointages.
-public interface AuditLogRepository extends JpaRepository<AuditLog, Long>, JpaSpecificationExecutor<AuditLog> {
-}
+public interface AuditLogRepository
+    extends JpaRepository<AuditLog, Long>, JpaSpecificationExecutor<AuditLog> {}

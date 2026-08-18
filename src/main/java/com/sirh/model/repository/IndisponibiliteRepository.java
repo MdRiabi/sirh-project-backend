@@ -1,32 +1,35 @@
 package com.sirh.model.repository;
 
 import com.sirh.model.entity.Indisponibilite;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface IndisponibiliteRepository extends JpaRepository<Indisponibilite, Long>, JpaSpecificationExecutor<Indisponibilite> {
+public interface IndisponibiliteRepository
+    extends JpaRepository<Indisponibilite, Long>, JpaSpecificationExecutor<Indisponibilite> {
 
-    Optional<Indisponibilite> findByReferenceAndDeletedAtIsNull(UUID reference);
+  Optional<Indisponibilite> findByReferenceAndDeletedAtIsNull(UUID reference);
 
-    // Chevauchement avec un congé VALIDE (cahier-fonctionnel.md Module 2) :
-    // indisponibilité.dateDebut <= fin ET indisponibilité.dateFin >= début.
-    List<Indisponibilite> findByEmployeIdAndStatutAndDateDebutLessThanEqualAndDateFinGreaterThanEqualAndDeletedAtIsNull(
-            UUID employeId, String statut, LocalDate dateFin, LocalDate dateDebut);
+  // Chevauchement avec un congé VALIDE (cahier-fonctionnel.md Module 2) :
+  // indisponibilité.dateDebut <= fin ET indisponibilité.dateFin >= début.
+  List<Indisponibilite>
+      findByEmployeIdAndStatutAndDateDebutLessThanEqualAndDateFinGreaterThanEqualAndDeletedAtIsNull(
+          UUID employeId, String statut, LocalDate dateFin, LocalDate dateDebut);
 
-    // Tous employés confondus : congés PAYÉS validés couvrant un jour férié donné
-    // (cahier-fonctionnel.md Module 6 / cahier-technique.md §4.5 : le recrédit ne
-    // s'applique qu'au congé payé, pas aux autres types d'indisponibilité).
-    List<Indisponibilite> findByTypeIndisponibiliteAndStatutAndDateDebutLessThanEqualAndDateFinGreaterThanEqualAndDeletedAtIsNull(
-            String typeIndisponibilite, String statut, LocalDate date, LocalDate sameDate);
+  // Tous employés confondus : congés PAYÉS validés couvrant un jour férié donné
+  // (cahier-fonctionnel.md Module 6 / cahier-technique.md §4.5 : le recrédit ne
+  // s'applique qu'au congé payé, pas aux autres types d'indisponibilité).
+  List<Indisponibilite>
+      findByTypeIndisponibiliteAndStatutAndDateDebutLessThanEqualAndDateFinGreaterThanEqualAndDeletedAtIsNull(
+          String typeIndisponibilite, String statut, LocalDate date, LocalDate sameDate);
 
-    // Contrôle préalable à la clôture de paie (Module 3, com.sirh.assiduite) :
-    // tous employés confondus, même principe de chevauchement que le contrôle
-    // planning (cahier-technique.md §3.9/§4.4).
-    List<Indisponibilite> findByStatutAndDateDebutLessThanEqualAndDateFinGreaterThanEqualAndDeletedAtIsNull(
-            String statut, LocalDate finMois, LocalDate debutMois);
+  // Contrôle préalable à la clôture de paie (Module 3, com.sirh.assiduite) :
+  // tous employés confondus, même principe de chevauchement que le contrôle
+  // planning (cahier-technique.md §3.9/§4.4).
+  List<Indisponibilite>
+      findByStatutAndDateDebutLessThanEqualAndDateFinGreaterThanEqualAndDeletedAtIsNull(
+          String statut, LocalDate finMois, LocalDate debutMois);
 }

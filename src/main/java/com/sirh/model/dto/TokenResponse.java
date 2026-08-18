@@ -1,9 +1,25 @@
 package com.sirh.model.dto;
 
-public record TokenResponse(
-        String accessToken,
-        String refreshToken,
-        long expiresIn,
-        UserSummary user
-) {
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class TokenResponse {
+  @JsonProperty("access_token")
+  private String accessToken;
+
+  @JsonProperty("refresh_token")
+  private String refreshToken;
+
+  @JsonProperty("expires_in")
+  private long expiresIn;
+
+  @JsonProperty("user")
+  private UserSummary user;
 }

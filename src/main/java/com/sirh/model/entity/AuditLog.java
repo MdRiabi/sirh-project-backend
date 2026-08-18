@@ -1,6 +1,7 @@
 package com.sirh.model.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -11,12 +12,10 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.generator.EventType;
 import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDateTime;
-
 /**
- * Immuable : écriture uniquement via AuditAspect, aucune mise à jour/suppression
- * applicative. Lecture réservée SUPERUSER (cf. ARCHITECTURE.md §9) — l'endpoint
- * de consultation arrive en Lot 11.
+ * Immuable : écriture uniquement via AuditAspect, aucune mise à jour/suppression applicative.
+ * Lecture réservée SUPERUSER (cf. ARCHITECTURE.md §9) — l'endpoint de consultation arrive en Lot
+ * 11.
  */
 @Entity
 @Table(name = "audit_logs")
@@ -27,31 +26,31 @@ import java.time.LocalDateTime;
 @Builder
 public class AuditLog {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Column(name = "utilisateur_id")
-    private Long utilisateurId;
+  @Column(name = "utilisateur_id")
+  private Long utilisateurId;
 
-    @Column(nullable = false, length = 100)
-    private String action;
+  @Column(nullable = false, length = 100)
+  private String action;
 
-    @Column(name = "table_cible", nullable = false, length = 50)
-    private String tableCible;
+  @Column(name = "table_cible", nullable = false, length = 50)
+  private String tableCible;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "anciennes_valeurs", columnDefinition = "jsonb")
-    private String anciennesValeurs;
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "anciennes_valeurs", columnDefinition = "jsonb")
+  private String anciennesValeurs;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "nouvelles_valeurs", columnDefinition = "jsonb")
-    private String nouvellesValeurs;
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "nouvelles_valeurs", columnDefinition = "jsonb")
+  private String nouvellesValeurs;
 
-    @Column(name = "adresse_ip", length = 45)
-    private String adresseIp;
+  @Column(name = "adresse_ip", length = 45)
+  private String adresseIp;
 
-    @Generated(event = EventType.INSERT)
-    @Column(name = "created_at", insertable = false, updatable = false)
-    private LocalDateTime createdAt;
+  @Generated(event = EventType.INSERT)
+  @Column(name = "created_at", insertable = false, updatable = false)
+  private LocalDateTime createdAt;
 }

@@ -6,19 +6,19 @@ package com.sirh.exception;
 // serveur par l'appelant, jamais renvoyée au front (pas de stack trace exposée).
 public class TechnicalException extends SirhException {
 
-    public TechnicalException(ErrorCode errorCode) {
-        super(errorCode);
-    }
+  public TechnicalException(ErrorCode errorCode) {
+    super(errorCode);
+  }
 
-    public TechnicalException(ErrorCode errorCode, Object[] args) {
-        super(errorCode, args);
-    }
+  public TechnicalException(ErrorCode errorCode, Object[] args) {
+    super(errorCode, args);
+  }
 
-    public TechnicalException(ErrorCode errorCode, Throwable cause) {
-        super(errorCode, new Object[0], cause);
-    }
+  public TechnicalException(ErrorCode errorCode, Throwable cause) {
+    super(errorCode, new Object[0], cause);
+  }
 
-    public TechnicalException(ErrorCode errorCode, Object[] args, Throwable cause) {
-        super(errorCode, args, cause);
-    }
+  public TechnicalException(ErrorCode errorCode, Object[] args, Throwable cause) {
+    super(errorCode, args, cause);
+  }
 }
