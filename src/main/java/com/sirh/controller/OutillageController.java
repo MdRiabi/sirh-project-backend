@@ -31,7 +31,7 @@ public class OutillageController {
 
   @PostMapping
   @PreAuthorize("hasAuthority('ROLE_MANAGER')")
-  public ResponseEntity<SingleObjectDto<OutillageDto>> creer(
+  public ResponseEntity<SingleObjectDto<OutillageDto>> creerOutillage(
       @Valid @RequestBody OutillageCreateRequest request,
       @AuthenticationPrincipal SirhUserDetails principal) {
     OutillageDto outillage =

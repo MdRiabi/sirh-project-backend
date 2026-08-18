@@ -26,7 +26,7 @@ public class AutorisationController {
 
   @PostMapping
   @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_RH', 'ROLE_SUPERUSER')")
-  public ResponseEntity<SingleObjectDto<AutorisationDto>> creer(
+  public ResponseEntity<SingleObjectDto<AutorisationDto>> creerAutorisation(
       @Valid @RequestBody AutorisationCreateRequest request,
       @AuthenticationPrincipal SirhUserDetails principal) {
     AutorisationDto autorisation =

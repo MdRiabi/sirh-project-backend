@@ -27,7 +27,7 @@ public class EvaluationController {
 
   @PreAuthorize("hasAuthority('ROLE_MANAGER')")
   @PostMapping
-  public ResponseEntity<SingleObjectDto<EvaluationDto>> creer(
+  public ResponseEntity<SingleObjectDto<EvaluationDto>> creerEvaluation(
       @Valid @RequestBody EvaluationCreateRequest request,
       @AuthenticationPrincipal SirhUserDetails principal) {
     EvaluationDto dto =

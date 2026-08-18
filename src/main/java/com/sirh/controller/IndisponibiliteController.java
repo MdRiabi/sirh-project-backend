@@ -27,7 +27,7 @@ public class IndisponibiliteController {
 
   @PostMapping
   @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_RH', 'ROLE_SUPERUSER')")
-  public ResponseEntity<SingleObjectDto<IndisponibiliteDto>> creer(
+  public ResponseEntity<SingleObjectDto<IndisponibiliteDto>> creerIndisponibilite(
       @Valid @RequestBody IndisponibiliteCreateRequest request,
       @AuthenticationPrincipal SirhUserDetails principal) {
     IndisponibiliteDto indisponibilite =

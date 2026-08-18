@@ -33,7 +33,7 @@ public class CalendrierController {
 
   @PostMapping
   @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_SUPERUSER')")
-  public ResponseEntity<SingleObjectDto<JourFerieDto>> create(
+  public ResponseEntity<SingleObjectDto<JourFerieDto>> createJourFerie(
       @Valid @RequestBody JourFerieRequest request) {
     JourFerieDto jourFerie =
         calendrierService.creerJourFerie(

@@ -33,7 +33,7 @@ public class DepartementController {
   }
 
   @PostMapping
-  public ResponseEntity<SingleObjectDto<DepartementDto>> create(
+  public ResponseEntity<SingleObjectDto<DepartementDto>> createDepartement(
       @Valid @RequestBody DepartementRequest request) {
     return ResponseEntity.status(201)
         .body(SingleObjectDto.of(departementService.createDepartement(request)));

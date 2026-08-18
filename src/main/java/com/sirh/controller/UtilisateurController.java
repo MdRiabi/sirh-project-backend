@@ -35,7 +35,7 @@ public class UtilisateurController {
   }
 
   @PostMapping
-  public ResponseEntity<SingleObjectDto<UtilisateurDto>> create(
+  public ResponseEntity<SingleObjectDto<UtilisateurDto>> createUtilisateur(
       @Valid @RequestBody UtilisateurCreateRequest request) {
     String passwordHash = utilisateurService.hashPassword(request.password());
     var utilisateur =
