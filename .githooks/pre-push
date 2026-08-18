@@ -1,0 +1,33 @@
+#!/bin/sh
+# Pre-push hook: auto-fixes formatting (spotless:apply) before push.
+#
+# Installed automatically into .git/hooks/pre-push by git-build-hook-maven-plugin
+# (see pom.xml) on every `mvn` invocation, starting at the `validate` phase —
+# do not edit .git/hooks/pre-push directly, it is regenerated from this file.
+#
+# IMPORTANT: pre-push runs AFTER commits already exist. Rewriting files here
+# cannot change the commits git is about to push — it only touches the
+# working tree. So this hook applies the fix, then checks whether anything
+# changed: if it did, the push is aborted (the commits about to go out are
+# stale relative to the freshly-formatted files) so you can review/commit the
+# fix and push again; if the tree was already clean, the push proceeds.
+
+echo "pre-push: running mvn spotless:apply..."
+mvn -q process-sources -Pspotless-apply
+status=$?
+
+if [ $status -ne 0 ]; then
+    echo ""
+    echo "Push aborted: spotless:apply itself failed (see output above)."
+    exit 1
+fi
+
+if ! git diff --quiet; then
+    echo ""
+    echo "Push aborted: spotless:apply reformatted one or more files."
+    echo "Review the changes, commit them, then push again:"
+    git diff --stat
+    exit 1
+fi
+
+exit 0

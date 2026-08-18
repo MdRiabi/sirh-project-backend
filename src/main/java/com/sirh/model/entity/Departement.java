@@ -29,5 +29,5 @@ public class Departement extends BaseEntity {
   private String nom;
 
   @Column(name = "manager_id")
-  private UUID runnmanagerId;
+  private UUID nmanagerId;
 }
