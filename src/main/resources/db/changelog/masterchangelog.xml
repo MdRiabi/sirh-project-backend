@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- Module Core (Lot 0-3) : référentiel employés/RH, comptes, pointage, planning -->
+    <include file="db/changelog/changes/001-core.xml" relativeToChangelogFile="false"/>
+
+    <!-- Module Paramètres globaux (Lot 4) -->
+    <include file="db/changelog/changes/002-parametres-globaux.xml" relativeToChangelogFile="false"/>
+
+    <!-- Module Assiduité & Paie (Lot 6) : clôture mensuelle, déverrouillage exceptionnel -->
+    <include file="db/changelog/changes/003-assiduite-paie.xml" relativeToChangelogFile="false"/>
+
+    <!-- Données de seed métier (paramètres globaux, shift système, pointeuses dev) -->
+    <include file="db/changelog/changes/004-seed-donnees-metier.xml" relativeToChangelogFile="false"/>
+
+    <!-- Correctifs de schéma idempotents (dérive constatée sur bases locales persistantes) -->
+    <include file="db/changelog/changes/005-corrections-schema.xml" relativeToChangelogFile="false"/>
+
+</databaseChangeLog>

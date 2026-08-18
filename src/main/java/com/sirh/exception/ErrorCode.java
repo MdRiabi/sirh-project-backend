@@ -1,0 +1,103 @@
+package com.sirh.exception;
+
+import org.springframework.http.HttpStatus;
+
+// Une entrée par erreur métier possible de l'API — le nom de la constante est
+// à la fois la clé de traduction dans messages.properties et le champ "code"
+// de ErrorResponse (contrat stable consommé par le frontend, cf. Master Plan
+// de refonte de la gestion des exceptions). Le statut HTTP est porté ici,
+// jamais déduit du type d'exception levée (ResourceNotFoundException/
+// ConflictException/TechnicalException ne sont que des formes, pas des
+// statuts).
+public enum ErrorCode {
+
+  // --- 404 NOT_FOUND ---
+  ASYNC_JOB_NOT_FOUND(HttpStatus.NOT_FOUND),
+  AUTORISATION_NOT_FOUND(HttpStatus.NOT_FOUND),
+  DEMANDE_DEVERROUILLAGE_NOT_FOUND(HttpStatus.NOT_FOUND),
+  DEPARTEMENT_NOT_FOUND(HttpStatus.NOT_FOUND),
+  EMPLOYE_NOT_FOUND(HttpStatus.NOT_FOUND),
+  EMPLOYE_NOT_FOUND_BY_BADGE(HttpStatus.NOT_FOUND),
+  EVALUATION_NOT_FOUND(HttpStatus.NOT_FOUND),
+  FICHIER_NOT_FOUND(HttpStatus.NOT_FOUND),
+  INDISPONIBILITE_NOT_FOUND(HttpStatus.NOT_FOUND),
+  JOUR_FERIE_NOT_FOUND(HttpStatus.NOT_FOUND),
+  NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND),
+  OUTILLAGE_NOT_FOUND(HttpStatus.NOT_FOUND),
+  PARAMETRE_NOT_FOUND(HttpStatus.NOT_FOUND),
+  POINTAGE_NOT_FOUND(HttpStatus.NOT_FOUND),
+  POINTEUSE_NOT_FOUND(HttpStatus.NOT_FOUND),
+  POINTEUSE_NOT_FOUND_BY_IP(HttpStatus.NOT_FOUND),
+  SHIFT_NOT_FOUND(HttpStatus.NOT_FOUND),
+  TACHE_RENOUVELLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND),
+  UTILISATEUR_NOT_FOUND(HttpStatus.NOT_FOUND),
+
+  // --- 409 CONFLICT (règles métier / statut invalide / doublon) ---
+  CLOTURE_TAUX_ANOMALIES_INSUFFISANT(HttpStatus.CONFLICT),
+  CLOTURE_DEMANDES_EN_ATTENTE(HttpStatus.CONFLICT),
+  MOIS_DEJA_CLOTURE(HttpStatus.CONFLICT),
+  DEMANDE_DEVERROUILLAGE_STATUT_INVALIDE(HttpStatus.CONFLICT),
+  DELAI_REGULARISATION_DEPASSE(HttpStatus.CONFLICT),
+  QUOTA_AUTORISATION_DEPASSE(HttpStatus.CONFLICT),
+  AUTORISATION_VALIDATION_STATUT_INVALIDE(HttpStatus.CONFLICT),
+  AUTORISATION_REFUS_STATUT_INVALIDE(HttpStatus.CONFLICT),
+  INDISPONIBILITE_VALIDATION_STATUT_INVALIDE(HttpStatus.CONFLICT),
+  INDISPONIBILITE_REFUS_STATUT_INVALIDE(HttpStatus.CONFLICT),
+  SOLDE_INSUFFISANT(HttpStatus.CONFLICT),
+  EVALUATION_DEJA_EXISTANTE(HttpStatus.CONFLICT),
+  EVALUATION_DEJA_VALIDEE(HttpStatus.CONFLICT),
+  EVALUATION_VALIDATION_STATUT_INVALIDE(HttpStatus.CONFLICT),
+  OUTILLAGE_DEJA_ATTRIBUE(HttpStatus.CONFLICT),
+  OUTILLAGE_NON_ATTRIBUE(HttpStatus.CONFLICT),
+  PLANNING_CHEVAUCHEMENT_DIRECT(HttpStatus.CONFLICT),
+  PLANNING_REPOS_LEGAL_INSUFFISANT(HttpStatus.CONFLICT),
+  PLANNING_CONGE_VALIDE_CHEVAUCHEMENT(HttpStatus.CONFLICT),
+  TACHE_RENOUVELLEMENT_STATUT_INVALIDE(HttpStatus.CONFLICT),
+  REPORT_NOT_READY(HttpStatus.CONFLICT),
+
+  // --- 400 BAD_REQUEST (validation métier) ---
+  MOIS_NON_CLOTURE(HttpStatus.BAD_REQUEST),
+  EVALUATION_INCOMPLETE(HttpStatus.BAD_REQUEST),
+  IMPORT_ENTETE_MANQUANTE(HttpStatus.BAD_REQUEST),
+  IMPORT_COLONNE_MANQUANTE(HttpStatus.BAD_REQUEST),
+  IMPORT_BADGE_ID_MANQUANT(HttpStatus.BAD_REQUEST),
+  IMPORT_MATRICULE_INEXISTANT(HttpStatus.BAD_REQUEST),
+  IMPORT_VALEUR_INVALIDE(HttpStatus.BAD_REQUEST),
+  IMPORT_DATE_HEURE_MANQUANTE(HttpStatus.BAD_REQUEST),
+  IMPORT_DATE_HEURE_INVALIDE(HttpStatus.BAD_REQUEST),
+  IMPORT_FICHIER_TROP_VOLUMINEUX(HttpStatus.BAD_REQUEST),
+  VALIDATION_ERROR(HttpStatus.BAD_REQUEST),
+  BAD_REQUEST(HttpStatus.BAD_REQUEST),
+
+  // --- 401 UNAUTHORIZED (authentification) ---
+  IDENTIFIANTS_INVALIDES(HttpStatus.UNAUTHORIZED),
+  REFRESH_TOKEN_INVALIDE(HttpStatus.UNAUTHORIZED),
+  REFRESH_TOKEN_REVOQUE(HttpStatus.UNAUTHORIZED),
+  TOKEN_UTILISATEUR_INTROUVABLE(HttpStatus.UNAUTHORIZED),
+  COMPTE_DESACTIVE(HttpStatus.UNAUTHORIZED),
+  CHANGEMENT_MDP_UTILISATEUR_INTROUVABLE(HttpStatus.UNAUTHORIZED),
+  MOT_DE_PASSE_ACTUEL_INCORRECT(HttpStatus.UNAUTHORIZED),
+
+  // --- 423 LOCKED ---
+  COMPTE_VERROUILLE(HttpStatus.LOCKED),
+
+  // --- 401 / 403 (filtres Spring Security, hors @RestControllerAdvice) ---
+  NON_AUTHENTIFIE(HttpStatus.UNAUTHORIZED),
+  ACCES_REFUSE(HttpStatus.FORBIDDEN),
+
+  // --- 409 CONFLICT (contrainte base de données) ---
+  DATA_INTEGRITY_VIOLATION(HttpStatus.CONFLICT),
+
+  // --- 500 INTERNAL_SERVER_ERROR (technique / infrastructure) ---
+  SYSTEM_ERROR(HttpStatus.INTERNAL_SERVER_ERROR);
+
+  private final HttpStatus httpStatus;
+
+  ErrorCode(HttpStatus httpStatus) {
+    this.httpStatus = httpStatus;
+  }
+
+  public HttpStatus getHttpStatus() {
+    return httpStatus;
+  }
+}

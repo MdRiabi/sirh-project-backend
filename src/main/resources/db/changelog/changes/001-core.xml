@@ -1,0 +1,713 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- Departement -->
+    <changeSet id="001-01-create-table-departements" author="mohamed riaby">
+        <createTable tableName="departements">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="nom" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="manager_id" type="UUID"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_departements_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Employe (PK UUID généré applicativement, cf. GenerationType.UUID) -->
+    <changeSet id="001-02-create-table-employes" author="mohamed riaby">
+        <createTable tableName="employes">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="matricule_interne" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="matricule_cnss" type="VARCHAR(255)"/>
+            <column name="matricule_paie" type="VARCHAR(255)"/>
+            <column name="nom" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="prenom" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="email" type="VARCHAR(255)"/>
+            <column name="departement_id" type="BIGINT">
+                <constraints nullable="true" foreignKeyName="fk_employes_departement" references="departements(id)"/>
+            </column>
+            <column name="type_contrat" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_embauche" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_fin_contrat" type="DATE"/>
+            <column name="solde_conges_jours" type="DECIMAL"/>
+            <column name="actif" type="BOOLEAN"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_employes_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Contrat -->
+    <changeSet id="001-03-create-table-contrats" author="mohamed riaby">
+        <createTable tableName="contrats">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employe_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_debut" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_fin" type="DATE"/>
+            <column name="statut" type="VARCHAR(20)" defaultValue="EN_COURS">
+                <constraints nullable="false"/>
+            </column>
+            <column name="motif_fin" type="VARCHAR(30)"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_contrats_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Utilisateur (OneToOne vers Employe -> contrainte d'unicité requise sur employe_id) -->
+    <changeSet id="001-04-create-table-utilisateurs" author="mohamed riaby">
+        <createTable tableName="utilisateurs">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employe_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_utilisateurs_employe" references="employes(id)"/>
+            </column>
+            <column name="username" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="password_hash" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="compte_actif" type="BOOLEAN"/>
+            <column name="dernier_login" type="TIMESTAMP"/>
+            <column name="echecs_login_consecutifs" type="INT"/>
+            <column name="verrouille_jusqu_a" type="TIMESTAMP"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_utilisateurs_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- @OneToOne Utilisateur.employe : addUniqueConstraint classique bloquerait la
+         réattribution d'un compte après soft delete (cf. règle BaseEntity, CLAUDE.md)
+         -> index unique partiel (WHERE deleted_at IS NULL) plutôt qu'une contrainte
+         UNIQUE standard ; hors support portable de createIndex, d'où le <sql> brut. -->
+    <changeSet id="001-05-unique-index-utilisateurs-employe-id" author="mohamed riaby">
+        <sql>CREATE UNIQUE INDEX uq_utilisateurs_employe_id ON utilisateurs(employe_id) WHERE deleted_at IS NULL;</sql>
+        <rollback>
+            <sql>DROP INDEX uq_utilisateurs_employe_id;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- Fichier -->
+    <changeSet id="001-06-create-table-fichiers" author="mohamed riaby">
+        <createTable tableName="fichiers">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="nom_original" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="nom_stockage" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="chemin_relatif" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type_mime" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="taille_octets" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="categorie" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entite_type" type="VARCHAR(255)"/>
+            <column name="entite_id" type="BIGINT"/>
+            <column name="uploade_par_id" type="BIGINT"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_fichiers_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- EvenementHistorique -->
+    <changeSet id="001-07-create-table-evenements-360" author="mohamed riaby">
+        <createTable tableName="evenements_360">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employe_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="titre" type="VARCHAR(150)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="categorie" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="statut_badge" type="VARCHAR(20)" defaultValue="INFO"/>
+            <column name="saisi_par_id" type="BIGINT"/>
+            <column name="date_evenement" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_evenements_360_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Pointeuse -->
+    <changeSet id="001-08-create-table-pointeuses" author="mohamed riaby">
+        <createTable tableName="pointeuses">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="nom" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="adresse_ip" type="VARCHAR(45)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="port" type="INT" defaultValueNumeric="80"/>
+            <column name="batiment" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="statut_en_ligne" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="derniere_synchro" type="TIMESTAMP"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_pointeuses_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Shift -->
+    <changeSet id="001-09-create-table-shifts" author="mohamed riaby">
+        <createTable tableName="shifts">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="nom" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type_rotation" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="heure_debut" type="TIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="heure_fin" type="TIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_shifts_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Planning -->
+    <changeSet id="001-10-create-table-plannings" author="mohamed riaby">
+        <createTable tableName="plannings">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employe_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="shift_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_debut" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_fin" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="statut" type="VARCHAR(20)" defaultValue="PROVISOIRE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="commentaire" type="TEXT"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_plannings_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Autorisation -->
+    <changeSet id="001-11-create-table-autorisations" author="mohamed riaby">
+        <createTable tableName="autorisations">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employe_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_autorisation" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="heure_debut" type="TIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="heure_fin" type="TIME"/>
+            <column name="duree_minutes" type="INT"/>
+            <column name="motif" type="TEXT"/>
+            <column name="statut" type="VARCHAR(30)" defaultValue="EN_ATTENTE_RH"/>
+            <column name="cree_par_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cree_par_role" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="avis_manager_statut" type="VARCHAR(20)"/>
+            <column name="avis_manager_commentaire" type="TEXT"/>
+            <column name="valide_par_rh_id" type="UUID"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_autorisations_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- PointageBrut -->
+    <changeSet id="001-12-create-table-pointages-bruts" author="mohamed riaby">
+        <createTable tableName="pointages_bruts">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employe_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="pointeuse_id" type="BIGINT"/>
+            <column name="timestamp_pointage" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type_evenement" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="methode_validation" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_import" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="statut" type="VARCHAR(30)" defaultValue="OK">
+                <constraints nullable="false"/>
+            </column>
+            <column name="autorisation_id" type="BIGINT"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_pointages_bruts_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Indisponibilite -->
+    <changeSet id="001-13-create-table-indisponibilites" author="mohamed riaby">
+        <createTable tableName="indisponibilites">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employe_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type_indisponibilite" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_debut" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_fin" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="statut" type="VARCHAR(30)" defaultValue="EN_ATTENTE_RH"/>
+            <column name="commentaire" type="TEXT"/>
+            <column name="piece_jointe_id" type="BIGINT"/>
+            <column name="cree_par_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cree_par_role" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="avis_manager_statut" type="VARCHAR(20)"/>
+            <column name="avis_manager_commentaire" type="TEXT"/>
+            <column name="valide_par_rh_id" type="UUID"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_indisponibilites_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- HistoriqueSolde -->
+    <changeSet id="001-14-create-table-historique-soldes" author="mohamed riaby">
+        <createTable tableName="historique_soldes">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employe_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_mouvement" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="delta_jours" type="DECIMAL(5,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="solde_apres" type="DECIMAL(5,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="motif" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_type" type="VARCHAR(30)"/>
+            <column name="source_id" type="BIGINT"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_historique_soldes_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Outillage -->
+    <changeSet id="001-15-create-table-outillages" author="mohamed riaby">
+        <createTable tableName="outillages">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code_barres" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="nom_outil" type="VARCHAR(150)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="etat" type="VARCHAR(30)" defaultValue="BON_ETAT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attribue_a_employe_id" type="UUID"/>
+            <column name="date_attribution" type="TIMESTAMP"/>
+            <column name="departement_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="valeur_achat" type="DECIMAL">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_achat" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_outillages_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- OutillageMouvement -->
+    <changeSet id="001-16-create-table-outillage-mouvements" author="mohamed riaby">
+        <createTable tableName="outillage_mouvements">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="outillage_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employe_id" type="UUID"/>
+            <column name="type_mouvement" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="etat" type="VARCHAR(30)"/>
+            <column name="montant_imputation" type="DECIMAL" defaultValueNumeric="0"/>
+            <column name="commentaire" type="TEXT"/>
+            <column name="effectue_par_id" type="BIGINT"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_outillage_mouvements_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- AsyncJob -->
+    <changeSet id="001-17-create-table-async-jobs" author="mohamed riaby">
+        <createTable tableName="async_jobs">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="type" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="nom_fichier" type="VARCHAR(255)"/>
+            <column name="statut" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="progression" type="INT" defaultValueNumeric="0"/>
+            <column name="parametres" type="JSONB"/>
+            <column name="resultat_url" type="VARCHAR(500)"/>
+            <column name="nombre_lignes_traitees" type="INT" defaultValueNumeric="0"/>
+            <column name="ligne_erreur" type="INT"/>
+            <column name="message_erreur" type="TEXT"/>
+            <column name="rapport_erreurs" type="JSONB"/>
+            <column name="execute_par_id" type="BIGINT"/>
+            <column name="completed_at" type="TIMESTAMP"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_async_jobs_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- AuditLog : n'étend pas BaseEntity, append-only, aucun soft delete
+         (cf. CLAUDE.md "Audit"). created_at est renseigné par la base
+         (insertable = false, updatable = false côté entité). -->
+    <changeSet id="001-18-create-table-audit-logs" author="mohamed riaby">
+        <createTable tableName="audit_logs">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="utilisateur_id" type="BIGINT"/>
+            <column name="action" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="table_cible" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="anciennes_valeurs" type="JSONB"/>
+            <column name="nouvelles_valeurs" type="JSONB"/>
+            <column name="adresse_ip" type="VARCHAR(45)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <!-- Notification -->
+    <changeSet id="001-19-create-table-notifications" author="mohamed riaby">
+        <createTable tableName="notifications">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="destinataire_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entite_type" type="VARCHAR(50)"/>
+            <column name="entite_id" type="BIGINT"/>
+            <column name="lue" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_notifications_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- JourFerie -->
+    <changeSet id="001-20-create-table-jours-feries" author="mohamed riaby">
+        <createTable tableName="jours_feries">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="libelle" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="national" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="region" type="VARCHAR(50)"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_jours_feries_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- TacheRenouvellement -->
+    <changeSet id="001-21-create-table-taches-renouvellement" author="mohamed riaby">
+        <createTable tableName="taches_renouvellement">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employe_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="contrat_id" type="BIGINT"/>
+            <column name="type_echeance" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_echeance" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="statut" type="VARCHAR(20)" defaultValue="EN_COURS">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_traitement" type="TIMESTAMP"/>
+            <column name="traite_par_id" type="BIGINT"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_taches_renouvellement_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Evaluation -->
+    <changeSet id="001-22-create-table-evaluations" author="mohamed riaby">
+        <createTable tableName="evaluations">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employe_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="manager_id" type="UUID"/>
+            <column name="annee" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="statut" type="VARCHAR(20)" defaultValue="EN_COURS">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_entretien" type="DATE"/>
+            <column name="date_validation_rh" type="TIMESTAMP"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_evaluations_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- EvaluationCompetence -->
+    <changeSet id="001-23-create-table-evaluation-competences" author="mohamed riaby">
+        <createTable tableName="evaluation_competences">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="evaluation_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="competence" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="note" type="DECIMAL(3,1)"/>
+            <column name="seuil_exigence" type="DECIMAL(3,1)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="commentaire" type="TEXT"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_evaluation_competences_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- PlanDeveloppement -->
+    <changeSet id="001-24-create-table-plans-developpement" author="mohamed riaby">
+        <createTable tableName="plans_developpement">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="evaluation_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="competence" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="actions" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="statut" type="VARCHAR(20)"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_plans_developpement_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Correctif idempotent : sur certains environnements locaux (base
+        Postgres persistante, pas les conteneurs Testcontainers jetables des
+        tests), le changeset 001-06-create-table-fichiers a été marqué "déjà
+        exécuté" par Liquibase avant que la colonne chemin_relatif (Fichier.java)
+        ne soit ajoutée à sa définition — Liquibase ne rejoue jamais un
+        changeset déjà consigné dans databasechangelog, même si le fichier
+        source a changé depuis. Résultat : Hibernate (ddl-auto=validate)
+        refuse de démarrer avec "missing column [chemin_relatif] in table
+        [fichiers]". La precondition rend ce changeset un no-op sur toute base
+        où la colonne existe déjà (Testcontainers, environnements déjà à jour).
+    -->
+    <changeSet id="005-01-fichiers-add-chemin-relatif-si-absente" author="mohamed riaby">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="fichiers" columnName="chemin_relatif"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="fichiers">
+            <column name="chemin_relatif" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- CloturePaie -->
+    <changeSet id="003-01-create-table-cloture-paie" author="mohamed riaby">
+        <createTable tableName="cloture_paie">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="mois" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="statut" type="VARCHAR(20)" defaultValue="OUVERT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_cloture" type="TIMESTAMP"/>
+            <column name="cloture_par_id" type="UUID"/>
+            <column name="taux_anomalies_justifiees" type="DECIMAL(5,2)"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_cloture_paie_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <!-- DemandeDeverrouillage -->
+    <changeSet id="003-02-create-table-demandes-deverrouillage" author="mohamed riaby">
+        <createTable tableName="demandes_deverrouillage">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="mois" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="motif" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="demande_par_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="statut" type="VARCHAR(20)" defaultValue="EN_ATTENTE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="traite_par_id" type="UUID"/>
+            <column name="date_traitement" type="TIMESTAMP"/>
+            <column name="reference" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_demandes_deverrouillage_reference"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>

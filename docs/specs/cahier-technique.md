@@ -4,6 +4,14 @@
 
 **Légende** : 🆕 n'existait pas en v1 · 🔧 existait, corrigé/complété · ✅ repris de v1 sans changement.
 
+## 0.1 ⚠️ Convention JSON des réponses — corrigé le 2026-08-17
+
+**Tous les champs des DTO de réponse (`*Dto`) sont désormais sérialisés en `snake_case`** (ex. `employeId` → `employe_id`, `matriculeCnss` → `matricule_cnss`), via `@JsonProperty` sur des classes mappées par ModelMapper (remplace la génération de records). **Les corps de requête (`*Request`, restés des records) n'ont pas changé et sont toujours en `camelCase`** — le contrat n'est donc plus symétrique entre entrée et sortie.
+
+Ce document (schéma §3, catalogue d'endpoints §4, exemple de claims JWT §2.3) **n'a pas été repassé intégralement** pour refléter ce changement : les noms de champs cités en `camelCase` dans le corps du texte ci-dessous désignent toujours le *concept*/la colonne SQL, mais un exemple de réponse JSON réel utilisera la forme `snake_case` équivalente. Le JWT (§2.3) n'est pas concerné (claims construits indépendamment des DTO). À mettre à jour explicitement si une réécriture complète du catalogue est nécessaire.
+
+**🔴 Synchronisation frontend requise** : `sirh-project-frontend` consomme ce contrat via des types TS générés (openapi-typescript) — la régénération des types et l'adaptation de tout accès direct aux champs de réponse (`response.employeId` → `response.employe_id`, etc.) sont nécessaires côté frontend.
+
 ## 0. Arbitrage confirmé par le métier (§2.3 vs Modules 8/13) — corrigé le 2026-07-29
 
 Confirmé : l'Employé ordinaire **n'a aucun accès applicatif** aux demandes d'autorisations et de congés — les Modules 8 et 13 font foi sur ce point précis (*"aucun accès employé"* / *"saisie réservée au Manager ou au RH"*). La formulation "saisie de ses demandes" en §2.3 se lit en réalité à la lumière du Workflow Nominal du Module 8 : *"L'employé formule sa demande... hors système. Le Manager ou le RH saisit la demande dans l'application."* L'employé formule sa demande **hors du SIRH** (oral, email...) ; seul le Manager ou le RH l'enregistre dans l'application.
@@ -64,6 +72,23 @@ Tout endpoint sécurisé `RH` en v1 reste accessible à `SUPERUSER` (superset), 
 ---
 
 ## 3. Modèle Conceptuel de Données — Schéma PostgreSQL corrigé
+
+### 3.0 Socle commun — `BaseEntity` (2026-08-15, toutes tables sauf `audit_logs`)
+
+Toutes les tables listées en §3.1–§3.26, **à l'exception de `audit_logs`** (§3.17, immuable/append-only), portent désormais 4 colonnes communes ajoutées par `V11__base_entity_audit_soft_delete.sql` et non répétées dans chaque bloc SQL ci-dessous pour éviter la duplication :
+
+```sql
+reference   UUID NOT NULL UNIQUE,   -- généré côté Java à l'instanciation (com.sirh.model.entity.BaseEntity)
+created_at  TIMESTAMP,              -- Spring Data JPA Auditing (@CreatedDate)
+updated_at  TIMESTAMP,              -- Spring Data JPA Auditing (@LastModifiedDate)
+deleted_at  TIMESTAMP               -- soft delete (@SQLDelete + @SQLRestriction), NULL = actif
+```
+
+Règles pour tout nouveau développement :
+
+- Toute nouvelle entité JPA **doit** `extends BaseEntity` (`com.sirh.model.entity.BaseEntity`), sauf table d'audit immuable de type `audit_logs`.
+- Toute nouvelle contrainte `UNIQUE` **doit** être un index partiel `WHERE deleted_at IS NULL` (`CREATE UNIQUE INDEX ... ON table(colonne) WHERE deleted_at IS NULL`), jamais une contrainte `UNIQUE` classique — une valeur doit redevenir disponible après soft delete de la ligne qui la portait. Les contraintes historiques (`matricule_interne`, `email`, `username`, `code_barres`, etc.) ont été migrées sous cette forme en V11.
+- Toute méthode de lecture Spring Data (`findBy...`, `findAllBy...`, `existsBy...`, `countBy...`) doit expliciter `AndDeletedAtIsNull` dans son nom. Les requêtes natives (`@Query(nativeQuery = true)`) doivent ajouter `AND deleted_at IS NULL` manuellement.
 
 ### 3.1 `departements` — 🔧 `manager_id` en UUID (cascade §3.2)
 ```sql

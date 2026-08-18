@@ -100,7 +100,7 @@ graph LR
     Audit -.->|"AOP @Around"| Fichiers
 ```
 
-Chaque package correspond à un module fonctionnel du CDF (§2.3) et embarque son propre `entity/repository/service/controller/dto`. `audit` n'est pas un module métier mais une **coupe transversale** (aspect Spring AOP) qui intercepte les actions sensibles listées en §9.
+Chaque bloc correspond à un module fonctionnel du CDF (§2.3) : ce découpage reste la référence logique/métier, mais le code source est organisé physiquement par couche technique (`controller/service/model{entity,dto,repository,enums}/...` à la racine de `com.sirh`, cf. `CLAUDE.md`), pas par domaine. `audit` n'est pas un module métier mais une **coupe transversale** (aspect Spring AOP) qui intercepte les actions sensibles listées en §9.
 
 ---
 

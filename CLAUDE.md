@@ -1,6 +1,6 @@
 # SIRH Backend — Instructions
 
-API REST du SIRH (Système d'Information RH) : Spring Boot 3 / Java 21 / PostgreSQL / Redis. Ce repo est la moitié **backend** d'une architecture multi-repo — le frontend vit dans `sirh-project-frontend` (dépôt séparé, cloné en dossier frère sous le même parent). Aucun code frontend ici.
+API REST du SIRH (Système d'Information RH) : Spring Boot 3 / Java 21 / PostgreSQL / Redis. Ce repo est la moitié **backend** d'une architecture multi-repo — le frontend vit dans `sirh-project-frontend` (dépôt séparé), cloné localement en `C:\Users\MedRyaby\Desktop\workespace\sirh-project-frontend` (pas en dossier frère de ce repo). Aucun code frontend ici.
 
 ## Documents de référence (dans cet ordre de priorité)
 
@@ -41,21 +41,28 @@ Comme le reste de `docs/`, ce fichier existe en double dans les deux dépôts (c
 
 ## Stack & structure
 
-- Spring Boot 3.3.x, Java 21, Maven, PostgreSQL 16, Redis 7 (cache dashboard + blacklist JWT uniquement — pas de file de jobs, cf. `ARCHITECTURE.md` §7), Flyway pour les migrations (`src/main/resources/db/migration/`, jamais de modification d'un script déjà appliqué — toujours un nouveau `Vn+1`).
-- `spring.jpa.hibernate.ddl-auto: validate` — Flyway possède le schéma, Hibernate ne fait que le valider. Ne jamais passer en `update`/`create`.
-- Packages organisés par domaine métier (voir `ARCHITECTURE.md` §3 ou `ls src/main/java/com/sirh/`).
+- Spring Boot 3.3.x, Java 21, Maven, PostgreSQL 16, Redis 7 (cache dashboard + blacklist JWT uniquement — pas de file de jobs, cf. `ARCHITECTURE.md` §7), Liquibase pour les migrations (`src/main/resources/db/changelog/`, changelog maître `masterchangelog.xml` qui inclut par ordre les fichiers numérotés de `changes/` ; jamais de modification d'un changeset déjà appliqué — toujours un nouveau changeset dans un nouveau fichier `NNN-nom.xml`, cf. `004-seed-donnees-metier.xml` pour le dernier en date).
+- `spring.jpa.hibernate.ddl-auto: validate` — Liquibase possède le schéma, Hibernate ne fait que le valider. Ne jamais passer en `update`/`create`.
+- Packages organisés par couche technique (`controller`, `service`, `model` [`entity`, `dto`, `repository`, `enums`], `exception`, `security`, `scheduler`, `config`, `annotation`, `aspect`, `event`, `listener` — `ls src/main/java/com/sirh/`) ; les modules fonctionnels du CDF (§2.3) restent visibles dans `ARCHITECTURE.md` §3 comme découpage logique, sans correspondance 1:1 avec les packages physiques.
 - Aspect Spring AOP (`@Audited`) pour la journalisation des actions sensibles — voir `ARCHITECTURE.md` §9 pour la liste des actions à couvrir.
+
+## BaseEntity, soft delete & audit (toutes entités sauf `audit_logs`)
+
+- Toute nouvelle entité JPA **doit** `extends BaseEntity` (`com.sirh.model.entity.BaseEntity`) — hérite `reference` (UUID), `createdAt`/`updatedAt` (Spring Data JPA Auditing) et `deletedAt`. Seule exception : les tables d'audit immuables (`AuditLog`/`audit_logs`), qui ne doivent jamais être soft-deletables (cf. règle « Audit » ci-dessus).
+- Toute entité `extends BaseEntity` porte `@SQLDelete(sql = "UPDATE <table> SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")` + `@SQLRestriction("deleted_at IS NULL")`.
+- Toute nouvelle contrainte `UNIQUE` en base **doit** être un index partiel `WHERE deleted_at IS NULL`, jamais une contrainte `UNIQUE` classique — sinon une valeur reste bloquée après soft delete de la ligne qui la portait. Exemple : `CREATE UNIQUE INDEX idx_x_y ON x(y) WHERE deleted_at IS NULL;`.
+- Toute méthode de lecture d'une interface Repository Spring Data (`findBy...`, `findAllBy...`, `existsBy...`, `countBy...`) doit expliciter `AndDeletedAtIsNull` dans son nom (ex. `findByReference` → `findByReferenceAndDeletedAtIsNull`), même si `@SQLRestriction` filtre déjà automatiquement — exigence de lisibilité/défense en profondeur. Pour les `@Query(nativeQuery = true)`, ajouter manuellement `AND deleted_at IS NULL` dans le SQL natif (`@SQLRestriction` ne s'applique pas au SQL natif). Exception inévitable : les méthodes qui *surchargent* un contrat `JpaRepository` (ex. `getUtilisateurByReference`) gardent leur nom imposé — la protection vient alors uniquement de `@SQLRestriction`.
 
 ## Données de dev
 
-`V2__seed_dev.sql` (Flyway) crée un compte `SUPERUSER` de test : username `admin` / mot de passe `ChangeMe123!`. Ne jamais appliquer cette migration en production.
+`004-seed-donnees-metier.xml` (Liquibase) seed les paramètres métier (`parametres_globaux`), le shift système et les pointeuses de test — restauré depuis les anciennes migrations Flyway `V4`/`V5`/`V6`/`V7`/`V8`/`V9` lors de l'investigation d'une régression de tests (2026-08-18), perdues sans remplacement lors du passage à Liquibase. ⚠️ Le compte `SUPERUSER` de test (`admin` / `ChangeMe123!`, ex-`V2__seed_dev.sql`) n'a lui **pas** été restauré — gap encore ouvert, à traiter avant de compter dessus pour un premier login manuel (`mvn spring-boot:run`).
 
 ## Commandes
 
 - `mvn clean test` — tests unitaires + intégration
 - `mvn spring-boot:run` — démarrage local (nécessite Postgres/Redis actifs, `docker compose up postgres redis` depuis ce repo)
 - `mvn package` — build du jar
-- `docker compose up --build` — pile complète (Postgres + Redis + backend + frontend, suppose `sirh-project-frontend` cloné en frère)
+- `docker compose up --build` — pile complète (Postgres + Redis + backend + frontend). ⚠️ `docker-compose.yml` référence `../sirh-project-frontend` (dossier frère) pour le build context du service frontend — chemin désormais faux puisque le clone réel est `C:\Users\MedRyaby\Desktop\workespace\sirh-project-frontend` ; adapter `docker-compose.yml` (ou recloner en frère) avant d'utiliser cette commande.
 
 ## Conventions
 
