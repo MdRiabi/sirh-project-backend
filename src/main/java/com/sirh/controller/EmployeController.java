@@ -63,6 +63,6 @@ public class EmployeController {
   public ResponseEntity<SingleObjectDto<Map<String, String>>> revealMatriculeCnss(
       @PathVariable UUID id) {
     return ResponseEntity.ok(
-        SingleObjectDto.of(Map.of("matriculeCnss", employeService.revealMatriculeCnss(id))));
+        SingleObjectDto.of(Map.of("matricule_cnss", employeService.revealMatriculeCnss(id))));
   }
 }
