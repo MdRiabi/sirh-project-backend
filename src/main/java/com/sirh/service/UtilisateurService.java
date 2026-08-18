@@ -99,6 +99,11 @@ public class UtilisateurService {
   }
 
   private UtilisateurDto toDto(Utilisateur utilisateur) {
-    return modelMapper.map(utilisateur, UtilisateurDto.class);
+    UtilisateurDto dto = modelMapper.map(utilisateur, UtilisateurDto.class);
+    // ModelMapper recopie Utilisateur.employe -> UtilisateurDto.employe en clair
+    // (mapping imbriqué automatique), sans repasser par le masquage CNSS
+    // d'EmployeService.toDto() : on le réapplique explicitement ici.
+    dto.getEmploye().setMatriculeCnss(EmployeService.maskCnss(dto.getEmploye().getMatriculeCnss()));
+    return dto;
   }
 }

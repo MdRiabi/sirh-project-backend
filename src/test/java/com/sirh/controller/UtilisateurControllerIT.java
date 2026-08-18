@@ -7,6 +7,7 @@ import com.sirh.model.dto.LoginRequest;
 import com.sirh.model.dto.TokenResponse;
 import com.sirh.model.entity.Employe;
 import com.sirh.model.enums.Role;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -129,6 +130,65 @@ class UtilisateurControllerIT extends AbstractIntegrationTest {
             new LoginRequest(fixture.username(), FIXTURE_PASSWORD),
             String.class);
     assertThat(login.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+  }
+
+  @Test
+  void listing_masqueLeMatriculeCnssDeLEmployeImbrique() {
+    String rhToken = accessTokenFor(Role.ROLE_RH);
+    HttpHeaders headers = authHeaders(rhToken);
+
+    Map<String, Object> employeBody =
+        Map.of(
+            "matriculeInterne", "MAT-" + UUID.randomUUID(),
+            "matriculeCnss", "CNSS-1234-5678",
+            "nom", "Dupont",
+            "prenom", "Jean",
+            "typeContrat", "CDI",
+            "dateEmbauche", LocalDate.now().toString());
+    ResponseEntity<Map<String, Object>> employeCreated =
+        restTemplate.exchange(
+            baseUrl("/employes"),
+            HttpMethod.POST,
+            new HttpEntity<>(employeBody, headers),
+            new ParameterizedTypeReference<>() {});
+    @SuppressWarnings("unchecked")
+    String employeId =
+        (String) ((Map<String, Object>) employeCreated.getBody().get("data")).get("id");
+
+    String username = "cnss-" + UUID.randomUUID();
+    Map<String, Object> utilisateurBody =
+        Map.of(
+            "employeId",
+            employeId,
+            "username",
+            username,
+            "password",
+            "MonMotDePasse1!",
+            "role",
+            "ROLE_MANAGER");
+    restTemplate.exchange(
+        baseUrl("/utilisateurs"),
+        HttpMethod.POST,
+        new HttpEntity<>(utilisateurBody, headers),
+        new ParameterizedTypeReference<Map<String, Object>>() {});
+
+    ResponseEntity<Map<String, Object>> list =
+        restTemplate.exchange(
+            baseUrl("/utilisateurs"),
+            HttpMethod.GET,
+            new HttpEntity<>(headers),
+            new ParameterizedTypeReference<>() {});
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> content = (List<Map<String, Object>>) list.getBody().get("content");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> employeNested =
+        (Map<String, Object>)
+            content.stream()
+                .filter(u -> username.equals(u.get("username")))
+                .findFirst()
+                .orElseThrow()
+                .get("employe");
+    assertThat(employeNested.get("matricule_cnss")).isEqualTo("***-**-5678");
   }
 
   private UUID findUtilisateurReference(String rhToken, String username) {

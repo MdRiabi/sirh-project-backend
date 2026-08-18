@@ -150,7 +150,11 @@ public class EmployeService {
 
   // Masquage partiel par défaut (ARCHITECTURE.md §10) : "***-**-1234".
   // Affichage complet réservé à GET /employes/{id}/matricule-cnss.
-  private static String maskCnss(String raw) {
+  // Visibilité package (pas private) : réutilisé par UtilisateurService, dont le
+  // mapping ModelMapper de Utilisateur.employe -> UtilisateurDto.employe recopie
+  // sinon le matricule CNSS en clair (STRICT mappe la relation imbriquée sans
+  // repasser par ce masquage).
+  static String maskCnss(String raw) {
     if (raw == null) {
       return null;
     }
