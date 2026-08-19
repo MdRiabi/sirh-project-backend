@@ -20,4 +20,7 @@
     <!-- Correctifs de schéma idempotents (dérive constatée sur bases locales persistantes) -->
     <include file="db/changelog/changes/005-corrections-schema.xml" relativeToChangelogFile="false"/>
 
+    <!-- Compte SUPERUSER de test (dev/intégration locale uniquement) -->
+    <include file="db/changelog/changes/006-seed-superuser-dev.xml" relativeToChangelogFile="false"/>
+
 </databaseChangeLog>
