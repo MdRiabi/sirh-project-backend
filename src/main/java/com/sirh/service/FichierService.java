@@ -1,82 +1,96 @@
 package com.sirh.service;
 
 import com.sirh.annotation.Audited;
+import com.sirh.client.FileStorageClient;
+import com.sirh.client.FileStorageUploadRequest;
+import com.sirh.exception.ConflictException;
 import com.sirh.exception.ErrorCode;
 import com.sirh.exception.ResourceNotFoundException;
-import com.sirh.exception.TechnicalException;
+import com.sirh.model.dto.FichierDemandeUploadRequest;
+import com.sirh.model.dto.FichierDownloadUrlDto;
 import com.sirh.model.dto.FichierDto;
+import com.sirh.model.dto.FichierUploadUrlDto;
 import com.sirh.model.entity.Fichier;
 import com.sirh.model.enums.EntiteType;
 import com.sirh.model.enums.FichierCategorie;
+import com.sirh.model.enums.FichierStatut;
 import com.sirh.model.repository.FichierRepository;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import feign.FeignException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import org.modelmapper.ModelMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class FichierService {
 
-  private static final Logger log = LoggerFactory.getLogger(FichierService.class);
-
   private final FichierRepository fichierRepository;
-  private final Path storageRoot;
+  private final FileStorageClient fileStorageClient;
   private final ModelMapper modelMapper;
+  private final String bucketDocumentsRh;
+  private final String bucketUploads;
 
   public FichierService(
       FichierRepository fichierRepository,
-      @Value("${storage.path}") String storagePath,
-      ModelMapper modelMapper) {
+      FileStorageClient fileStorageClient,
+      ModelMapper modelMapper,
+      @Value("${storage.buckets.documents-rh}") String bucketDocumentsRh,
+      @Value("${storage.buckets.uploads}") String bucketUploads) {
     this.fichierRepository = fichierRepository;
-    this.storageRoot = Path.of(storagePath).toAbsolutePath().normalize();
+    this.fileStorageClient = fileStorageClient;
     this.modelMapper = modelMapper;
+    this.bucketDocumentsRh = bucketDocumentsRh;
+    this.bucketUploads = bucketUploads;
   }
 
   @Transactional
-  public FichierDto upload(
-      MultipartFile file,
-      FichierCategorie categorie,
-      EntiteType entiteType,
-      Long entiteId,
-      Long uploadeParId) {
-    String extension = extractExtension(file.getOriginalFilename());
-    String nomStockage = UUID.randomUUID() + extension;
-    String cheminRelatif = categorie.name().toLowerCase() + "/" + nomStockage;
-
-    Path destination = storageRoot.resolve(cheminRelatif).normalize();
-    try {
-      Files.createDirectories(destination.getParent());
-      file.transferTo(destination);
-    } catch (IOException e) {
-      log.error("Échec de l'écriture du fichier sur le stockage.", e);
-      throw new TechnicalException(ErrorCode.SYSTEM_ERROR, e);
-    }
+  public FichierUploadUrlDto demanderUpload(
+      FichierDemandeUploadRequest request, Long uploadeParId) {
+    String bucket = resoudreBucket(request.categorie());
+    var uploadUrl =
+        fileStorageClient.demanderUpload(new FileStorageUploadRequest(bucket, request.typeMime()));
 
     Fichier fichier =
         Fichier.builder()
-            .nomOriginal(file.getOriginalFilename())
-            .nomStockage(nomStockage)
-            .cheminRelatif(cheminRelatif)
-            .typeMime(
-                file.getContentType() != null ? file.getContentType() : "application/octet-stream")
-            .tailleOctets(file.getSize())
-            .categorie(categorie)
-            .entiteType(entiteType)
-            .entiteId(entiteId)
+            .nomOriginal(request.nomOriginal())
+            .nomStockage(uploadUrl.key())
+            .fichierExterneId(uploadUrl.id())
+            .typeMime(request.typeMime())
+            .tailleOctets(request.tailleOctets())
+            .categorie(request.categorie())
+            .statut(FichierStatut.EN_ATTENTE)
+            .entiteType(request.entiteType())
+            .entiteId(request.entiteId())
             .uploadeParId(uploadeParId)
             .build();
+    fichier = fichierRepository.save(fichier);
 
-    return toDto(fichierRepository.save(fichier));
+    FichierUploadUrlDto dto = new FichierUploadUrlDto();
+    dto.setReference(fichier.getReference());
+    dto.setUploadUrl(uploadUrl.uploadUrl());
+    dto.setExpiresAt(LocalDateTime.ofInstant(uploadUrl.expiresAt(), ZoneId.systemDefault()));
+    return dto;
+  }
+
+  @Transactional
+  public FichierDto confirmerUpload(UUID reference) {
+    Fichier fichier = getFichierByReference(reference);
+    if (fichier.getStatut() != FichierStatut.DISPONIBLE) {
+      String bucket = resoudreBucket(fichier.getCategorie());
+      try {
+        var metadata = fileStorageClient.confirmer(fichier.getFichierExterneId(), bucket);
+        fichier.setTailleOctets(metadata.sizeBytes());
+        fichier.setStatut(FichierStatut.DISPONIBLE);
+      } catch (FeignException.NotFound e) {
+        fichier.setStatut(FichierStatut.ECHEC);
+      }
+      fichier = fichierRepository.save(fichier);
+    }
+    return toDto(fichier);
   }
 
   @Transactional(readOnly = true)
@@ -90,13 +104,19 @@ public class FichierService {
   }
 
   @Transactional(readOnly = true)
-  public Resource loadAsResource(Fichier fichier) {
-    Path path = storageRoot.resolve(fichier.getCheminRelatif()).normalize();
-    if (!path.startsWith(storageRoot) || !Files.exists(path)) {
-      throw new ResourceNotFoundException(
-          ErrorCode.FICHIER_NOT_FOUND, new Object[] {fichier.getReference()});
+  public FichierDownloadUrlDto genererUrlTelechargement(UUID reference) {
+    Fichier fichier = getFichierByReference(reference);
+    if (fichier.getStatut() != FichierStatut.DISPONIBLE) {
+      throw new ConflictException(
+          ErrorCode.FICHIER_INDISPONIBLE, new Object[] {fichier.getStatut()});
     }
-    return new FileSystemResource(path);
+    String bucket = resoudreBucket(fichier.getCategorie());
+    var url = fileStorageClient.genererUrlTelechargement(fichier.getFichierExterneId(), bucket);
+
+    FichierDownloadUrlDto dto = new FichierDownloadUrlDto();
+    dto.setUrl(url.downloadUrl());
+    dto.setExpiresAt(LocalDateTime.ofInstant(url.expiresAt(), ZoneId.systemDefault()));
+    return dto;
   }
 
   @Transactional(readOnly = true)
@@ -112,26 +132,18 @@ public class FichierService {
   @Transactional
   public void deleteFichierByReference(UUID reference) {
     Fichier fichier = getFichierByReference(reference);
-    Path path = storageRoot.resolve(fichier.getCheminRelatif()).normalize();
-    try {
-      Files.deleteIfExists(path);
-    } catch (IOException e) {
-      log.error("Échec de la suppression du fichier sur le stockage.", e);
-      throw new TechnicalException(ErrorCode.SYSTEM_ERROR, e);
-    }
     fichier.onDelete();
     fichierRepository.save(fichier);
   }
 
-  private FichierDto toDto(Fichier fichier) {
-    return modelMapper.map(fichier, FichierDto.class);
+  private String resoudreBucket(FichierCategorie categorie) {
+    return switch (categorie) {
+      case CONTRAT, DIPLOME, CIN, JUSTIFICATIF, BULLETIN_PAIE -> bucketDocumentsRh;
+      case AVATAR, PIECE_JOINTE -> bucketUploads;
+    };
   }
 
-  private String extractExtension(String originalFilename) {
-    if (originalFilename == null) {
-      return "";
-    }
-    int dotIndex = originalFilename.lastIndexOf('.');
-    return dotIndex >= 0 ? originalFilename.substring(dotIndex) : "";
+  private FichierDto toDto(Fichier fichier) {
+    return modelMapper.map(fichier, FichierDto.class);
   }
 }

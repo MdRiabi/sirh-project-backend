@@ -26,6 +26,16 @@ jwt:
 
 storage:
   path: ${STORAGE_PATH:./storage}
+  buckets:
+    documents-rh: ${STORAGE_S3_BUCKET_DOCUMENTS_RH:sirh-documents-rh}
+    uploads: ${STORAGE_S3_BUCKET_UPLOADS:sirh-uploads}
+
+# Client du service technique s3-file-system (repo séparé), consommé via
+# FileStorageClient (Feign) — cf. docs/LOTS/LOT_12_FICHIERS_CLOUD.md.
+filestorage:
+  api:
+    url: ${FILESTORAGE_API_URL:http://localhost:8081}
+    key: ${FILESTORAGE_API_KEY:change-me-in-production}
 
 management:
   endpoints:

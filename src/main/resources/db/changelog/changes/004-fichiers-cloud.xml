@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- Pivot du module fichiers vers un stockage objet S3-compatible (Floci
+         en dev) : chemin_relatif (montage réseau local) devient objet_cle
+         (clé S3, même sémantique/format) ; bucket et statut sont nouveaux
+         (flux upload en 2 temps via URL pré-signée). -->
+    <changeSet id="004-01-alter-fichiers-storage" author="mohamed riaby">
+        <renameColumn tableName="fichiers" oldColumnName="chemin_relatif" newColumnName="objet_cle"/>
+        <addColumn tableName="fichiers">
+            <column name="bucket" type="VARCHAR(100)"/>
+            <column name="statut" type="VARCHAR(20)" defaultValue="DISPONIBLE">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <!-- backfill des lignes déjà présentes (V2 seed dev) avant de poser le NOT NULL -->
+        <update tableName="fichiers">
+            <column name="bucket" value="sirh-documents-rh"/>
+        </update>
+        <addNotNullConstraint tableName="fichiers" columnName="bucket" columnDataType="VARCHAR(100)"/>
+    </changeSet>
+
+</databaseChangeLog>

@@ -3,6 +3,7 @@ package com.sirh.model.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sirh.model.enums.EntiteType;
 import com.sirh.model.enums.FichierCategorie;
+import com.sirh.model.enums.FichierStatut;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -29,6 +30,9 @@ public class FichierDto {
 
   @JsonProperty("categorie")
   private FichierCategorie categorie;
+
+  @JsonProperty("statut")
+  private FichierStatut statut;
 
   @JsonProperty("entite_type")
   private EntiteType entiteType;

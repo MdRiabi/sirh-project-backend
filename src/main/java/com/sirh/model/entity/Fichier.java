@@ -2,6 +2,7 @@ package com.sirh.model.entity;
 
 import com.sirh.model.enums.EntiteType;
 import com.sirh.model.enums.FichierCategorie;
+import com.sirh.model.enums.FichierStatut;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -32,8 +33,12 @@ public class Fichier extends BaseEntity {
   @Column(name = "nom_stockage", nullable = false)
   private String nomStockage;
 
-  @Column(name = "chemin_relatif", nullable = false)
-  private String cheminRelatif;
+  // Id technique renvoyé par le service s3-file-system (repo séparé) —
+  // bucket/clé objet ne sont plus connus du SIRH, internes à ce service.
+  // Nullable : absent tant que demanderUpload() n'a pas été appelé avec
+  // succès (jamais le cas en pratique, la ligne est créée avec en même temps).
+  @Column(name = "fichier_externe_id")
+  private String fichierExterneId;
 
   @Column(name = "type_mime", nullable = false)
   private String typeMime;
@@ -44,6 +49,10 @@ public class Fichier extends BaseEntity {
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private FichierCategorie categorie;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private FichierStatut statut;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "entite_type")

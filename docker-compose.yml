@@ -44,6 +44,13 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-too-in-production}
       SERVER_PORT: 8080
       STORAGE_PATH: /app/storage
+      STORAGE_S3_BUCKET_DOCUMENTS_RH: sirh-documents-rh
+      STORAGE_S3_BUCKET_UPLOADS: sirh-uploads
+      # Le service de stockage objet (s3-file-system) vit désormais dans un
+      # repo/docker-compose séparé — pas de valeur par défaut inventée ici,
+      # pointer vers où il tourne réellement (cf. son propre README).
+      FILESTORAGE_API_URL: ${FILESTORAGE_API_URL:?Variable FILESTORAGE_API_URL requise (URL du service s3-file-system)}
+      FILESTORAGE_API_KEY: ${FILESTORAGE_API_KEY:?Variable FILESTORAGE_API_KEY requise (doit correspondre à SERVICE_API_KEY du service s3-file-system)}
     volumes:
       - ./storage:/app/storage
     depends_on:

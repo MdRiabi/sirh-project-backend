@@ -23,7 +23,7 @@
         Ne jamais dupliquer ce jeu de données en production (mot de passe
         connu, publié dans CLAUDE.md).
     -->
-    <changeSet id="006-01-seed-superuser-dev" author="mohamed riaby">
+    <changeSet id="007-01-seed-superuser-dev" author="mohamed riaby">
         <insert tableName="employes">
             <column name="id" value="f8390381-432e-4131-b640-47d830f18cd8"/>
             <column name="matricule_interne" value="SU-0001"/>

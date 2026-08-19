@@ -41,6 +41,8 @@ docker compose up --build -d
 
 Guide complet (prérequis, variables d'environnement, dépannage) : **[`DEPLOIEMENT.md`](DEPLOIEMENT.md)**.
 
+Documentation API (Swagger UI) une fois l'application démarrée : [`http://localhost:8080/swagger-ui.html`](http://localhost:8080/swagger-ui.html).
+
 ## Documentation
 
 | Document | Contenu |
