@@ -20,7 +20,23 @@
              sur Windows (réponse /info tronquée en 400, npipe et TCP) — reste
              sur la branche 1.x pour éviter la rupture d'API de 2.0. -->
     <testcontainers.version>1.21.4</testcontainers.version>
+    <!-- Dernière version du train Spring Cloud 2023.0.x (Leyton), le seul
+         encore compatible avec Spring Boot 3.3.x (vérifié sur Maven Central
+         et via github.com/spring-cloud/spring-cloud-release/wiki/Supported-Versions
+         — les trains 2024.0+/2025.0+ visent Spring Boot 3.4.x/3.5.x). -->
+    <spring-cloud.version>2023.0.5</spring-cloud.version>
   </properties>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-dependencies</artifactId>
+        <version>${spring-cloud.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
   <dependencies>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -105,6 +121,14 @@
       <version>3.2.6</version>
     </dependency>
 
+    <!-- Client HTTP vers le service technique s3-file-system (stockage objet,
+         désormais un projet séparé, cf. docs/LOTS/LOT_12_FICHIERS_CLOUD.md) —
+         version gérée par le BOM spring-cloud-dependencies importé ci-dessus. -->
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-openfeign</artifactId>
+    </dependency>
+
     <!-- Excel import (Module 1 - pointages) et export (Module 7 - reporting) -->
     <dependency>
       <groupId>org.apache.poi</groupId>
@@ -140,6 +164,10 @@
       <artifactId>postgresql</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Pas de module Testcontainers Java dédié publié pour Floci (vérifié sur
+         Maven Central, aucune coordonnée io.floci/org.floci/com.floci) :
+         GenericContainer("floci/floci:latest") suffit, même approche que
+         REDIS dans AbstractIntegrationTest (pas de module dédié non plus). -->
   </dependencies>
   <build>
     <plugins>

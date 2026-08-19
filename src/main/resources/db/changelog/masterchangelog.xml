@@ -14,10 +14,17 @@
     <!-- Module Assiduité & Paie (Lot 6) : clôture mensuelle, déverrouillage exceptionnel -->
     <include file="db/changelog/changes/003-assiduite-paie.xml" relativeToChangelogFile="false"/>
 
+    <!-- Module Fichiers Cloud : pivot du module fichiers vers un stockage objet S3-compatible -->
+    <include file="db/changelog/changes/004-fichiers-cloud.xml" relativeToChangelogFile="false"/>
+
     <!-- Données de seed métier (paramètres globaux, shift système, pointeuses dev) -->
     <include file="db/changelog/changes/004-seed-donnees-metier.xml" relativeToChangelogFile="false"/>
 
     <!-- Correctifs de schéma idempotents (dérive constatée sur bases locales persistantes) -->
     <include file="db/changelog/changes/005-corrections-schema.xml" relativeToChangelogFile="false"/>
+
+    <!-- Stockage objet extrait vers le service séparé s3-file-system : le SIRH
+         ne garde que l'id technique renvoyé par ce service -->
+    <include file="db/changelog/changes/006-fichiers-externe.xml" relativeToChangelogFile="false"/>
 
 </databaseChangeLog>
