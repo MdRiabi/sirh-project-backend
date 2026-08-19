@@ -27,4 +27,7 @@
          ne garde que l'id technique renvoyé par ce service -->
     <include file="db/changelog/changes/006-fichiers-externe.xml" relativeToChangelogFile="false"/>
 
+    <!-- Compte SUPERUSER de test (dev/intégration locale uniquement) -->
+    <include file="db/changelog/changes/007-seed-superuser-dev.xml" relativeToChangelogFile="false"/>
+
 </databaseChangeLog>

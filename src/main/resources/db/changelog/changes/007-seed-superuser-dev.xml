@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Compte SUPERUSER de test pour environnement de dev/intégration locale
+        (ex-V2__seed_dev.sql Flyway, jamais repris lors du passage à
+        Liquibase — cf. CLAUDE.md, gap signalé). Sans lui, aucun premier login
+        n'est possible : la création d'utilisateurs est RH/SUPERUSER-only,
+        problème de l'œuf et de la poule. Identifiants : admin / ChangeMe123!
+        (BCrypt strength 10, généré hors ligne avec
+        org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder,
+        vérifié par matches() avant d'être collé ici).
+
+        employes.id/utilisateurs.employe_id sont des littéraux UUID fixes
+        (pas gen_random_uuid()) : les deux inserts doivent référencer
+        exactement le même UUID, ce que gen_random_uuid() ne garantit pas
+        entre deux appels séparés.
+
+        Ne jamais dupliquer ce jeu de données en production (mot de passe
+        connu, publié dans CLAUDE.md).
+    -->
+    <changeSet id="007-01-seed-superuser-dev" author="mohamed riaby">
+        <insert tableName="employes">
+            <column name="id" value="f8390381-432e-4131-b640-47d830f18cd8"/>
+            <column name="matricule_interne" value="SU-0001"/>
+            <column name="nom" value="Super"/>
+            <column name="prenom" value="User"/>
+            <column name="type_contrat" value="CDI"/>
+            <column name="date_embauche" valueDate="2026-01-01"/>
+            <column name="actif" valueBoolean="true"/>
+            <column name="reference" value="2af13f9f-1cff-4634-adfb-f5bc9e12ab21"/>
+        </insert>
+        <insert tableName="utilisateurs">
+            <column name="employe_id" value="f8390381-432e-4131-b640-47d830f18cd8"/>
+            <column name="username" value="admin"/>
+            <column name="password_hash" value="$2a$10$kqzYDqRFtCX8LAyT8K0mJeLIIsEyIAzuPRbeiFL7IHzkbXJ/kzmP6"/>
+            <column name="role" value="ROLE_SUPERUSER"/>
+            <column name="compte_actif" valueBoolean="true"/>
+            <column name="echecs_login_consecutifs" valueNumeric="0"/>
+            <column name="reference" value="5befadf7-f9bb-47aa-b614-fbb9359c0671"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>
