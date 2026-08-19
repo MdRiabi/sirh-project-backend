@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- Le stockage objet (module fichiers) devient un service séparé
+         (s3-file-system, repo dédié), sans état côté SIRH : le SIRH ne
+         connaît plus bucket/objet_cle (détails techniques désormais
+         internes à ce service), seulement l'id technique qu'il renvoie.
+         Chaque colonne est droppée sous précondition (onFail=MARK_RAN) par
+         cohérence avec 005-corrections-schema.xml : certains environnements
+         locaux ont dérivé de l'historique attendu (cf. son commentaire), donc
+         ce changeset ne doit pas casser une base où une colonne est déjà
+         absente. -->
+    <changeSet id="006-01-fichiers-drop-bucket" author="mohamed riaby">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="fichiers" columnName="bucket"/>
+        </preConditions>
+        <dropColumn tableName="fichiers" columnName="bucket"/>
+    </changeSet>
+
+    <changeSet id="006-02-fichiers-drop-objet-cle" author="mohamed riaby">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="fichiers" columnName="objet_cle"/>
+        </preConditions>
+        <dropColumn tableName="fichiers" columnName="objet_cle"/>
+    </changeSet>
+
+    <!-- chemin_relatif : colonne pré-S3 (montage disque local), redevenue
+         orpheline avec le pivot 004 puis ré-ajoutée par erreur sur certains
+         environnements par 005-corrections-schema.xml (precondition basée
+         sur son absence, qui devient vraie une fois 004 appliqué) — jamais
+         utilisée par le code depuis 004, nettoyage définitif ici. -->
+    <changeSet id="006-03-fichiers-drop-chemin-relatif" author="mohamed riaby">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="fichiers" columnName="chemin_relatif"/>
+        </preConditions>
+        <dropColumn tableName="fichiers" columnName="chemin_relatif"/>
+    </changeSet>
+
+    <changeSet id="006-04-fichiers-add-fichier-externe-id" author="mohamed riaby">
+        <addColumn tableName="fichiers">
+            <!-- Nullable : pas de backfill fiable possible, les objets
+                 stockés en dev via Floci (SIRH) ne sont pas repris par
+                 s3-file-system (dev/environnements de test uniquement). -->
+            <column name="fichier_externe_id" type="VARCHAR(64)"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

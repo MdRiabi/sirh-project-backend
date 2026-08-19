@@ -1,8 +1,16 @@
 package com.sirh.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 import com.sirh.AbstractIntegrationTest;
+import com.sirh.client.FileStorageClient;
+import com.sirh.client.FileStorageDownloadUrl;
+import com.sirh.client.FileStorageMetadata;
+import com.sirh.client.FileStorageUploadRequest;
+import com.sirh.client.FileStorageUploadUrl;
 import com.sirh.common.dto.SingleObjectDto;
 import com.sirh.model.dto.FichierDemandeUploadRequest;
 import com.sirh.model.dto.FichierDownloadUrlDto;
@@ -11,61 +19,43 @@ import com.sirh.model.dto.FichierUploadUrlDto;
 import com.sirh.model.enums.FichierCategorie;
 import com.sirh.model.enums.FichierStatut;
 import com.sirh.model.enums.Role;
-import java.net.URI;
+import java.time.Instant;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.utility.DockerImageName;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.S3Configuration;
-import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 
-// Aucun module Testcontainers Java dédié n'est publié pour Floci (vérifié sur
-// Maven Central en implémentant ce lot) : GenericContainer suffit, même
-// approche que POSTGRES/REDIS dans AbstractIntegrationTest.
+// FileStorageClient (Feign, vers le service séparé s3-file-system) est mocké
+// : ce test couvre la logique propre au SIRH (RBAC, statuts, 409 avant
+// confirmation), pas le stockage objet réel — désormais testé côté
+// s3-file-system/FileControllerIT contre un vrai conteneur Floci.
 class FichierControllerIT extends AbstractIntegrationTest {
 
-  private static final String BUCKET_DOCUMENTS_RH = "sirh-documents-rh";
-  private static final String BUCKET_UPLOADS = "sirh-uploads";
+  private static final String FAKE_UPLOAD_URL = "http://fake-storage.test/upload";
+  private static final String FAKE_DOWNLOAD_URL = "http://fake-storage.test/download";
 
-  static final GenericContainer<?> FLOCI;
+  @MockBean private FileStorageClient fileStorageClient;
 
-  static {
-    FLOCI =
-        new GenericContainer<>(DockerImageName.parse("floci/floci:latest")).withExposedPorts(4566);
-    FLOCI.start();
-  }
-
-  @DynamicPropertySource
-  static void registerFlociProperties(DynamicPropertyRegistry registry) {
-    registry.add("storage.s3.endpoint", FichierControllerIT::flociEndpoint);
-    registry.add("storage.s3.public-endpoint", FichierControllerIT::flociEndpoint);
-  }
-
-  private static String flociEndpoint() {
-    return "http://" + FLOCI.getHost() + ":" + FLOCI.getMappedPort(4566);
-  }
-
-  @BeforeAll
-  static void creerLesBuckets() {
-    S3Client s3Client =
-        S3Client.builder()
-            .endpointOverride(URI.create(flociEndpoint()))
-            .region(Region.US_EAST_1)
-            .credentialsProvider(
-                StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
-            .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
-            .build();
-    s3Client.createBucket(CreateBucketRequest.builder().bucket(BUCKET_DOCUMENTS_RH).build());
-    s3Client.createBucket(CreateBucketRequest.builder().bucket(BUCKET_UPLOADS).build());
+  @BeforeEach
+  void stubFileStorageClient() {
+    when(fileStorageClient.demanderUpload(any(FileStorageUploadRequest.class)))
+        .thenAnswer(
+            invocation -> {
+              String id = UUID.randomUUID().toString();
+              FileStorageUploadRequest request = invocation.getArgument(0);
+              return new FileStorageUploadUrl(
+                  id, request.bucket(), id, FAKE_UPLOAD_URL, Instant.now().plusSeconds(900));
+            });
+    when(fileStorageClient.confirmer(anyString(), anyString()))
+        .thenReturn(
+            new FileStorageMetadata(
+                "peu-importe", "peu-importe", "text/plain", 15L, Instant.now(), "CONFIRMED"));
+    when(fileStorageClient.genererUrlTelechargement(anyString(), anyString()))
+        .thenReturn(
+            new FileStorageDownloadUrl(
+                "peu-importe", FAKE_DOWNLOAD_URL, Instant.now().plusSeconds(300)));
   }
 
   private String accessTokenFor(Role role) {
@@ -89,15 +79,6 @@ class FichierControllerIT extends AbstractIntegrationTest {
         .data();
   }
 
-  private void deposerSurUrlPresignee(String uploadUrl, byte[] contenu) {
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.TEXT_PLAIN);
-    ResponseEntity<Void> response =
-        restTemplate.exchange(
-            uploadUrl, HttpMethod.PUT, new HttpEntity<>(contenu, headers), Void.class);
-    assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-  }
-
   private FichierDto confirmer(String accessToken, UUID reference) {
     HttpHeaders headers = new HttpHeaders();
     headers.setBearerAuth(accessToken);
@@ -112,9 +93,7 @@ class FichierControllerIT extends AbstractIntegrationTest {
   }
 
   private UUID uploaderEtConfirmerFichierDeTest(String accessToken) {
-    byte[] contenu = "contenu de test".getBytes();
     FichierUploadUrlDto demande = demanderUpload(accessToken, FichierCategorie.JUSTIFICATIF);
-    deposerSurUrlPresignee(demande.getUploadUrl(), contenu);
     FichierDto fichier = confirmer(accessToken, demande.getReference());
     assertThat(fichier.getStatut()).isEqualTo(FichierStatut.DISPONIBLE);
     return demande.getReference();
@@ -123,10 +102,10 @@ class FichierControllerIT extends AbstractIntegrationTest {
   @Test
   void demandeUpload_puisConfirmation_puisTelechargement_fonctionneDeBoutEnBout() {
     String accessToken = accessTokenFor(Role.ROLE_RH);
-    byte[] contenu = "contenu de test".getBytes();
 
     FichierUploadUrlDto demande = demanderUpload(accessToken, FichierCategorie.JUSTIFICATIF);
-    deposerSurUrlPresignee(demande.getUploadUrl(), contenu);
+    assertThat(demande.getUploadUrl()).isEqualTo(FAKE_UPLOAD_URL);
+
     FichierDto fichier = confirmer(accessToken, demande.getReference());
     assertThat(fichier.getStatut()).isEqualTo(FichierStatut.DISPONIBLE);
 
@@ -141,11 +120,7 @@ class FichierControllerIT extends AbstractIntegrationTest {
                 new ParameterizedTypeReference<SingleObjectDto<FichierDownloadUrlDto>>() {})
             .getBody()
             .data();
-
-    ResponseEntity<byte[]> downloadResponse =
-        restTemplate.exchange(downloadUrl.getUrl(), HttpMethod.GET, null, byte[].class);
-    assertThat(downloadResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(downloadResponse.getBody()).isEqualTo(contenu);
+    assertThat(downloadUrl.getUrl()).isEqualTo(FAKE_DOWNLOAD_URL);
   }
 
   @Test

@@ -20,14 +20,18 @@
              sur Windows (réponse /info tronquée en 400, npipe et TCP) — reste
              sur la branche 1.x pour éviter la rupture d'API de 2.0. -->
     <testcontainers.version>1.21.4</testcontainers.version>
-    <awssdk.version>2.28.11</awssdk.version>
+    <!-- Dernière version du train Spring Cloud 2023.0.x (Leyton), le seul
+         encore compatible avec Spring Boot 3.3.x (vérifié sur Maven Central
+         et via github.com/spring-cloud/spring-cloud-release/wiki/Supported-Versions
+         — les trains 2024.0+/2025.0+ visent Spring Boot 3.4.x/3.5.x). -->
+    <spring-cloud.version>2023.0.5</spring-cloud.version>
   </properties>
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>software.amazon.awssdk</groupId>
-        <artifactId>bom</artifactId>
-        <version>${awssdk.version}</version>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-dependencies</artifactId>
+        <version>${spring-cloud.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -117,16 +121,13 @@
       <version>3.2.6</version>
     </dependency>
 
-    <!-- Stockage objet (module fichiers) : port StoragePort / adapter S3StorageAdapter,
-         un seul adapter concret servant contre Floci (dev) et un vrai AWS (prod, non
-         exécuté) — seule la config d'endpoint change. -->
+    <!-- Client HTTP vers le service technique s3-file-system (stockage objet,
+         désormais un projet séparé, cf. docs/LOTS/LOT_12_FICHIERS_CLOUD.md) —
+         version gérée par le BOM spring-cloud-dependencies importé ci-dessus. -->
     <dependency>
-      <groupId>software.amazon.awssdk</groupId>
-      <artifactId>s3</artifactId>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-openfeign</artifactId>
     </dependency>
-    <!-- S3Presigner vit dans le jar s3 lui-même (package
-         software.amazon.awssdk.services.s3.presigner) — pas de module Maven
-         "s3-presigner" séparé, contrairement à d'autres services AWS. -->
 
     <!-- Excel import (Module 1 - pointages) et export (Module 7 - reporting) -->
     <dependency>

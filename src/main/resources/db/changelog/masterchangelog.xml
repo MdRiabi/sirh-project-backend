@@ -23,4 +23,8 @@
     <!-- Correctifs de schéma idempotents (dérive constatée sur bases locales persistantes) -->
     <include file="db/changelog/changes/005-corrections-schema.xml" relativeToChangelogFile="false"/>
 
+    <!-- Stockage objet extrait vers le service séparé s3-file-system : le SIRH
+         ne garde que l'id technique renvoyé par ce service -->
+    <include file="db/changelog/changes/006-fichiers-externe.xml" relativeToChangelogFile="false"/>
+
 </databaseChangeLog>

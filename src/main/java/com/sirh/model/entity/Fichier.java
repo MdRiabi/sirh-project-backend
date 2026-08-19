@@ -33,11 +33,12 @@ public class Fichier extends BaseEntity {
   @Column(name = "nom_stockage", nullable = false)
   private String nomStockage;
 
-  @Column(name = "objet_cle", nullable = false)
-  private String objetCle;
-
-  @Column(name = "bucket", nullable = false)
-  private String bucket;
+  // Id technique renvoyé par le service s3-file-system (repo séparé) —
+  // bucket/clé objet ne sont plus connus du SIRH, internes à ce service.
+  // Nullable : absent tant que demanderUpload() n'a pas été appelé avec
+  // succès (jamais le cas en pratique, la ligne est créée avec en même temps).
+  @Column(name = "fichier_externe_id")
+  private String fichierExterneId;
 
   @Column(name = "type_mime", nullable = false)
   private String typeMime;

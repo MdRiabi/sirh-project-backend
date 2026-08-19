@@ -32,7 +32,7 @@ graph TD
     L0 --> L12["Lot 12 — Fichiers Cloud"]
 ```
 
-**Lecture** : Lot 0 et Lot 1 sont un préalable strict à tout le reste. Au-delà, les lots 2 à 10 sont largement parallélisables entre eux (peu de dépendances croisées, sauf Lot 6 qui agrège Pointages+Planning+Calendrier+Congés, et Lot 8 qui a besoin du workflow de Lot 5). Lot 11 est le dernier car il consomme les données de presque tous les autres modules. **Lot 12** n'appartient pas au découpage initial des 13 modules du CDF — c'est un pivot ultérieur (2026-08-18) du module `fichiers` posé au Lot 0, sans dépendance vers les lots 1-11.
+**Lecture** : Lot 0 et Lot 1 sont un préalable strict à tout le reste. Au-delà, les lots 2 à 10 sont largement parallélisables entre eux (peu de dépendances croisées, sauf Lot 6 qui agrège Pointages+Planning+Calendrier+Congés, et Lot 8 qui a besoin du workflow de Lot 5). Lot 11 est le dernier car il consomme les données de presque tous les autres modules. **Lot 12** n'appartient pas au découpage initial des 13 modules du CDF — c'est un pivot ultérieur (2026-08-18) du module `fichiers` posé au Lot 0, sans dépendance vers les lots 1-11, lui-même suivi d'une extraction du stockage objet en repo séparé (2026-08-19, cf. `docs/LOTS/LOT_12_FICHIERS_CLOUD.md`).
 
 ---
 
@@ -175,9 +175,11 @@ graph TD
 
 **Dépendances** : Lot 0 (module `fichiers` posé initialement sur stockage local).
 
-Hors périmètre des 13 modules du CDF initial — pivot du module `fichiers` du Lot 0 vers un stockage objet S3-compatible (arbitrage utilisateur explicite du 2026-08-18, cf. `cahier-technique.md` §1.2/§3.15/§4.2 et `ARCHITECTURE.md` §8).
+Hors périmètre des 13 modules du CDF initial — pivot du module `fichiers` du Lot 0 vers un stockage objet S3-compatible (arbitrage utilisateur explicite du 2026-08-18, cf. `cahier-technique.md` §1.2/§3.15/§4.2 et `ARCHITECTURE.md` §8), **puis extraction de ce stockage objet en service séparé** `s3-file-system` (repo dédié, arbitrage utilisateur du 2026-08-19) : le SIRH ne garde que la métadonnée métier et consomme le nouveau service via un client Feign.
 
-**Backend** : architecture hexagonale (`StoragePort`/`S3StorageAdapter`, AWS SDK v2) servie par Floci en dev/CI ; deux buckets (`sirh-documents-rh` versionné, `sirh-uploads`) ; flux d'upload/download 100% en URLs pré-signées (`POST /fichiers/demande-upload`, `POST /fichiers/{reference}/confirmer`, `GET /fichiers/{reference}/download-url`) — **change le contrat de `POST /fichiers/upload` et `GET /fichiers/{reference}/download`, non rétrocompatible**.
+**Backend SIRH** : `com.sirh.client.FileStorageClient` (Spring Cloud OpenFeign, BOM `spring-cloud-dependencies:2023.0.5`) consomme le contrat REST de `s3-file-system` ; plus de `StoragePort`/`S3StorageAdapter`/AWS SDK direct côté SIRH. Deux buckets logiques toujours résolus depuis `FichierCategorie` (`sirh-documents-rh` versionné, `sirh-uploads`) mais refournis à chaque appel Feign (service cible sans état). Flux d'upload/download 100% en URLs pré-signées, contrat HTTP SIRH inchangé (`POST /fichiers/demande-upload`, `POST /fichiers/{reference}/confirmer`, `GET /fichiers/{reference}/download-url`) — **change toujours le contrat de `POST /fichiers/upload` et `GET /fichiers/{reference}/download` d'origine (Lot 0), non rétrocompatible**.
+
+**Nouveau repo `s3-file-system`** : service technique indépendant (aucune notion métier RH), architecture hexagonale `StoragePort`/`S3StorageAdapter` reprise du Lot 12 d'origine, sans base de données (tout dérivé de Floci/S3), authentification inter-services par clé d'API. Son propre `docker-compose.yml`, ses propres tests d'intégration contre un vrai conteneur Floci.
 
 **Frontend** : 🔴 non traité dans ce lot — le contrat d'upload/download change de forme (multipart → 2 requêtes JSON + PUT/GET direct sur URL pré-signée), tout code frontend consommant `/fichiers/upload` ou `/fichiers/{reference}/download` doit être adapté en conséquence.
 

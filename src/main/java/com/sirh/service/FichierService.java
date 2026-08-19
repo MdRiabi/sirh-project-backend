@@ -1,6 +1,8 @@
 package com.sirh.service;
 
 import com.sirh.annotation.Audited;
+import com.sirh.client.FileStorageClient;
+import com.sirh.client.FileStorageUploadRequest;
 import com.sirh.exception.ConflictException;
 import com.sirh.exception.ErrorCode;
 import com.sirh.exception.ResourceNotFoundException;
@@ -13,10 +15,10 @@ import com.sirh.model.enums.EntiteType;
 import com.sirh.model.enums.FichierCategorie;
 import com.sirh.model.enums.FichierStatut;
 import com.sirh.model.repository.FichierRepository;
-import java.time.Duration;
+import feign.FeignException;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,43 +29,36 @@ import org.springframework.transaction.annotation.Transactional;
 public class FichierService {
 
   private final FichierRepository fichierRepository;
-  private final StoragePort storagePort;
+  private final FileStorageClient fileStorageClient;
   private final ModelMapper modelMapper;
   private final String bucketDocumentsRh;
   private final String bucketUploads;
-  private final Duration dureeValiditeUpload;
-  private final Duration dureeValiditeDownload;
 
   public FichierService(
       FichierRepository fichierRepository,
-      StoragePort storagePort,
+      FileStorageClient fileStorageClient,
       ModelMapper modelMapper,
-      @Value("${storage.s3.buckets.documents-rh}") String bucketDocumentsRh,
-      @Value("${storage.s3.buckets.uploads}") String bucketUploads,
-      @Value("${storage.s3.presigned-upload-ttl-minutes}") long uploadTtlMinutes,
-      @Value("${storage.s3.presigned-download-ttl-minutes}") long downloadTtlMinutes) {
+      @Value("${storage.buckets.documents-rh}") String bucketDocumentsRh,
+      @Value("${storage.buckets.uploads}") String bucketUploads) {
     this.fichierRepository = fichierRepository;
-    this.storagePort = storagePort;
+    this.fileStorageClient = fileStorageClient;
     this.modelMapper = modelMapper;
     this.bucketDocumentsRh = bucketDocumentsRh;
     this.bucketUploads = bucketUploads;
-    this.dureeValiditeUpload = Duration.ofMinutes(uploadTtlMinutes);
-    this.dureeValiditeDownload = Duration.ofMinutes(downloadTtlMinutes);
   }
 
   @Transactional
   public FichierUploadUrlDto demanderUpload(
       FichierDemandeUploadRequest request, Long uploadeParId) {
     String bucket = resoudreBucket(request.categorie());
-    String extension = extraireExtension(request.nomOriginal());
-    String cle = request.categorie().name().toLowerCase() + "/" + UUID.randomUUID() + extension;
+    var uploadUrl =
+        fileStorageClient.demanderUpload(new FileStorageUploadRequest(bucket, request.typeMime()));
 
     Fichier fichier =
         Fichier.builder()
             .nomOriginal(request.nomOriginal())
-            .nomStockage(cle.substring(cle.lastIndexOf('/') + 1))
-            .objetCle(cle)
-            .bucket(bucket)
+            .nomStockage(uploadUrl.key())
+            .fichierExterneId(uploadUrl.id())
             .typeMime(request.typeMime())
             .tailleOctets(request.tailleOctets())
             .categorie(request.categorie())
@@ -74,13 +69,10 @@ public class FichierService {
             .build();
     fichier = fichierRepository.save(fichier);
 
-    var uploadUrl =
-        storagePort.creerUrlUploadPresignee(bucket, cle, request.typeMime(), dureeValiditeUpload);
-
     FichierUploadUrlDto dto = new FichierUploadUrlDto();
     dto.setReference(fichier.getReference());
-    dto.setUploadUrl(uploadUrl.toString());
-    dto.setExpiresAt(LocalDateTime.now().plus(dureeValiditeUpload));
+    dto.setUploadUrl(uploadUrl.uploadUrl());
+    dto.setExpiresAt(LocalDateTime.ofInstant(uploadUrl.expiresAt(), ZoneId.systemDefault()));
     return dto;
   }
 
@@ -88,12 +80,12 @@ public class FichierService {
   public FichierDto confirmerUpload(UUID reference) {
     Fichier fichier = getFichierByReference(reference);
     if (fichier.getStatut() != FichierStatut.DISPONIBLE) {
-      Optional<Long> tailleReelle =
-          storagePort.tailleObjet(fichier.getBucket(), fichier.getObjetCle());
-      if (tailleReelle.isPresent()) {
-        fichier.setTailleOctets(tailleReelle.get());
+      String bucket = resoudreBucket(fichier.getCategorie());
+      try {
+        var metadata = fileStorageClient.confirmer(fichier.getFichierExterneId(), bucket);
+        fichier.setTailleOctets(metadata.sizeBytes());
         fichier.setStatut(FichierStatut.DISPONIBLE);
-      } else {
+      } catch (FeignException.NotFound e) {
         fichier.setStatut(FichierStatut.ECHEC);
       }
       fichier = fichierRepository.save(fichier);
@@ -118,13 +110,12 @@ public class FichierService {
       throw new ConflictException(
           ErrorCode.FICHIER_INDISPONIBLE, new Object[] {fichier.getStatut()});
     }
-    var url =
-        storagePort.creerUrlTelechargementPresignee(
-            fichier.getBucket(), fichier.getObjetCle(), dureeValiditeDownload);
+    String bucket = resoudreBucket(fichier.getCategorie());
+    var url = fileStorageClient.genererUrlTelechargement(fichier.getFichierExterneId(), bucket);
 
     FichierDownloadUrlDto dto = new FichierDownloadUrlDto();
-    dto.setUrl(url.toString());
-    dto.setExpiresAt(LocalDateTime.now().plus(dureeValiditeDownload));
+    dto.setUrl(url.downloadUrl());
+    dto.setExpiresAt(LocalDateTime.ofInstant(url.expiresAt(), ZoneId.systemDefault()));
     return dto;
   }
 
@@ -154,13 +145,5 @@ public class FichierService {
 
   private FichierDto toDto(Fichier fichier) {
     return modelMapper.map(fichier, FichierDto.class);
-  }
-
-  private String extraireExtension(String nomOriginal) {
-    if (nomOriginal == null) {
-      return "";
-    }
-    int dotIndex = nomOriginal.lastIndexOf('.');
-    return dotIndex >= 0 ? nomOriginal.substring(dotIndex) : "";
   }
 }
