@@ -6,7 +6,7 @@ WORKDIR /workspace
 COPY pom.xml .
 RUN mvn -q -B dependency:go-offline
 COPY src ./src
-RUN mvn -q -B -DskipTests package
+RUN mvn -q -B -DskipTests -Dgitbuildhook.install.skip=true package
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
